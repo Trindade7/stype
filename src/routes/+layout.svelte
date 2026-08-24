@@ -12,7 +12,9 @@
 		Moon02Icon, 
 		MonitorIcon,
 		Book01Icon,
-		Settings02Icon
+		Settings02Icon,
+		Time02Icon,
+		Chart01Icon
 	} from '@hugeicons/core-free-icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Badge } from '$lib/components/ui/badge';
@@ -63,6 +65,12 @@
 						<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
 						Session active
 					</Badge>
+					<a href="/history" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+						History
+					</a>
+					<a href="/stats" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+						Stats
+					</a>
 					<a href="/passages" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
 						Passages
 					</a>
@@ -111,6 +119,18 @@
 								<span class="truncate">Logged in as {data.user.username}</span>
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
+							<DropdownMenu.Item class="w-full cursor-pointer p-0">
+								<a href="/history" class="w-full flex items-center px-2 py-1.5">
+									<HugeiconsIcon icon={Time02Icon} size={16} class="mr-2" />
+									History
+								</a>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item class="w-full cursor-pointer p-0">
+								<a href="/stats" class="w-full flex items-center px-2 py-1.5">
+									<HugeiconsIcon icon={Chart01Icon} size={16} class="mr-2" />
+									Stats
+								</a>
+							</DropdownMenu.Item>
 							<DropdownMenu.Item class="w-full cursor-pointer p-0">
 								<a href="/passages" class="w-full flex items-center px-2 py-1.5">
 									<HugeiconsIcon icon={Book01Icon} size={16} class="mr-2" />

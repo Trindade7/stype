@@ -18,7 +18,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		typeof data.correctChars !== 'number' ||
 		typeof data.incorrectChars !== 'number' ||
 		typeof data.extraChars !== 'number' ||
-		typeof data.missedChars !== 'number'
+		typeof data.missedChars !== 'number' ||
+		(data.mode !== undefined && data.mode !== 'passage' && data.mode !== 'timed')
 	) {
 		return json({ error: 'Invalid payload' }, { status: 400 });
 	}
@@ -46,6 +47,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			.values({
 				userId: locals.user.id,
 				passageId: data.passageId,
+				mode: data.mode ?? 'passage',
+				duration: data.duration ?? null,
 				wpm: data.wpm,
 				accuracy: data.accuracy,
 				timeElapsed: data.timeElapsed,

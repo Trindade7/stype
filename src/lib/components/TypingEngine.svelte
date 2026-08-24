@@ -74,6 +74,8 @@
 
 		const payload = {
 			passageId: passage.id,
+			mode,
+			duration: mode === 'timed' ? timeLimit : null,
 			wpm,
 			accuracy,
 			timeElapsed: finalTime,

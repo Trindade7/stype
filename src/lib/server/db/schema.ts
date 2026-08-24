@@ -39,6 +39,8 @@ export const testRuns = sqliteTable('test_runs', {
 	passageId: integer('passage_id')
 		.notNull()
 		.references(() => passages.id, { onDelete: 'cascade' }),
+	mode: text('mode').$type<'passage' | 'timed'>().notNull().default('passage'),
+	duration: integer('duration'),
 	wpm: integer('wpm').notNull(),
 	accuracy: integer('accuracy').notNull(),
 	timeElapsed: integer('time_elapsed').notNull(), // seconds (integer part or rounded)

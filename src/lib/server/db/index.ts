@@ -46,6 +46,8 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			passage_id INTEGER NOT NULL REFERENCES passages(id) ON DELETE CASCADE,
+			mode TEXT NOT NULL DEFAULT 'passage',
+			duration INTEGER,
 			wpm INTEGER NOT NULL,
 			accuracy INTEGER NOT NULL,
 			time_elapsed INTEGER NOT NULL,
@@ -74,6 +76,14 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 	} catch {
 		// Column already exists or table was just created
 	}
+
+	try {
+		sqlite.exec('ALTER TABLE test_runs ADD COLUMN mode TEXT NOT NULL DEFAULT \'passage\'');
+	} catch {}
+
+	try {
+		sqlite.exec('ALTER TABLE test_runs ADD COLUMN duration INTEGER');
+	} catch {}
 
 	// Ensure timeline_snapshots column exists for pre-existing tables
 	try {
