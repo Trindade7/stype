@@ -4,10 +4,10 @@
 
 **Blocked by:** 01b — Form Primitives and Login View Migration
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `dropdown-menu`, `dialog`, `badge`, `tabs`, `separator`, and `tooltip` primitives are installed and exported in the component library.
-- [ ] Application header in the main layout includes a user profile dropdown menu, session indicator badge, and theme switcher (Dark, Light, System).
-- [ ] `bootstrap-icons` dependency is removed from `package.json` and its CSS import is removed from global styles.
-- [ ] All icons throughout the layout shell use Hugeicons components.
-- [ ] Automated tests verify layout rendering, dropdown interactions, and theme toggling without console or hydration errors.
+- [x] `dropdown-menu`, `dialog`, `badge`, `tabs`, `separator`, and `tooltip` primitives are installed and exported in the component library.
+- [x] Application header in the main layout includes a user profile dropdown menu, session indicator badge, and theme switcher (Dark, Light, System).
+- [x] `bootstrap-icons` dependency is removed from `package.json` and its CSS import is removed from global styles.
+- [x] All icons throughout the layout shell use Hugeicons components.
+- [x] Automated tests verify layout rendering, dropdown interactions, and theme toggling without console or hydration errors.
