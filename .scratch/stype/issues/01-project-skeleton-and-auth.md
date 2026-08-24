@@ -4,10 +4,10 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] SvelteKit app skeleton is created with Drizzle ORM and SQLite configured.
-- [ ] `users` and `sessions` database schemas are defined.
-- [ ] The `admin` user is automatically seeded on application boot.
-- [ ] Login and logout UI are fully functional.
-- [ ] Server hooks enforce session validation and route protection.
+- [x] SvelteKit app skeleton is created with Drizzle ORM and SQLite configured.
+- [x] `users` and `sessions` database schemas are defined.
+- [x] The `admin` user is automatically seeded on application boot.
+- [x] Login and logout UI are fully functional.
+- [x] Server hooks enforce session validation and route protection.
