@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] `test_runs` schema is defined (WPM, accuracy, elapsed time, character breakdown).
-- [ ] Completing a test automatically submits the metrics to the server via a form action or API endpoint.
-- [ ] The saved test run is correctly associated with the currently authenticated user.
-- [ ] The result summary screen fetches and displays the finalized run data from the database.
+- [x] `test_runs` schema is defined (WPM, accuracy, elapsed time, character breakdown).
+- [x] Completing a test automatically submits the metrics to the server via a form action or API endpoint.
+- [x] The saved test run is correctly associated with the currently authenticated user.
+- [x] The result summary screen fetches and displays the finalized run data from the database.
