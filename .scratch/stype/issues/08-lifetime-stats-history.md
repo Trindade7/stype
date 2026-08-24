@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] A Test History page lists past completed test runs.
-- [ ] History list supports filtering by date and test mode.
-- [ ] A Lifetime Stats page displays total tests completed, average WPM, peak WPM, and average accuracy.
-- [ ] Metrics are correctly calculated from the user's persisted database records.
+- [x] A Test History page lists past completed test runs.
+- [x] History list supports filtering by date and test mode.
+- [x] A Lifetime Stats page displays total tests completed, average WPM, peak WPM, and average accuracy.
+- [x] Metrics are correctly calculated from the user's persisted database records.
