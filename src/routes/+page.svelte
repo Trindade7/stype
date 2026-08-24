@@ -1,5 +1,8 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { KeyboardIcon, UserCircleIcon, LogOutIcon } from '@hugeicons/core-free-icons';
+	import { Button } from '$lib/components/ui/button';
 
 	let { data }: { data: PageData } = $props();
 </script>
@@ -8,31 +11,33 @@
 	<title>Stype — Minimalist Typing Test</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col bg-zinc-950 text-zinc-100 selection:bg-emerald-500 selection:text-zinc-950">
-	<header class="border-b border-zinc-800 bg-zinc-900/40 backdrop-blur">
+<div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+	<header class="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
 			<div class="flex items-center gap-3">
-				<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-800 text-emerald-400">
-					<i class="bi bi-keyboard text-lg"></i>
+				<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary">
+					<HugeiconsIcon icon={KeyboardIcon} size={20} />
 				</div>
-				<span class="text-xl font-bold tracking-tight text-zinc-100">stype</span>
+				<span class="text-xl font-bold tracking-tight text-foreground">stype</span>
 			</div>
 
 			<div class="flex items-center gap-4">
 				{#if data.user}
-					<div class="flex items-center gap-2 text-sm text-zinc-400">
-						<i class="bi bi-person-circle text-zinc-500"></i>
-						<span class="text-zinc-200">{data.user.username}</span>
+					<div class="flex items-center gap-2 text-sm text-muted-foreground">
+						<HugeiconsIcon icon={UserCircleIcon} size={18} />
+						<span class="text-foreground">{data.user.username}</span>
 					</div>
 					<form method="POST" action="?/logout">
-						<button
+						<Button
 							type="submit"
-							class="flex items-center gap-1.5 rounded-md border border-zinc-750 bg-zinc-850 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+							variant="outline"
+							size="sm"
+							class="h-8 gap-1.5 px-3 text-xs"
 							title="Log out"
 						>
-							<i class="bi bi-box-arrow-right"></i>
+							<HugeiconsIcon icon={LogOutIcon} size={14} />
 							<span>Log out</span>
-						</button>
+						</Button>
 					</form>
 				{/if}
 			</div>
@@ -41,13 +46,13 @@
 
 	<main class="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 py-12">
 		<div class="w-full max-w-2xl text-center space-y-4">
-			<div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-400">
-				<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+			<div class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs text-primary">
+				<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
 				<span>Session active & authenticated</span>
 			</div>
-			<h2 class="text-3xl font-bold tracking-tight text-zinc-100">Ready to type</h2>
-			<p class="text-zinc-400 text-sm">
-				Welcome back, <span class="text-zinc-200 font-semibold">{data.user?.username}</span>. Typing engine and passage selection are ready to connect.
+			<h2 class="text-3xl font-bold tracking-tight text-foreground">Ready to type</h2>
+			<p class="text-sm text-muted-foreground">
+				Welcome back, <span class="font-semibold text-foreground">{data.user?.username}</span>. Typing engine and passage selection are ready to connect.
 			</p>
 		</div>
 	</main>
