@@ -30,4 +30,40 @@ describe('Login View Contract', () => {
 		const input = screen.getByLabelText(/username/i) as HTMLInputElement;
 		expect(input.value).toBe(username);
 	});
+
+	it('does not render error banner when there is no error message', () => {
+		render(LoginPage, { form: null });
+		expect(screen.queryByText(/invalid/i)).not.toBeInTheDocument();
+	});
+
+	it('renders inputs with required attributes and correct autocomplete settings', () => {
+		render(LoginPage, { form: null });
+
+		const usernameInput = screen.getByLabelText(/username/i);
+		expect(usernameInput).toBeRequired();
+		expect(usernameInput).toHaveAttribute('type', 'text');
+		expect(usernameInput).toHaveAttribute('autocomplete', 'username');
+
+		const passwordInput = screen.getByLabelText(/password/i);
+		expect(passwordInput).toBeRequired();
+		expect(passwordInput).toHaveAttribute('type', 'password');
+		expect(passwordInput).toHaveAttribute('autocomplete', 'current-password');
+	});
+
+	it('renders submit button with submit type inside POST form', () => {
+		render(LoginPage, { form: null });
+
+		const submitButton = screen.getByRole('button', { name: /log in/i });
+		expect(submitButton).toHaveAttribute('type', 'submit');
+
+		const formElement = submitButton.closest('form');
+		expect(formElement).toBeInTheDocument();
+		expect(formElement).toHaveAttribute('method', 'POST');
+	});
+
+	it('renders default seeded account credentials hint', () => {
+		render(LoginPage, { form: null });
+		expect(screen.getByText(/default seeded account/i)).toBeInTheDocument();
+		expect(screen.getByText('admin123')).toBeInTheDocument();
+	});
 });
