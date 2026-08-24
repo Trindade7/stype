@@ -10,7 +10,7 @@ describe('Main Page Content', () => {
 
 	it('renders main page content with user greeting', () => {
 		render(Page, {
-			data: { user: { username: 'john_doe' } }
+			data: { user: { id: 'test-id', username: 'john_doe', createdAt: new Date() }, passage: null as any }
 		});
 
 		expect(screen.getByText('Ready to type')).toBeInTheDocument();

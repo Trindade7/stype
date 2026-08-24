@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let { passage } = $props<{ passage: { text: string; source: string | null } }>();
+	let { passage } = $props<{ passage: { id: number; text: string; source: string | null } }>();
 
 	let inputEl: HTMLInputElement | undefined = $state();
 
@@ -27,6 +27,40 @@
 		typedText.length > 0 ? Math.round((correctChars / typedText.length) * 100) : 100
 	);
 
+	let savedRun = $state<any>(null);
+	let isSaving = $state(false);
+
+	async function submitTestRun() {
+		isSaving = true;
+		const incChars = typedText.length - correctChars;
+		const missed = chars.length - typedText.length;
+		const payload = {
+			passageId: passage.id,
+			wpm,
+			accuracy,
+			timeElapsed: Math.round(timeElapsed),
+			correctChars,
+			incorrectChars: incChars,
+			extraChars: 0,
+			missedChars: missed
+		};
+
+		try {
+			const res = await fetch('/api/test-runs', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (res.ok) {
+				savedRun = await res.json();
+			}
+		} catch (err) {
+			console.error('Failed to save test run', err);
+		} finally {
+			isSaving = false;
+		}
+	}
+
 	function handleInput(e: Event) {
 		if (isFinished) return;
 		
@@ -48,6 +82,7 @@
 
 		if (typedText.length === chars.length) {
 			isFinished = true;
+			submitTestRun();
 		}
 	}
 
@@ -68,6 +103,8 @@
 		startTime = null;
 		currentTime = null;
 		isFinished = false;
+		savedRun = null;
+		isSaving = false;
 		if (inputEl) {
 			inputEl.value = '';
 			inputEl.focus();
@@ -144,20 +181,24 @@
 					<h3 class="text-3xl font-bold text-zinc-100">Passage Complete</h3>
 				</div>
 				
-				<div class="grid grid-cols-3 gap-8 w-full max-w-lg">
-					<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-						<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Speed</span>
-						<span class="text-4xl font-bold text-emerald-400">{wpm} <span class="text-lg text-emerald-500/50">WPM</span></span>
+				{#if isSaving}
+					<div class="text-zinc-400 animate-pulse">Saving results...</div>
+				{:else}
+					<div class="grid grid-cols-3 gap-8 w-full max-w-lg">
+						<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+							<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Speed</span>
+							<span class="text-4xl font-bold text-emerald-400">{savedRun?.wpm ?? wpm} <span class="text-lg text-emerald-500/50">WPM</span></span>
+						</div>
+						<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+							<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Accuracy</span>
+							<span class="text-4xl font-bold text-zinc-100">{savedRun?.accuracy ?? accuracy}<span class="text-lg text-zinc-500">%</span></span>
+						</div>
+						<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+							<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Time</span>
+							<span class="text-4xl font-bold text-zinc-100">{savedRun?.timeElapsed ?? Math.floor(timeElapsed)}<span class="text-lg text-zinc-500">s</span></span>
+						</div>
 					</div>
-					<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-						<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Accuracy</span>
-						<span class="text-4xl font-bold text-zinc-100">{accuracy}<span class="text-lg text-zinc-500">%</span></span>
-					</div>
-					<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-						<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Time</span>
-						<span class="text-4xl font-bold text-zinc-100">{Math.floor(timeElapsed)}<span class="text-lg text-zinc-500">s</span></span>
-					</div>
-				</div>
+				{/if}
 
 				<button
 					onclick={reset}

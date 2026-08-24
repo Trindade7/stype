@@ -8,7 +8,7 @@ describe('TypingEngine', () => {
 	});
 
 	it('renders correctly with given passage', () => {
-		const passage = { text: 'Hello', source: 'Test' };
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
 		render(TypingEngine, { passage });
 
 		// Should show passage source
@@ -21,7 +21,7 @@ describe('TypingEngine', () => {
 	});
 
 	it('updates typed text when input changes', async () => {
-		const passage = { text: 'Hi', source: 'Test' };
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
 		const { container } = render(TypingEngine, { passage });
 
 		const input = container.querySelector('input') as HTMLInputElement;

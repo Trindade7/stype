@@ -23,9 +23,29 @@ export const passages = sqliteTable('passages', {
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 
+export const testRuns = sqliteTable('test_runs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: text('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	passageId: integer('passage_id')
+		.notNull()
+		.references(() => passages.id, { onDelete: 'cascade' }),
+	wpm: integer('wpm').notNull(),
+	accuracy: integer('accuracy').notNull(),
+	timeElapsed: integer('time_elapsed').notNull(), // seconds (integer part or rounded)
+	correctChars: integer('correct_chars').notNull(),
+	incorrectChars: integer('incorrect_chars').notNull(),
+	extraChars: integer('extra_chars').notNull(),
+	missedChars: integer('missed_chars').notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Passage = typeof passages.$inferSelect;
 export type NewPassage = typeof passages.$inferInsert;
+export type TestRun = typeof testRuns.$inferSelect;
+export type NewTestRun = typeof testRuns.$inferInsert;

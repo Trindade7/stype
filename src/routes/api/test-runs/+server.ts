@@ -1,0 +1,48 @@
+import { json } from '@sveltejs/kit';
+import { db } from '$lib/server/db';
+import { testRuns } from '$lib/server/db/schema';
+import type { RequestHandler } from './$types';
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	const data = await request.json();
+
+	if (
+		typeof data.passageId !== 'number' ||
+		typeof data.wpm !== 'number' ||
+		typeof data.accuracy !== 'number' ||
+		typeof data.timeElapsed !== 'number' ||
+		typeof data.correctChars !== 'number' ||
+		typeof data.incorrectChars !== 'number' ||
+		typeof data.extraChars !== 'number' ||
+		typeof data.missedChars !== 'number'
+	) {
+		return json({ error: 'Invalid payload' }, { status: 400 });
+	}
+
+	try {
+		const [run] = await db
+			.insert(testRuns)
+			.values({
+				userId: locals.user.id,
+				passageId: data.passageId,
+				wpm: data.wpm,
+				accuracy: data.accuracy,
+				timeElapsed: data.timeElapsed,
+				correctChars: data.correctChars,
+				incorrectChars: data.incorrectChars,
+				extraChars: data.extraChars,
+				missedChars: data.missedChars,
+				createdAt: new Date()
+			})
+			.returning();
+
+		return json(run);
+	} catch (err) {
+		console.error('Error saving test run:', err);
+		return json({ error: 'Internal Server Error' }, { status: 500 });
+	}
+};

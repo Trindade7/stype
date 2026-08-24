@@ -41,6 +41,19 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			source TEXT,
 			created_at INTEGER NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS test_runs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			passage_id INTEGER NOT NULL REFERENCES passages(id) ON DELETE CASCADE,
+			wpm INTEGER NOT NULL,
+			accuracy INTEGER NOT NULL,
+			time_elapsed INTEGER NOT NULL,
+			correct_chars INTEGER NOT NULL,
+			incorrect_chars INTEGER NOT NULL,
+			extra_chars INTEGER NOT NULL,
+			missed_chars INTEGER NOT NULL,
+			created_at INTEGER NOT NULL
+		);
 	`);
 
 	const db = drizzle(sqlite, { schema });

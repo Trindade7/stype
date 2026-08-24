@@ -30,7 +30,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { username: 'testuser' } },
+			data: { user: { id: 'user-1', username: 'testuser', createdAt: new Date() } },
 			children: childSnippet
 		});
 
@@ -51,7 +51,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { username: 'dropdown-user' } },
+			data: { user: { id: 'user-2', username: 'dropdown-user', createdAt: new Date() } },
 			children: childSnippet
 		});
 
@@ -71,7 +71,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { username: 'dropdown-user' } },
+			data: { user: { id: 'user-3', username: 'dropdown-user', createdAt: new Date() } },
 			children: childSnippet
 		});
 
