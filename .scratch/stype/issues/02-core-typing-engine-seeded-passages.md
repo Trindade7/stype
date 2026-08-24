@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] `passages` schema is defined and initial sample texts are automatically seeded.
-- [ ] Typing interface fetches and displays a random seeded passage in monospace typography.
-- [ ] Typing input is captured correctly on desktop and mobile keyboards (transparent input field, no autocorrect).
-- [ ] Characters are highlighted in real-time (correct, incorrect, pending) and backspacing reverses state.
-- [ ] Live HUD displays current WPM, accuracy, and an active count-up timer starting on the first keystroke.
-- [ ] Completing the passage transitions to a result summary screen displaying final metrics (in-memory).
+- [x] `passages` schema is defined and initial sample texts are automatically seeded.
+- [x] Typing interface fetches and displays a random seeded passage in monospace typography.
+- [x] Typing input is captured correctly on desktop and mobile keyboards (transparent input field, no autocorrect).
+- [x] Characters are highlighted in real-time (correct, incorrect, pending) and backspacing reverses state.
+- [x] Live HUD displays current WPM, accuracy, and an active count-up timer starting on the first keystroke.
+- [x] Completing the passage transitions to a result summary screen displaying final metrics (in-memory).
