@@ -4,9 +4,9 @@
 
 **Blocked by:** 03 — Test Run Persistence
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] Users can select a Timed Mode duration of 15, 30, or 60 seconds before starting.
-- [ ] The timer counts down in Timed Mode and automatically completes the test when it reaches zero.
-- [ ] A keyboard shortcut (e.g., `Tab` or `Esc`) instantly resets the current test or loads a new passage.
-- [ ] A dedicated UI button allows for instant restarting or passage shuffling.
+- [x] Users can select a Timed Mode duration of 15, 30, or 60 seconds before starting.
+- [x] The timer counts down in Timed Mode and automatically completes the test when it reaches zero.
+- [x] A keyboard shortcut (e.g., `Tab` or `Esc`) instantly resets the current test or loads a new passage.
+- [x] A dedicated UI button allows for instant restarting or passage shuffling.
