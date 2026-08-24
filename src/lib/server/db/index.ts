@@ -52,9 +52,17 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			incorrect_chars INTEGER NOT NULL,
 			extra_chars INTEGER NOT NULL,
 			missed_chars INTEGER NOT NULL,
+			timeline_snapshots TEXT,
 			created_at INTEGER NOT NULL
 		);
 	`);
+
+	// Ensure timeline_snapshots column exists for pre-existing tables
+	try {
+		sqlite.exec('ALTER TABLE test_runs ADD COLUMN timeline_snapshots TEXT');
+	} catch {
+		// Column already exists or table was just created
+	}
 
 	const db = drizzle(sqlite, { schema });
 	return { sqlite, db };

@@ -4,8 +4,8 @@
 
 **Blocked by:** 03 — Test Run Persistence
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] The typing engine captures WPM and accuracy snapshots every second during an active run.
-- [ ] Timeline snapshot data (JSON) is included in the test run submission and stored in the database.
-- [ ] A line chart visualizes the speed and accuracy timeline on the Result Summary screen.
+- [x] The typing engine captures WPM and accuracy snapshots every second during an active run.
+- [x] Timeline snapshot data (JSON) is included in the test run submission and stored in the database.
+- [x] A line chart visualizes the speed and accuracy timeline on the Result Summary screen.

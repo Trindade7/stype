@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import type { TestRun } from '$lib/server/db/schema';
+	import type { TestRun, TimelineSnapshot } from '$lib/server/db/schema';
+	import TimelineChart from './TimelineChart.svelte';
 
 	let { passage } = $props<{ passage: { id: number; text: string; source: string | null } }>();
 
@@ -18,6 +19,9 @@
 	let mode = $state<'passage' | 'timed'>('passage');
 	let timeLimit = $state<number>(30);
 	
+	let timelineSnapshots = $state<TimelineSnapshot[]>([]);
+	let lastCapturedSecond = $state(0);
+
 	let timeElapsed = $derived(startTime && currentTime ? (currentTime - startTime) / 1000 : 0);
 	
 	let correctChars = $derived(
@@ -41,6 +45,16 @@
 		const missed = chars.length - typedText.length;
 		const finalTime = mode === 'timed' && timeElapsed >= timeLimit ? timeLimit : Math.round(timeElapsed);
 		
+		const snapshots = [...timelineSnapshots];
+		const finalSecond = Math.max(1, finalTime);
+		if (snapshots.length === 0 || snapshots[snapshots.length - 1].second !== finalSecond) {
+			snapshots.push({
+				second: finalSecond,
+				wpm,
+				accuracy
+			});
+		}
+
 		const payload = {
 			passageId: passage.id,
 			wpm,
@@ -49,7 +63,8 @@
 			correctChars,
 			incorrectChars: incChars,
 			extraChars: 0,
-			missedChars: missed
+			missedChars: missed,
+			timelineSnapshots: snapshots
 		};
 
 		try {
@@ -65,6 +80,20 @@
 			console.error('Failed to save test run', err);
 		} finally {
 			isSaving = false;
+		}
+	}
+
+	function captureSnapshots(elapsed: number) {
+		const currentSecond = Math.floor(elapsed);
+		while (lastCapturedSecond < currentSecond) {
+			lastCapturedSecond++;
+			const snapWpm = Math.round((correctChars / 5) / (lastCapturedSecond / 60));
+			const snapAcc = typedText.length > 0 ? Math.round((correctChars / typedText.length) * 100) : 100;
+			timelineSnapshots.push({
+				second: lastCapturedSecond,
+				wpm: snapWpm,
+				accuracy: snapAcc
+			});
 		}
 	}
 
@@ -87,6 +116,10 @@
 		
 		typedText = val;
 
+		if (startTime && currentTime) {
+			captureSnapshots((currentTime - startTime) / 1000);
+		}
+
 		if (typedText.length === chars.length) {
 			isFinished = true;
 			submitTestRun();
@@ -101,6 +134,7 @@
 		if (startTime) {
 			currentTime = Date.now();
 			const elapsed = (currentTime - startTime) / 1000;
+			captureSnapshots(elapsed);
 			if (mode === 'timed' && elapsed >= timeLimit) {
 				isFinished = true;
 				submitTestRun();
@@ -121,6 +155,8 @@
 		isFinished = false;
 		savedRun = null;
 		isSaving = false;
+		timelineSnapshots = [];
+		lastCapturedSecond = 0;
 		if (inputEl) {
 			inputEl.value = '';
 			inputEl.focus();
@@ -274,6 +310,10 @@
 							<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Time</span>
 							<span class="text-4xl font-bold text-zinc-100">{savedRun?.timeElapsed ?? Math.floor(timeElapsed)}<span class="text-lg text-zinc-500">s</span></span>
 						</div>
+					</div>
+
+					<div class="w-full max-w-2xl">
+						<TimelineChart snapshots={savedRun?.timelineSnapshots && savedRun.timelineSnapshots.length > 0 ? savedRun.timelineSnapshots : timelineSnapshots} />
 					</div>
 				{/if}
 

@@ -23,6 +23,13 @@ export const passages = sqliteTable('passages', {
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 
+export interface TimelineSnapshot {
+	second: number;
+	wpm: number;
+	accuracy: number;
+	errors?: number;
+}
+
 export const testRuns = sqliteTable('test_runs', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: text('user_id')
@@ -38,6 +45,7 @@ export const testRuns = sqliteTable('test_runs', {
 	incorrectChars: integer('incorrect_chars').notNull(),
 	extraChars: integer('extra_chars').notNull(),
 	missedChars: integer('missed_chars').notNull(),
+	timelineSnapshots: text('timeline_snapshots', { mode: 'json' }).$type<TimelineSnapshot[]>(),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 

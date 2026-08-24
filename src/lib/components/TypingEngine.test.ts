@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/svelte';
 import TypingEngine from './TypingEngine.svelte';
 
 describe('TypingEngine', () => {
 	beforeEach(() => {
 		cleanup();
+		vi.restoreAllMocks();
 	});
 
 	it('renders correctly with given passage', () => {
@@ -31,5 +32,74 @@ describe('TypingEngine', () => {
 		
 		// Ensure component doesn't crash on input
 		expect(input.value).toBe('H');
+	});
+
+	it('submits timeline snapshots and displays the timeline chart on result summary', async () => {
+		const snapshots = [
+			{ second: 1, wpm: 60, accuracy: 100 },
+			{ second: 2, wpm: 75, accuracy: 95 }
+		];
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({
+				id: 1,
+				passageId: 1,
+				wpm: 75,
+				accuracy: 95,
+				timeElapsed: 2,
+				correctChars: 2,
+				incorrectChars: 0,
+				extraChars: 0,
+				missedChars: 0,
+				timelineSnapshots: snapshots
+			})
+		});
+		globalThis.fetch = fetchMock;
+
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const callBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+		expect(callBody).toHaveProperty('timelineSnapshots');
+		expect(Array.isArray(callBody.timelineSnapshots)).toBe(true);
+		expect(callBody.timelineSnapshots.length).toBeGreaterThanOrEqual(1);
+
+		// Result Summary should display chart
+		expect(await screen.findByText('Speed (WPM)')).toBeInTheDocument();
+		expect(await screen.findByText('Accuracy (%)')).toBeInTheDocument();
+		expect(container.querySelector('svg')).toBeInTheDocument();
+	});
+
+	it('clears snapshots on reset', async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({
+				id: 1,
+				passageId: 1,
+				wpm: 60,
+				accuracy: 100,
+				timeElapsed: 1,
+				correctChars: 2,
+				incorrectChars: 0,
+				extraChars: 0,
+				missedChars: 0,
+				timelineSnapshots: [{ second: 1, wpm: 60, accuracy: 100 }]
+			})
+		});
+		globalThis.fetch = fetchMock;
+
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.keyDown(window, { key: 'Escape' });
+
+		expect(input.value).toBe('');
 	});
 });

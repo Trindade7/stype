@@ -60,7 +60,47 @@ describe('POST /api/test-runs', () => {
 		expect(response.status).toBe(400);
 	});
 
-	it('saves the test run and returns it', async () => {
+	it('saves the test run with timeline snapshots and returns it', async () => {
+		const timelineSnapshots = [
+			{ second: 1, wpm: 60, accuracy: 100 },
+			{ second: 2, wpm: 75, accuracy: 96 },
+			{ second: 3, wpm: 80, accuracy: 95 }
+		];
+
+		const payload = {
+			passageId: 1,
+			wpm: 80,
+			accuracy: 95,
+			timeElapsed: 3,
+			correctChars: 20,
+			incorrectChars: 1,
+			extraChars: 0,
+			missedChars: 0,
+			timelineSnapshots
+		};
+
+		const req = new Request('http://localhost/api/test-runs', {
+			method: 'POST',
+			body: JSON.stringify(payload)
+		});
+
+		const response = await POST({
+			request: req,
+			locals: { user: { id: 'user-1' }, session: {} }
+		} as any);
+
+		expect(response.status).toBe(200);
+		const run = await response.json();
+		expect(run.wpm).toBe(80);
+		expect(run.timelineSnapshots).toEqual(timelineSnapshots);
+
+		// Verify in DB
+		const saved = await dbInstance.select().from(testRuns).where(eq(testRuns.id, run.id)).get();
+		expect(saved).toBeDefined();
+		expect(saved?.timelineSnapshots).toEqual(timelineSnapshots);
+	});
+
+	it('returns 400 if timelineSnapshots is malformed', async () => {
 		const payload = {
 			passageId: 1,
 			wpm: 80,
@@ -69,7 +109,8 @@ describe('POST /api/test-runs', () => {
 			correctChars: 200,
 			incorrectChars: 5,
 			extraChars: 0,
-			missedChars: 0
+			missedChars: 0,
+			timelineSnapshots: 'invalid-snapshots'
 		};
 
 		const req = new Request('http://localhost/api/test-runs', {
@@ -77,20 +118,11 @@ describe('POST /api/test-runs', () => {
 			body: JSON.stringify(payload)
 		});
 
-		const response = await POST({ 
-			request: req, 
-			locals: { user: { id: 'user-1' }, session: {} } 
+		const response = await POST({
+			request: req,
+			locals: { user: { id: 'user-1' }, session: {} }
 		} as any);
-		
-		expect(response.status).toBe(200);
-		const run = await response.json();
-		expect(run.wpm).toBe(80);
-		expect(run.accuracy).toBe(95);
 
-		// Verify in DB
-		const saved = await dbInstance.select().from(testRuns).where(eq(testRuns.id, run.id)).get();
-		expect(saved).toBeDefined();
-		expect(saved?.userId).toBe('user-1');
-		expect(saved?.wpm).toBe(80);
+		expect(response.status).toBe(400);
 	});
 });

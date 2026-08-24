@@ -23,6 +23,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Invalid payload' }, { status: 400 });
 	}
 
+	if (data.timelineSnapshots !== undefined) {
+		if (!Array.isArray(data.timelineSnapshots)) {
+			return json({ error: 'Invalid timeline snapshots' }, { status: 400 });
+		}
+
+		for (const snapshot of data.timelineSnapshots) {
+			if (
+				!snapshot ||
+				typeof snapshot.second !== 'number' ||
+				typeof snapshot.wpm !== 'number' ||
+				typeof snapshot.accuracy !== 'number'
+			) {
+				return json({ error: 'Invalid timeline snapshot structure' }, { status: 400 });
+			}
+		}
+	}
+
 	try {
 		const [run] = await db
 			.insert(testRuns)
@@ -36,6 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				incorrectChars: data.incorrectChars,
 				extraChars: data.extraChars,
 				missedChars: data.missedChars,
+				timelineSnapshots: data.timelineSnapshots ?? [],
 				createdAt: new Date()
 			})
 			.returning();
