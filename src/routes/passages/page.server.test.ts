@@ -52,9 +52,9 @@ describe('Passages Management Actions', () => {
 			createdAt: new Date()
 		});
 
-		const result = await load({
+		const result = (await load({
 			locals: { user: { id: testUserId, username: 'testuser' }, session: null }
-		} as any);
+		} as any)) as { passages: (typeof passages.$inferSelect)[]; user: any };
 
 		expect(result.passages.length).toBeGreaterThan(0);
 		const custom = result.passages.find(p => p.userId === testUserId);
