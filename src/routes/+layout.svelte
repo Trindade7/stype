@@ -9,7 +9,8 @@
 		LogOutIcon, 
 		Sun03Icon, 
 		Moon02Icon, 
-		MonitorIcon 
+		MonitorIcon,
+		Book01Icon
 	} from '@hugeicons/core-free-icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Badge } from '$lib/components/ui/badge';
@@ -30,15 +31,18 @@
 		<header class="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 			<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
 				<div class="flex items-center gap-3">
-					<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary">
+					<a href="/" class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary transition-colors hover:bg-secondary/80">
 						<HugeiconsIcon icon={KeyboardIcon} size={20} />
-					</div>
-					<span class="text-xl font-bold tracking-tight text-foreground">stype</span>
+					</a>
+					<a href="/" class="text-xl font-bold tracking-tight text-foreground hover:text-foreground/80 transition-colors">stype</a>
 					
 					<Badge variant="outline" class="ml-2 gap-1.5 border-primary/20 bg-primary/10 text-primary font-normal hidden sm:inline-flex">
 						<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
 						Session active
 					</Badge>
+					<a href="/passages" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+						Passages
+					</a>
 				</div>
 
 				<div class="flex items-center gap-2 sm:gap-4">
@@ -79,6 +83,13 @@
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item class="text-muted-foreground">
 								<span class="truncate">Logged in as {data.user.username}</span>
+							</DropdownMenu.Item>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item class="w-full cursor-pointer p-0">
+								<a href="/passages" class="w-full flex items-center px-2 py-1.5">
+									<HugeiconsIcon icon={Book01Icon} size={16} class="mr-2" />
+									Passages
+								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
 							<form method="POST" action="/?/logout">

@@ -39,6 +39,7 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			text TEXT NOT NULL,
 			source TEXT,
+			user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
 			created_at INTEGER NOT NULL
 		);
 		CREATE TABLE IF NOT EXISTS test_runs (
@@ -56,6 +57,13 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			created_at INTEGER NOT NULL
 		);
 	`);
+
+	// Ensure user_id column exists for pre-existing passages table
+	try {
+		sqlite.exec('ALTER TABLE passages ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE');
+	} catch {
+		// Column already exists or table was just created
+	}
 
 	// Ensure timeline_snapshots column exists for pre-existing tables
 	try {

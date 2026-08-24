@@ -20,6 +20,7 @@ export const passages = sqliteTable('passages', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	text: text('text').notNull(),
 	source: text('source'),
+	userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 
