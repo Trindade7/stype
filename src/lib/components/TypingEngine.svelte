@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { TestRun } from '$lib/server/db/schema';
 
 	let { passage } = $props<{ passage: { id: number; text: string; source: string | null } }>();
 
@@ -27,7 +28,7 @@
 		typedText.length > 0 ? Math.round((correctChars / typedText.length) * 100) : 100
 	);
 
-	let savedRun = $state<any>(null);
+	let savedRun = $state<TestRun | null>(null);
 	let isSaving = $state(false);
 
 	async function submitTestRun() {
