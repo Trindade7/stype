@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+@layer base {
+	body {
+		@apply bg-zinc-950 text-zinc-100 font-mono antialiased min-h-screen;
+	}
+}
