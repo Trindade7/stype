@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { ModeWatcher, setMode } from 'mode-watcher';
 	import favicon from '$lib/assets/favicon.svg';
 	import '../app.css';
@@ -34,7 +35,7 @@
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		if (data.settings?.theme) {
 			setMode(data.settings.theme);
 		}
@@ -46,7 +47,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<ModeWatcher />
+<ModeWatcher defaultMode={data.settings?.theme ?? 'system'} />
 
 {#if data.user}
 	<div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">

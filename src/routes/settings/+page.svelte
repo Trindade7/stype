@@ -15,7 +15,7 @@
 	let zenMode = $state(false);
 	let theme = $state<'system' | 'dark' | 'light'>('system');
 
-	$effect(() => {
+	$effect.pre(() => {
 		mode = data.settings.mode;
 		duration = data.settings.duration;
 		passageLength = data.settings.passageLength;

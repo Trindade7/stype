@@ -30,7 +30,7 @@
 	let timeLimit = $state<number>(30);
 	let zenMode = $state<boolean>(false);
 
-	$effect(() => {
+	$effect.pre(() => {
 		mode = initialMode;
 		timeLimit = initialDuration;
 		zenMode = initialZenMode;
