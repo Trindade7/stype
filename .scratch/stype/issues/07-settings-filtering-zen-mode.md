@@ -4,10 +4,10 @@
 
 **Blocked by:** 06 — Custom Passage Management
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] `user_settings` schema is defined.
-- [ ] A Settings page allows the user to persist their default test mode, duration, and passage length.
-- [ ] The typing interface respects the preferred passage length when randomly selecting a text.
-- [ ] Zen Mode can be toggled on to hide live HUD metrics during active typing.
-- [ ] A theme switcher (Dark, Light, System) applies visual changes and persists the preference.
+- [x] `user_settings` schema is defined.
+- [x] A Settings page allows the user to persist their default test mode, duration, and passage length.
+- [x] The typing interface respects the preferred passage length when randomly selecting a text.
+- [x] Zen Mode can be toggled on to hide live HUD metrics during active typing.
+- [x] A theme switcher (Dark, Light, System) applies visual changes and persists the preference.

@@ -11,7 +11,12 @@
 
 <div class="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 py-12">
 	{#if data.passage}
-		<TypingEngine passage={data.passage} />
+		<TypingEngine 
+			passage={data.passage} 
+			initialMode={data.settings?.mode}
+			initialDuration={data.settings?.duration}
+			initialZenMode={data.settings?.zenMode}
+		/>
 	{:else}
 		<div class="w-full max-w-2xl text-center space-y-4">
 			<h2 class="text-3xl font-bold tracking-tight text-foreground">Ready to type</h2>

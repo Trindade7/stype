@@ -1,25 +1,50 @@
 import { db } from '$lib/server/db';
 import { passages } from '$lib/server/db/schema';
-import { sql, or, isNull, eq } from 'drizzle-orm';
+import { getUserSettings, DEFAULT_USER_SETTINGS } from '$lib/server/db/settings';
+import { filterPassagesByLength, type PassageLength } from '$lib/passage-utils';
+import { or, isNull, eq } from 'drizzle-orm';
 import { createLogoutAction } from './login/auth-actions';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const condition = locals.user 
-		? or(isNull(passages.userId), eq(passages.userId, locals.user.id))
+	const user = locals.user;
+	const settings = user
+		? await getUserSettings(db, user.id)
+		: {
+				userId: '',
+				mode: DEFAULT_USER_SETTINGS.mode,
+				duration: DEFAULT_USER_SETTINGS.duration,
+				passageLength: DEFAULT_USER_SETTINGS.passageLength,
+				zenMode: DEFAULT_USER_SETTINGS.zenMode,
+				theme: DEFAULT_USER_SETTINGS.theme,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			};
+
+	const condition = user
+		? or(isNull(passages.userId), eq(passages.userId, user.id))
 		: isNull(passages.userId);
 
-	const randomPassage = db
+	const allEligiblePassages = db
 		.select()
 		.from(passages)
 		.where(condition)
-		.orderBy(sql`RANDOM()`)
-		.limit(1)
-		.get();
+		.all();
+
+	const filteredPassages = filterPassagesByLength(
+		allEligiblePassages,
+		settings.passageLength as PassageLength
+	);
+
+	const randomPassage =
+		filteredPassages.length > 0
+			? filteredPassages[Math.floor(Math.random() * filteredPassages.length)]
+			: null;
 
 	return {
-		user: locals.user,
-		passage: randomPassage
+		user,
+		passage: randomPassage,
+		settings
 	};
 };
 

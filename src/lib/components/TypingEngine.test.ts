@@ -34,6 +34,57 @@ describe('TypingEngine', () => {
 		expect(input.value).toBe('H');
 	});
 
+	it('respects initialMode, initialDuration, and initialZenMode props', () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		render(TypingEngine, {
+			passage,
+			initialMode: 'timed',
+			initialDuration: 60,
+			initialZenMode: true
+		});
+
+		expect(screen.getByRole('button', { name: '60s' })).toBeInTheDocument();
+		expect(screen.getByText('Zen')).toBeInTheDocument();
+	});
+
+	it('hides live HUD metrics during active typing when Zen Mode is enabled', async () => {
+		const passage = { id: 1, text: 'Hello world', source: 'Test' };
+		const { container } = render(TypingEngine, {
+			passage,
+			initialZenMode: true
+		});
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		expect(input).toBeInTheDocument();
+
+		// Before typing, toolbar is present
+		expect(screen.getByText('Zen')).toBeInTheDocument();
+
+		// Type first character -> active typing begins
+		await fireEvent.input(input, { target: { value: 'H' } });
+
+		// HUD metrics should be hidden during active typing in zen mode
+		expect(screen.queryByText('WPM')).not.toBeInTheDocument();
+		expect(screen.queryByText('ACC')).not.toBeInTheDocument();
+	});
+
+	it('toggles Zen Mode on toolbar button click', async () => {
+		const passage = { id: 1, text: 'Hello world', source: 'Test' };
+		const { container } = render(TypingEngine, {
+			passage,
+			initialZenMode: false
+		});
+
+		const zenButton = screen.getByRole('button', { name: /zen/i });
+		await fireEvent.click(zenButton);
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+
+		// HUD should now be hidden
+		expect(screen.queryByText('WPM')).not.toBeInTheDocument();
+	});
+
 	it('submits timeline snapshots and displays the timeline chart on result summary', async () => {
 		const snapshots = [
 			{ second: 1, wpm: 60, accuracy: 100 },

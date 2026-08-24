@@ -50,6 +50,19 @@ export const testRuns = sqliteTable('test_runs', {
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 
+export const userSettings = sqliteTable('user_settings', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	mode: text('mode').$type<'passage' | 'timed'>().notNull().default('passage'),
+	duration: integer('duration').notNull().default(30),
+	passageLength: text('passage_length').$type<'all' | 'short' | 'medium' | 'long'>().notNull().default('all'),
+	zenMode: integer('zen_mode', { mode: 'boolean' }).notNull().default(false),
+	theme: text('theme').$type<'light' | 'dark' | 'system'>().notNull().default('system'),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull()
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
@@ -58,3 +71,5 @@ export type Passage = typeof passages.$inferSelect;
 export type NewPassage = typeof passages.$inferInsert;
 export type TestRun = typeof testRuns.$inferSelect;
 export type NewTestRun = typeof testRuns.$inferInsert;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;

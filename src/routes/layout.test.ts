@@ -7,6 +7,7 @@ import { createRawSnippet } from 'svelte';
 describe('App Layout Shell', () => {
 	afterEach(() => {
 		cleanup();
+		vi.restoreAllMocks();
 	});
 
 	it('renders just children if user is not authenticated', () => {
@@ -15,7 +16,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: null },
+			data: { user: null, settings: null },
 			children: childSnippet
 		});
 
@@ -30,7 +31,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-1', username: 'testuser', createdAt: new Date() } },
+			data: { user: { id: 'user-1', username: 'testuser', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -43,15 +44,17 @@ describe('App Layout Shell', () => {
 		expect(screen.getByText('testuser')).toBeInTheDocument();
 		// Theme switcher button should be present
 		expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument();
+		// Settings navigation link
+		expect(screen.getAllByRole('link', { name: /settings/i }).length).toBeGreaterThanOrEqual(1);
 	});
 
-	it('opens user profile dropdown and shows logout option', async () => {
+	it('opens user profile dropdown and shows settings and logout options', async () => {
 		const childSnippet = createRawSnippet(() => ({
 			render: () => '<div>Content</div>'
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-2', username: 'dropdown-user', createdAt: new Date() } },
+			data: { user: { id: 'user-2', username: 'dropdown-user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -60,28 +63,39 @@ describe('App Layout Shell', () => {
 		
 		await fireEvent.click(userTrigger!);
 
-		// Radix menu uses portals by default, but it should be findable
 		const logoutButton = await screen.findByRole('button', { name: /log out/i });
 		expect(logoutButton).toBeInTheDocument();
+		expect(screen.getAllByRole('link', { name: /settings/i }).length).toBeGreaterThanOrEqual(1);
 	});
 
-	it('opens theme switcher dropdown', async () => {
+	it('opens theme switcher dropdown and persists preference on selection', async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({})
+		});
+		globalThis.fetch = fetchMock;
+
 		const childSnippet = createRawSnippet(() => ({
 			render: () => '<div>Content</div>'
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-3', username: 'dropdown-user', createdAt: new Date() } },
+			data: { user: { id: 'user-3', username: 'dropdown-user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
 		const themeTrigger = screen.getByRole('button', { name: /toggle theme/i });
 		await fireEvent.click(themeTrigger);
 
-		// The menu should open and show Light, Dark, System
 		const lightOption = await screen.findByText('Light');
 		expect(lightOption).toBeInTheDocument();
 		expect(screen.getByText('Dark')).toBeInTheDocument();
 		expect(screen.getByText('System')).toBeInTheDocument();
+
+		await fireEvent.click(lightOption);
+		expect(fetchMock).toHaveBeenCalledWith('/api/settings', expect.objectContaining({
+			method: 'PATCH',
+			body: JSON.stringify({ theme: 'light' })
+		}));
 	});
 });

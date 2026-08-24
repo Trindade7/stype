@@ -8,6 +8,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { PlusIcon, Edit01Icon, Delete01Icon } from '@hugeicons/core-free-icons';
+	import { getPassageLength } from '$lib/passage-utils';
 
 	let { data, form } = $props();
 
@@ -16,11 +17,9 @@
 
 	const textareaClass = "flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
-	function getPassageLength(text: string) {
-		const wordCount = text.trim().split(/\s+/).length;
-		if (wordCount < 50) return 'Short';
-		if (wordCount <= 100) return 'Medium';
-		return 'Long';
+	function displayPassageLength(text: string) {
+		const len = getPassageLength(text);
+		return len.charAt(0).toUpperCase() + len.slice(1);
 	}
 </script>
 
@@ -86,7 +85,7 @@
 							{:else}
 								<Badge>Custom</Badge>
 							{/if}
-							<Badge variant="outline">{getPassageLength(passage.text)}</Badge>
+							<Badge variant="outline">{displayPassageLength(passage.text)}</Badge>
 						</div>
 						
 						{#if passage.userId !== null}

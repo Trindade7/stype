@@ -56,6 +56,16 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			timeline_snapshots TEXT,
 			created_at INTEGER NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS user_settings (
+			user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+			mode TEXT NOT NULL DEFAULT 'passage',
+			duration INTEGER NOT NULL DEFAULT 30,
+			passage_length TEXT NOT NULL DEFAULT 'all',
+			zen_mode INTEGER NOT NULL DEFAULT 0,
+			theme TEXT NOT NULL DEFAULT 'system',
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		);
 	`);
 
 	// Ensure user_id column exists for pre-existing passages table

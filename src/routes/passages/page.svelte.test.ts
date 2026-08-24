@@ -29,8 +29,9 @@ describe('Passages Management Page', () => {
 		render(PassagesPage, {
 			data: {
 				user: { id: 'user-1', username: 'testuser', createdAt: new Date() },
-				passages: mockPassages
-			},
+				passages: mockPassages,
+				settings: null
+			} as any,
 			form: null
 		});
 
@@ -51,8 +52,9 @@ describe('Passages Management Page', () => {
 		render(PassagesPage, {
 			data: {
 				user: { id: 'user-1', username: 'testuser', createdAt: new Date() },
-				passages: []
-			},
+				passages: [],
+				settings: null
+			} as any,
 			form: { error: 'Text is required' }
 		});
 

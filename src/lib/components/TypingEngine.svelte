@@ -4,7 +4,17 @@
 	import type { TestRun, TimelineSnapshot } from '$lib/server/db/schema';
 	import TimelineChart from './TimelineChart.svelte';
 
-	let { passage } = $props<{ passage: { id: number; text: string; source: string | null } }>();
+	let { 
+		passage,
+		initialMode = 'passage',
+		initialDuration = 30,
+		initialZenMode = false
+	} = $props<{ 
+		passage: { id: number; text: string; source: string | null };
+		initialMode?: 'passage' | 'timed';
+		initialDuration?: number;
+		initialZenMode?: boolean;
+	}>();
 
 	let inputEl: HTMLInputElement | undefined = $state();
 
@@ -18,6 +28,13 @@
 
 	let mode = $state<'passage' | 'timed'>('passage');
 	let timeLimit = $state<number>(30);
+	let zenMode = $state<boolean>(false);
+
+	$effect(() => {
+		mode = initialMode;
+		timeLimit = initialDuration;
+		zenMode = initialZenMode;
+	});
 	
 	let timelineSnapshots = $state<TimelineSnapshot[]>([]);
 	let lastCapturedSecond = $state(0);
@@ -193,7 +210,7 @@
 <div class="relative w-full max-w-4xl mx-auto flex flex-col gap-8">
 	<!-- Toolbar -->
 	{#if !isFinished && !startTime}
-		<div class="flex items-center justify-center gap-6 text-sm font-semibold text-zinc-500 mb-[-1rem] transition-opacity">
+		<div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-1rem] transition-opacity">
 			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
 				<button 
 					class="px-3 py-1 rounded-md transition-colors {mode === 'passage' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
@@ -221,11 +238,22 @@
 					{/each}
 				</div>
 			{/if}
+
+			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
+				<button 
+					class="flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors {zenMode ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+					onclick={() => { zenMode = !zenMode; focusInput(); }}
+					title="Zen Mode: Hide live HUD metrics during active typing"
+				>
+					<i class="bi {zenMode ? 'bi-eye-slash-fill' : 'bi-eye'}"></i>
+					<span>Zen</span>
+				</button>
+			</div>
 		</div>
 	{/if}
 
 	<!-- HUD -->
-	{#if !isFinished}
+	{#if !isFinished && (!zenMode || !startTime)}
 		<div class="flex items-center justify-between text-zinc-400 font-mono text-sm px-2">
 			<div class="flex gap-6">
 				<div class="flex flex-col">

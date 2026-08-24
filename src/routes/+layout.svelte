@@ -10,13 +10,35 @@
 		Sun03Icon, 
 		Moon02Icon, 
 		MonitorIcon,
-		Book01Icon
+		Book01Icon,
+		Settings02Icon
 	} from '@hugeicons/core-free-icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Badge } from '$lib/components/ui/badge';
 	import { buttonVariants } from '$lib/components/ui/button';
 
 	let { data, children } = $props();
+
+	async function handleThemeChange(newTheme: 'light' | 'dark' | 'system') {
+		setMode(newTheme);
+		if (data.user) {
+			try {
+				await fetch('/api/settings', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ theme: newTheme })
+				});
+			} catch (err) {
+				console.error('Failed to persist theme setting', err);
+			}
+		}
+	}
+
+	$effect(() => {
+		if (data.settings?.theme) {
+			setMode(data.settings.theme);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -43,6 +65,9 @@
 					<a href="/passages" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
 						Passages
 					</a>
+					<a href="/settings" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+						Settings
+					</a>
 				</div>
 
 				<div class="flex items-center gap-2 sm:gap-4">
@@ -57,16 +82,16 @@
 							<span class="sr-only">Toggle theme</span>
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end">
-							<DropdownMenu.Item onclick={() => setMode('light')}>
+							<DropdownMenu.Item onclick={() => handleThemeChange('light')}>
 								<HugeiconsIcon icon={Sun03Icon} size={16} class="mr-2" />
 								Light
 							</DropdownMenu.Item>
-							<DropdownMenu.Item onclick={() => setMode('dark')}>
+							<DropdownMenu.Item onclick={() => handleThemeChange('dark')}>
 								<HugeiconsIcon icon={Moon02Icon} size={16} class="mr-2" />
 								Dark
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
-							<DropdownMenu.Item onclick={() => setMode('system')}>
+							<DropdownMenu.Item onclick={() => handleThemeChange('system')}>
 								<HugeiconsIcon icon={MonitorIcon} size={16} class="mr-2" />
 								System
 							</DropdownMenu.Item>
@@ -89,6 +114,12 @@
 								<a href="/passages" class="w-full flex items-center px-2 py-1.5">
 									<HugeiconsIcon icon={Book01Icon} size={16} class="mr-2" />
 									Passages
+								</a>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item class="w-full cursor-pointer p-0">
+								<a href="/settings" class="w-full flex items-center px-2 py-1.5">
+									<HugeiconsIcon icon={Settings02Icon} size={16} class="mr-2" />
+									Settings
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />

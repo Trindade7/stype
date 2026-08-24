@@ -10,7 +10,20 @@ describe('Main Page Content', () => {
 
 	it('renders main page content with user greeting', () => {
 		render(Page, {
-			data: { user: { id: 'test-id', username: 'john_doe', createdAt: new Date() }, passage: null as any }
+			data: {
+				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				passage: null as any,
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
 		});
 
 		expect(screen.getByText('Ready to type')).toBeInTheDocument();
