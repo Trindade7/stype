@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 	import type { TestRun } from '$lib/server/db/schema';
 
 	let { passage } = $props<{ passage: { id: number; text: string; source: string | null } }>();
@@ -13,6 +14,9 @@
 	let startTime = $state<number | null>(null);
 	let currentTime = $state<number | null>(null);
 	let isFinished = $state(false);
+
+	let mode = $state<'passage' | 'timed'>('passage');
+	let timeLimit = $state<number>(30);
 	
 	let timeElapsed = $derived(startTime && currentTime ? (currentTime - startTime) / 1000 : 0);
 	
@@ -35,11 +39,13 @@
 		isSaving = true;
 		const incChars = typedText.length - correctChars;
 		const missed = chars.length - typedText.length;
+		const finalTime = mode === 'timed' && timeElapsed >= timeLimit ? timeLimit : Math.round(timeElapsed);
+		
 		const payload = {
 			passageId: passage.id,
 			wpm,
 			accuracy,
-			timeElapsed: Math.round(timeElapsed),
+			timeElapsed: finalTime,
 			correctChars,
 			incorrectChars: incChars,
 			extraChars: 0,
@@ -84,6 +90,9 @@
 		if (typedText.length === chars.length) {
 			isFinished = true;
 			submitTestRun();
+		} else if (mode === 'timed' && timeElapsed >= timeLimit) {
+			isFinished = true;
+			submitTestRun();
 		}
 	}
 
@@ -91,6 +100,12 @@
 		if (isFinished) return;
 		if (startTime) {
 			currentTime = Date.now();
+			const elapsed = (currentTime - startTime) / 1000;
+			if (mode === 'timed' && elapsed >= timeLimit) {
+				isFinished = true;
+				submitTestRun();
+				return;
+			}
 			requestAnimationFrame(updateTimer);
 		}
 	}
@@ -112,12 +127,67 @@
 		}
 	}
 
+	async function loadNewPassage() {
+		reset();
+		await invalidateAll();
+	}
+
+	function handleGlobalKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			reset();
+		} else if (e.key === 'Tab') {
+			e.preventDefault();
+			loadNewPassage();
+		}
+	}
+
 	onMount(() => {
 		focusInput();
+		window.addEventListener('keydown', handleGlobalKeydown);
+	});
+
+	onDestroy(() => {
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('keydown', handleGlobalKeydown);
+		}
 	});
 </script>
 
 <div class="relative w-full max-w-4xl mx-auto flex flex-col gap-8">
+	<!-- Toolbar -->
+	{#if !isFinished && !startTime}
+		<div class="flex items-center justify-center gap-6 text-sm font-semibold text-zinc-500 mb-[-1rem] transition-opacity">
+			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
+				<button 
+					class="px-3 py-1 rounded-md transition-colors {mode === 'passage' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+					onclick={() => { mode = 'passage'; focusInput(); }}
+				>
+					Passage
+				</button>
+				<button 
+					class="px-3 py-1 rounded-md transition-colors {mode === 'timed' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+					onclick={() => { mode = 'timed'; focusInput(); }}
+				>
+					Timed
+				</button>
+			</div>
+			
+			{#if mode === 'timed'}
+				<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50 animate-in fade-in slide-in-from-left-2">
+					{#each [15, 30, 60] as limit}
+						<button 
+							class="px-3 py-1 rounded-md transition-colors {timeLimit === limit ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+							onclick={() => { timeLimit = limit; focusInput(); }}
+						>
+							{limit}s
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	<!-- HUD -->
 	{#if !isFinished}
 		<div class="flex items-center justify-between text-zinc-400 font-mono text-sm px-2">
@@ -133,7 +203,13 @@
 			</div>
 			<div class="flex flex-col items-end">
 				<span class="uppercase text-xs font-semibold text-zinc-500">Time</span>
-				<span class="text-2xl font-bold text-zinc-100">{Math.floor(timeElapsed)}s</span>
+				<span class="text-2xl font-bold text-zinc-100">
+					{#if mode === 'timed'}
+						{Math.max(0, timeLimit - Math.floor(timeElapsed))}s
+					{:else}
+						{Math.floor(timeElapsed)}s
+					{/if}
+				</span>
 			</div>
 		</div>
 	{/if}
@@ -202,13 +278,35 @@
 				{/if}
 
 				<button
-					onclick={reset}
+					onclick={loadNewPassage}
 					class="mt-4 flex items-center gap-2 rounded-lg bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
 				>
 					<i class="bi bi-arrow-counterclockwise"></i>
-					Type Again
+					Type Again (Tab)
 				</button>
 			</div>
 		{/if}
 	</div>
+
+	<!-- Controls -->
+	{#if !isFinished}
+		<div class="flex justify-center gap-4 text-zinc-500 transition-opacity {startTime ? 'opacity-0 pointer-events-none' : 'opacity-100'}">
+			<button 
+				class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
+				onclick={reset}
+				title="Restart Test (Esc)"
+			>
+				<i class="bi bi-arrow-counterclockwise"></i>
+				<span class="text-sm font-semibold">Restart (Esc)</span>
+			</button>
+			<button 
+				class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
+				onclick={loadNewPassage}
+				title="Next Passage (Tab)"
+			>
+				<i class="bi bi-skip-forward-fill"></i>
+				<span class="text-sm font-semibold">Next (Tab)</span>
+			</button>
+		</div>
+	{/if}
 </div>
