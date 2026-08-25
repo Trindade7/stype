@@ -30,4 +30,27 @@ describe('Main Page Content', () => {
 		expect(screen.getByText(/Welcome back/i)).toBeInTheDocument();
 		expect(screen.getByText('john_doe')).toBeInTheDocument();
 	});
+
+	it('automatically focuses typing input when passage is loaded on user dashboard', () => {
+		render(Page, {
+			data: {
+				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
+		});
+
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		expect(input).toBeInTheDocument();
+		expect(document.activeElement).toBe(input);
+	});
 });

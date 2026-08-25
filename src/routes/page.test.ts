@@ -127,4 +127,12 @@ describe('Guest Root Route (+page.svelte)', () => {
 		const headerContainer = header.firstElementChild;
 		expect(headerContainer).toHaveClass('mx-auto', 'max-w-5xl', 'px-6');
 	});
+
+	it('automatically focuses the typing input when the guest page mounts', () => {
+		render(GuestPage);
+
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		expect(input).toBeInTheDocument();
+		expect(document.activeElement).toBe(input);
+	});
 });

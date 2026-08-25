@@ -37,6 +37,7 @@
 	}>();
 
 	let inputEl: HTMLInputElement | undefined = $state();
+	let isFocused = $state(true);
 
 	let text = $derived(passage.text);
 	let chars = $derived(text.split(''));
@@ -143,15 +144,14 @@
 		}
 	}
 
-	function handleInput(e: Event) {
+	function applyTypedValue(val: string) {
 		if (isFinished) return;
-		
-		const target = e.target as HTMLInputElement;
-		let val = target.value;
-		
+
 		if (val.length > chars.length) {
 			val = val.slice(0, chars.length);
-			target.value = val;
+		}
+		if (inputEl && inputEl.value !== val) {
+			inputEl.value = val;
 		}
 
 		if (!startTime && val.length > 0) {
@@ -159,7 +159,7 @@
 			currentTime = Date.now();
 			requestAnimationFrame(updateTimer);
 		}
-		
+
 		typedText = val;
 
 		if (startTime && currentTime) {
@@ -173,6 +173,11 @@
 			isFinished = true;
 			submitTestRun();
 		}
+	}
+
+	function handleInput(e: Event) {
+		const target = e.target as HTMLInputElement;
+		applyTypedValue(target.value);
 	}
 
 	function updateTimer() {
@@ -192,6 +197,7 @@
 
 	function focusInput() {
 		inputEl?.focus();
+		isFocused = true;
 	}
 	
 	function reset() {
@@ -207,6 +213,7 @@
 			inputEl.value = '';
 			inputEl.focus();
 		}
+		isFocused = true;
 		if (onRestart) {
 			onRestart();
 		}
@@ -221,13 +228,51 @@
 		}
 	}
 
+	function isEditableElement(el: Element | null): boolean {
+		if (!el) return false;
+		const tagName = el.tagName.toLowerCase();
+		if (tagName === 'input') {
+			const type = (el as HTMLInputElement).type?.toLowerCase() || 'text';
+			return !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image'].includes(type);
+		}
+		if (tagName === 'textarea') return true;
+		if ((el as HTMLElement).isContentEditable) return true;
+		return false;
+	}
+
 	function handleGlobalKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			e.preventDefault();
 			reset();
-		} else if (e.key === 'Tab') {
+			return;
+		}
+		if (e.key === 'Tab') {
 			e.preventDefault();
 			loadNewPassage();
+			return;
+		}
+
+		if (isFinished) return;
+
+		const active = document.activeElement;
+		if (active && active !== inputEl && isEditableElement(active)) {
+			return;
+		}
+
+		if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			if (!isFocused || document.activeElement !== inputEl) {
+				e.preventDefault();
+				focusInput();
+				applyTypedValue(typedText + e.key);
+			}
+		} else if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			if (!isFocused || document.activeElement !== inputEl) {
+				e.preventDefault();
+				focusInput();
+				if (typedText.length > 0) {
+					applyTypedValue(typedText.slice(0, -1));
+				}
+			}
 		}
 	}
 
@@ -321,7 +366,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div 
-		class="relative rounded-xl bg-zinc-900/50 p-8 shadow-inner border border-zinc-800/50"
+		class="relative rounded-xl bg-zinc-900/50 p-8 shadow-inner border transition-all duration-200 {isFocused ? 'border-primary ring-2 ring-primary/20' : 'border-zinc-800/50 ring-0'}"
 		onclick={focusInput}
 	>
 		{#if !isFinished}
@@ -335,6 +380,8 @@
 				autocapitalize="off"
 				spellcheck="false"
 				oninput={handleInput}
+				onfocus={() => { isFocused = true; }}
+				onblur={() => { isFocused = false; }}
 				value={typedText}
 			/>
 
@@ -344,7 +391,7 @@
 					{@const isCorrect = typedChar === char}
 					{@const isIncorrect = typedChar !== undefined && !isCorrect}
 					{@const isCurrent = i === typedText.length}
-					<span class="relative transition-colors duration-75 {isCorrect ? 'text-zinc-100' : isIncorrect ? 'text-red-400 bg-red-400/10 rounded-sm' : ''} {isCurrent ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-emerald-400 after:animate-pulse' : ''}"
+					<span class="relative transition-colors duration-75 {isCorrect ? 'text-zinc-100' : isIncorrect ? 'text-red-400 bg-red-400/10 rounded-sm' : ''} {isCurrent ? (isFocused ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-emerald-400 after:animate-pulse' : 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-zinc-600') : ''}"
 					>{char}</span>
 				{/each}
 			</div>

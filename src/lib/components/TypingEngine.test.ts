@@ -226,4 +226,141 @@ describe('TypingEngine', () => {
 		expect(input.value).toBe('');
 		expect(onRestartMock).toHaveBeenCalledTimes(1);
 	});
+
+	it('automatically focuses the typing input on mount and highlights container', () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		expect(document.activeElement).toBe(input);
+
+		const typingArea = input.closest('div[class*="rounded-xl"]');
+		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+	});
+
+	it('dynamically updates container border and ring styling on blur and focus transitions', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		const typingArea = input.closest('div[class*="rounded-xl"]')!;
+
+		// Initially focused on mount
+		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+
+		// Blur input
+		await fireEvent.blur(input);
+		expect(typingArea).not.toHaveClass('border-primary');
+		expect(typingArea).not.toHaveClass('ring-2');
+		expect(typingArea).toHaveClass('border-zinc-800/50');
+
+		// Refocus input
+		await fireEvent.focus(input);
+		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+	});
+
+	it('toggles character cursor underline pulse animation based on focus state', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		const firstCharSpan = container.querySelector('span.relative') as HTMLElement;
+		expect(firstCharSpan).toBeInTheDocument();
+		expect(firstCharSpan.textContent).toBe('H');
+
+		// While focused, current character has pulse animation
+		expect(firstCharSpan.className).toContain('after:animate-pulse');
+
+		// Blur input -> pulse animation removed, remains static
+		await fireEvent.blur(input);
+		expect(firstCharSpan.className).not.toContain('after:animate-pulse');
+
+		// Refocus input -> pulse animation restored
+		await fireEvent.focus(input);
+		expect(firstCharSpan.className).toContain('after:animate-pulse');
+	});
+
+	it('refocuses typing engine and captures keystrokes when typed while blurred', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		const typingArea = input.closest('div[class*="rounded-xl"]')!;
+
+		// Explicitly blur the input
+		await fireEvent.blur(input);
+		expect(typingArea).not.toHaveClass('border-primary');
+
+		// Press 'H' globally while blurred
+		await fireEvent.keyDown(window, { key: 'H' });
+
+		// Input should refocus and capture 'H'
+		expect(document.activeElement).toBe(input);
+		expect(input.value).toBe('H');
+		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+	});
+
+	it('refocuses typing engine and handles backspace when blurred', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		const typingArea = input.closest('div[class*="rounded-xl"]')!;
+
+		await fireEvent.input(input, { target: { value: 'He' } });
+		expect(input.value).toBe('He');
+
+		// Blur input
+		await fireEvent.blur(input);
+		expect(typingArea).not.toHaveClass('border-primary');
+
+		// Press Backspace on window
+		await fireEvent.keyDown(window, { key: 'Backspace' });
+
+		// Input should refocus and value should be 'H'
+		expect(document.activeElement).toBe(input);
+		expect(input.value).toBe('H');
+		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+	});
+
+	it('does not steal keystrokes when focus is inside another editable element', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+
+		// Create another input on document
+		const otherInput = document.createElement('input');
+		otherInput.type = 'text';
+		document.body.appendChild(otherInput);
+		otherInput.focus();
+		expect(document.activeElement).toBe(otherInput);
+
+		// Press key
+		await fireEvent.keyDown(window, { key: 'H' });
+
+		// TypingEngine input should not have received the key
+		expect(input.value).toBe('');
+		expect(document.activeElement).toBe(otherInput);
+
+		document.body.removeChild(otherInput);
+	});
+
+	it('ignores modifier shortcuts and navigation keys when blurred', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		input.blur();
+
+		// Trigger modifier combinations and navigation keys
+		await fireEvent.keyDown(window, { key: 'c', ctrlKey: true });
+		await fireEvent.keyDown(window, { key: 'v', metaKey: true });
+		await fireEvent.keyDown(window, { key: 'k', altKey: true });
+		await fireEvent.keyDown(window, { key: 'Shift' });
+		await fireEvent.keyDown(window, { key: 'ArrowDown' });
+
+		expect(input.value).toBe('');
+		expect(document.activeElement).not.toBe(input);
+	});
 });
