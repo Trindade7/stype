@@ -133,6 +133,7 @@ describe('Guest Root Route (+page.svelte)', () => {
 
 		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
 		expect(input).toBeInTheDocument();
+		expect(input).toHaveAttribute('autofocus');
 		expect(document.activeElement).toBe(input);
 	});
 });

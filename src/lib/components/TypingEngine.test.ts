@@ -232,10 +232,24 @@ describe('TypingEngine', () => {
 		const { container } = render(TypingEngine, { passage });
 
 		const input = container.querySelector('input') as HTMLInputElement;
+		expect(input).toHaveAttribute('autofocus');
 		expect(document.activeElement).toBe(input);
 
 		const typingArea = input.closest('div[class*="rounded-xl"]');
 		expect(typingArea).toHaveClass('border-zinc-700');
+	});
+
+	it('refocuses input when window receives focus event', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		input.blur();
+		expect(document.activeElement).not.toBe(input);
+
+		// Trigger window focus
+		await fireEvent.focus(window);
+		expect(document.activeElement).toBe(input);
 	});
 
 	it('dynamically updates container border styling on blur and focus transitions', async () => {

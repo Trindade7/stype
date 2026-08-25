@@ -240,6 +240,15 @@
 		return false;
 	}
 
+	function handleWindowFocus() {
+		if (!isFinished) {
+			const active = document.activeElement;
+			if (!active || active === document.body || !isEditableElement(active)) {
+				focusInput();
+			}
+		}
+	}
+
 	function handleGlobalKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			e.preventDefault();
@@ -276,14 +285,32 @@
 		}
 	}
 
+	$effect(() => {
+		if (inputEl && !isFinished) {
+			focusInput();
+		}
+	});
+
 	onMount(() => {
 		focusInput();
+		const raf = requestAnimationFrame(() => focusInput());
+		const timer = setTimeout(() => focusInput(), 50);
+
 		window.addEventListener('keydown', handleGlobalKeydown);
+		window.addEventListener('focus', handleWindowFocus);
+
+		return () => {
+			cancelAnimationFrame(raf);
+			clearTimeout(timer);
+			window.removeEventListener('keydown', handleGlobalKeydown);
+			window.removeEventListener('focus', handleWindowFocus);
+		};
 	});
 
 	onDestroy(() => {
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('keydown', handleGlobalKeydown);
+			window.removeEventListener('focus', handleWindowFocus);
 		}
 	});
 </script>
@@ -370,8 +397,10 @@
 		onclick={focusInput}
 	>
 		{#if !isFinished}
+			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				bind:this={inputEl}
+				autofocus
 				class="absolute inset-0 h-full w-full opacity-0 cursor-default"
 				style="z-index: 1;"
 				type="text"
