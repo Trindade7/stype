@@ -150,6 +150,56 @@ describe('auth server hook', () => {
 		}
 	});
 
+	it('allows authenticated user to access api routes without redirecting', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+		const session = await createSession(db, admin.id);
+
+		const handle = createAuthHandle(db);
+
+		for (const path of ['/api/test-runs', '/api/settings', '/app/api/sync']) {
+			const { event } = createMockEvent(path, session.id);
+			let resolveCalled = false;
+			const resolve = async () => {
+				resolveCalled = true;
+				return new Response(JSON.stringify({ ok: true }), {
+					headers: { 'Content-Type': 'application/json' }
+				});
+			};
+
+			const response = await handle({ event, resolve });
+			expect(resolveCalled).toBe(true);
+			const json = await response.json();
+			expect(json).toEqual({ ok: true });
+			expect(event.locals.user).toBeDefined();
+			expect(event.locals.user?.username).toBe('admin');
+		}
+	});
+
+	it('allows unauthenticated user to access api routes without redirecting', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const handle = createAuthHandle(db);
+
+		for (const path of ['/api/test-runs', '/api/settings', '/app/api/sync']) {
+			const { event } = createMockEvent(path);
+			let resolveCalled = false;
+			const resolve = async () => {
+				resolveCalled = true;
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			};
+
+			const response = await handle({ event, resolve });
+			expect(resolveCalled).toBe(true);
+			expect(response.status).toBe(401);
+			expect(event.locals.user).toBeNull();
+		}
+	});
+
 	it('deletes invalid or expired session cookie and redirects to /app/login', async () => {
 		const { db } = initializeDatabase(':memory:');
 		const handle = createAuthHandle(db);

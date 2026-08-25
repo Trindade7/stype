@@ -4,9 +4,9 @@
 
 **Blocked by:** 03-add-pagination.md
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Create `src/routes/stats/+page.svelte` that displays Guest Lifetime Stats pulled from `localStore.getTestRuns()`, mirroring the layout of `/app/stats`.
-- [ ] Create `src/routes/passages/+page.svelte` that displays Guest Custom Passages pulled from `localStore.getCustomPassages()`, mirroring the layout of `/app/passages`.
-- [ ] Ensure the Guest `/passages` route allows creating and deleting Custom Passages via `localStore.saveCustomPassage` and `localStore.deleteCustomPassage`.
-- [ ] Ensure the Guest header links to `/stats` and `/passages` resolve successfully.
+- [x] Create `src/routes/stats/+page.svelte` that displays Guest Lifetime Stats pulled from `localStore.getTestRuns()`, mirroring the layout of `/app/stats`.
+- [x] Create `src/routes/passages/+page.svelte` that displays Guest Custom Passages pulled from `localStore.getCustomPassages()`, mirroring the layout of `/app/passages`.
+- [x] Ensure the Guest `/passages` route allows creating and deleting Custom Passages via `localStore.saveCustomPassage` and `localStore.deleteCustomPassage`.
+- [x] Ensure the Guest header links to `/stats` and `/passages` resolve successfully.

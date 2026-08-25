@@ -17,6 +17,12 @@
 			<a href="/history" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
 				History
 			</a>
+			<a href="/stats" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+				Stats
+			</a>
+			<a href="/passages" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+				Passages
+			</a>
 			<a href="/settings" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
 				Settings
 			</a>

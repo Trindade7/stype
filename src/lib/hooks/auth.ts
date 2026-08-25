@@ -28,6 +28,11 @@ export function createAuthHandle(
 			}
 		}
 
+		const isApiRoute = event.url.pathname.startsWith('/api') || event.url.pathname.startsWith('/app/api');
+		if (isApiRoute) {
+			return resolve(event);
+		}
+
 		const isAppRoute = event.url.pathname.startsWith('/app');
 		const isLoginPage = event.url.pathname === '/app/login';
 

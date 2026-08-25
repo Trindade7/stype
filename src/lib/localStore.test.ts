@@ -7,6 +7,7 @@ import {
 	saveGuestSettings,
 	getCustomPassages,
 	saveCustomPassage,
+	updateCustomPassage,
 	deleteCustomPassage,
 	getAllPassages,
 	getRandomPassage,
@@ -102,6 +103,30 @@ describe('localStore utility', () => {
 			const remaining = getCustomPassages();
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].id).toBe(passage2.id);
+		});
+
+		it('updates a custom passage by id', () => {
+			const passage = saveCustomPassage({ text: 'Original text', source: 'Original source' });
+			const updated = updateCustomPassage(passage.id, {
+				text: 'Updated text',
+				source: 'Updated source'
+			});
+
+			expect(updated).not.toBeNull();
+			expect(updated?.text).toBe('Updated text');
+			expect(updated?.source).toBe('Updated source');
+
+			const customList = getCustomPassages();
+			expect(customList[0].text).toBe('Updated text');
+			expect(customList[0].source).toBe('Updated source');
+		});
+
+		it('returns null when updating non-existent passage id', () => {
+			const updated = updateCustomPassage(999999, {
+				text: 'Non existent',
+				source: 'None'
+			});
+			expect(updated).toBeNull();
 		});
 
 		it('returns false when deleting a non-existent passage id', () => {

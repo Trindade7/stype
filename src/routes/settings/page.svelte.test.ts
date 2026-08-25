@@ -20,6 +20,8 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 		// Brand & Navigation
 		expect(screen.getByText('stype')).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /history/i })).toHaveAttribute('href', '/history');
+		expect(screen.getByRole('link', { name: /stats/i })).toHaveAttribute('href', '/stats');
+		expect(screen.getByRole('link', { name: /passages/i })).toHaveAttribute('href', '/passages');
 		expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
 		expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute('href', '/app/login');
 

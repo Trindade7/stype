@@ -169,6 +169,26 @@ export function saveCustomPassage(input: { text: string; source?: string | null 
 	return newPassage;
 }
 
+export function updateCustomPassage(
+	id: number,
+	input: { text: string; source?: string | null }
+): GuestPassage | null {
+	const current = getCustomPassages();
+	const index = current.findIndex((p) => p.id === id);
+	if (index === -1) {
+		return null;
+	}
+	const updated: GuestPassage = {
+		...current[index],
+		text: input.text.trim(),
+		source: input.source?.trim() || null
+	};
+	const next = [...current];
+	next[index] = updated;
+	safeSetItem(STORAGE_KEYS.CUSTOM_PASSAGES, next);
+	return updated;
+}
+
 export function deleteCustomPassage(id: number): boolean {
 	const current = getCustomPassages();
 	const filtered = current.filter((p) => p.id !== id);
@@ -258,6 +278,7 @@ export const localStore = {
 	saveSettings: saveGuestSettings,
 	getCustomPassages,
 	saveCustomPassage,
+	updateCustomPassage,
 	deleteCustomPassage,
 	getAllPassages,
 	getRandomPassage,
