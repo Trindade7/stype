@@ -72,4 +72,33 @@ describe('HistoryTable Component', () => {
 		expect(screen.getByText('80 WPM')).toBeInTheDocument();
 		expect(screen.queryByText('95 WPM')).not.toBeInTheDocument();
 	});
+
+	it('paginates runs, showing only 10 per page initially, and navigates to the next page', async () => {
+		const manyRuns = Array.from({ length: 15 }).map((_, i) => ({
+			id: i + 1,
+			mode: 'passage' as const,
+			duration: null,
+			wpm: 60 + i,
+			accuracy: 95,
+			createdAt: new Date(`2025-01-15T10:30:${String(i).padStart(2, '0')}Z`),
+			timeElapsed: 30
+		}));
+
+		render(HistoryTable, { runs: manyRuns });
+
+		// Should show 60 through 69 WPM initially
+		expect(screen.getByText('60 WPM')).toBeInTheDocument();
+		expect(screen.getByText('69 WPM')).toBeInTheDocument();
+		// Should not show 70 WPM yet
+		expect(screen.queryByText('70 WPM')).not.toBeInTheDocument();
+
+		// Click next
+		const nextButton = screen.getByRole('button', { name: /next/i });
+		await fireEvent.click(nextButton);
+
+		// Now 60 WPM should be hidden, 70 WPM should be visible
+		expect(screen.queryByText('60 WPM')).not.toBeInTheDocument();
+		expect(screen.getByText('70 WPM')).toBeInTheDocument();
+		expect(screen.getByText('74 WPM')).toBeInTheDocument();
+	});
 });

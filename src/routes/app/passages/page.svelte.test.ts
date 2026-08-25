@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
 import PassagesPage from './+page.svelte';
 
 describe('Passages Management Page', () => {
@@ -59,5 +59,40 @@ describe('Passages Management Page', () => {
 		});
 
 		expect(screen.getByText('Text is required')).toBeInTheDocument();
+	});
+
+	it('paginates passages, showing only 10 per page initially, and navigates to the next page', async () => {
+		const manyPassages = Array.from({ length: 12 }).map((_, i) => ({
+			id: i + 1,
+			text: `Passage content ${i + 1}`,
+			source: `Source ${i + 1}`,
+			userId: null,
+			createdAt: new Date()
+		}));
+
+		render(PassagesPage, {
+			data: {
+				user: { id: 'user-1', username: 'testuser', createdAt: new Date() },
+				passages: manyPassages,
+				settings: null
+			} as any,
+			form: null
+		});
+
+		// Should show passage 1 to 10 initially
+		expect(screen.getByText('Source 1')).toBeInTheDocument();
+		expect(screen.getByText('Source 10')).toBeInTheDocument();
+		
+		// Should not show passage 11 yet
+		expect(screen.queryByText('Source 11')).not.toBeInTheDocument();
+
+		// Click next
+		const nextButton = screen.getByRole('button', { name: /next/i });
+		await fireEvent.click(nextButton);
+
+		// Now 1 should be hidden, 11 and 12 should be visible
+		expect(screen.queryByText('Source 1')).not.toBeInTheDocument();
+		expect(screen.getByText('Source 11')).toBeInTheDocument();
+		expect(screen.getByText('Source 12')).toBeInTheDocument();
 	});
 });

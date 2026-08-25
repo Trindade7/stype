@@ -6,6 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
+	import * as Pagination from '$lib/components/ui/pagination';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { PlusIcon, Edit01Icon, Delete01Icon } from '@hugeicons/core-free-icons';
 	import { getPassageLength } from '$lib/passage-utils';
@@ -14,6 +15,16 @@
 
 	let isCreateOpen = $state(false);
 	let editingId = $state<number | null>(null);
+	let currentPage = $state(1);
+
+	let paginatedPassages = $derived(data.passages.slice((currentPage - 1) * 10, currentPage * 10));
+
+	$effect(() => {
+		const totalPages = Math.max(1, Math.ceil(data.passages.length / 10));
+		if (currentPage > totalPages) {
+			currentPage = totalPages;
+		}
+	});
 
 	const textareaClass = "flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -75,7 +86,7 @@
 	{/if}
 
 	<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-		{#each data.passages as passage}
+		{#each paginatedPassages as passage}
 			<Card.Root>
 				<Card.Header class="pb-3">
 					<div class="flex items-start justify-between gap-2">
@@ -144,4 +155,34 @@
 			</Card.Root>
 		{/each}
 	</div>
+
+	{#if data.passages.length > 10}
+		<div class="mt-6">
+			<Pagination.Root count={data.passages.length} perPage={10} bind:page={currentPage}>
+				{#snippet children({ pages, currentPage })}
+					<Pagination.Content>
+						<Pagination.Item>
+							<Pagination.Previous />
+						</Pagination.Item>
+						{#each pages as page (page.key)}
+							{#if page.type === "ellipsis"}
+								<Pagination.Item>
+									<Pagination.Ellipsis />
+								</Pagination.Item>
+							{:else}
+								<Pagination.Item>
+									<Pagination.Link {page} isActive={currentPage === page.value}>
+										{page.value}
+									</Pagination.Link>
+								</Pagination.Item>
+							{/if}
+						{/each}
+						<Pagination.Item>
+							<Pagination.Next />
+						</Pagination.Item>
+					</Pagination.Content>
+				{/snippet}
+			</Pagination.Root>
+		</div>
+	{/if}
 </div>

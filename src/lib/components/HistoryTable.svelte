@@ -3,6 +3,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import * as Tabs from '$lib/components/ui/tabs';
+	import * as Pagination from '$lib/components/ui/pagination';
 
 	export interface HistoryRunItem {
 		id?: number | string;
@@ -22,6 +23,7 @@
 
 	let filterMode = $state<string>('all');
 	let filterDate = $state<string>('');
+	let currentPage = $state(1);
 
 	let filteredRuns = $derived(
 		runs.filter((run) => {
@@ -44,6 +46,15 @@
 			return matchesMode && matchesDate;
 		})
 	);
+
+	let paginatedRuns = $derived(filteredRuns.slice((currentPage - 1) * 10, currentPage * 10));
+
+	$effect(() => {
+		const totalPages = Math.max(1, Math.ceil(filteredRuns.length / 10));
+		if (currentPage > totalPages) {
+			currentPage = totalPages;
+		}
+	});
 </script>
 
 <div class="w-full">
@@ -73,7 +84,7 @@
 		</Card>
 	{:else}
 		<div class="grid gap-4">
-			{#each filteredRuns as run (run.id ?? run.createdAt)}
+			{#each paginatedRuns as run (run.id ?? run.createdAt)}
 				<Card>
 					<CardContent class="p-6">
 						<div class="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
@@ -108,5 +119,35 @@
 				</Card>
 			{/each}
 		</div>
+
+		{#if filteredRuns.length > 10}
+			<div class="mt-6">
+				<Pagination.Root count={filteredRuns.length} perPage={10} bind:page={currentPage}>
+					{#snippet children({ pages, currentPage })}
+						<Pagination.Content>
+							<Pagination.Item>
+								<Pagination.Previous />
+							</Pagination.Item>
+							{#each pages as page (page.key)}
+								{#if page.type === "ellipsis"}
+									<Pagination.Item>
+										<Pagination.Ellipsis />
+									</Pagination.Item>
+								{:else}
+									<Pagination.Item>
+										<Pagination.Link {page} isActive={currentPage === page.value}>
+											{page.value}
+										</Pagination.Link>
+									</Pagination.Item>
+								{/if}
+							{/each}
+							<Pagination.Item>
+								<Pagination.Next />
+							</Pagination.Item>
+						</Pagination.Content>
+					{/snippet}
+				</Pagination.Root>
+			</div>
+		{/if}
 	{/if}
 </div>
