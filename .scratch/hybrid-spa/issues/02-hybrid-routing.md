@@ -5,10 +5,10 @@ The existing application routes must be relocated to `/app` to make room for the
 
 **Blocked by:** 01 — Prefactor: Extract shared UI components
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Move existing server-backed route folders (`login`, `logout`, `history`, `passages`, `settings`, `stats`, and the root `+page.svelte`/`+page.server.ts`) into `src/routes/app/`.
-- [ ] Update all internal links and redirects in the relocated application to point to the new `/app/...` paths.
-- [ ] Set `export const ssr = false;` in the root `src/routes/+layout.ts` (or `+layout.server.ts` equivalent for disabling SSR on the static portion).
-- [ ] Update `src/hooks.server.ts` to intercept requests: redirect users with a valid session away from `/` and Guest routes to the equivalent `/app` route, and redirect unauthenticated users away from `/app` (except `/app/login`) to `/app/login`.
-- [ ] Verify routing logic via `auth.test.ts` (mocking requests with and without cookies).
+- [x] Move existing server-backed route folders (`login`, `logout`, `history`, `passages`, `settings`, `stats`, and the root `+page.svelte`/`+page.server.ts`) into `src/routes/app/`.
+- [x] Update all internal links and redirects in the relocated application to point to the new `/app/...` paths.
+- [x] Set `export const ssr = false;` in the root `src/routes/+layout.ts` (or `+layout.server.ts` equivalent for disabling SSR on the static portion).
+- [x] Update `src/hooks.server.ts` to intercept requests: redirect users with a valid session away from `/` and Guest routes to the equivalent `/app` route, and redirect unauthenticated users away from `/app` (except `/app/login`) to `/app/login`.
+- [x] Verify routing logic via `auth.test.ts` (mocking requests with and without cookies).
