@@ -43,4 +43,14 @@ describe('Design System and Theme Configuration', () => {
 		// Check font definition in @theme
 		expect(css).toContain("--font-sans: 'Figtree Variable', sans-serif;");
 	});
+
+	it('configures scrollbar-gutter stable globally on html in app.css to prevent layout shifts', () => {
+		const cssPath = path.resolve(process.cwd(), 'src/app.css');
+		expect(fs.existsSync(cssPath)).toBe(true);
+
+		const css = fs.readFileSync(cssPath, 'utf8');
+
+		// Check global scrollbar gutter stabilization
+		expect(css).toMatch(/html\s*\{[^}]*scrollbar-gutter:\s*stable[^}]*\}/s);
+	});
 });

@@ -95,4 +95,21 @@ describe('App Layout Shell', () => {
 			body: JSON.stringify({ theme: 'light' })
 		}));
 	});
+
+	it('maintains fixed positioning and centered max-width layout alignment for navigation header', () => {
+		const childSnippet = createRawSnippet(() => ({
+			render: () => '<div data-testid="child">Content</div>'
+		}));
+
+		render(Layout, {
+			data: { user: { id: 'user-4', username: 'layout-user', createdAt: new Date() }, settings: null },
+			children: childSnippet
+		});
+
+		const header = screen.getByRole('banner');
+		expect(header).toHaveClass('fixed', 'inset-x-0', 'top-0');
+
+		const headerContainer = header.firstElementChild;
+		expect(headerContainer).toHaveClass('mx-auto', 'max-w-5xl', 'px-6');
+	});
 });

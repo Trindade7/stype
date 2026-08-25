@@ -117,4 +117,14 @@ describe('Guest Root Route (+page.svelte)', () => {
 
 		expect(document.body.textContent).toContain('Second passage text here.');
 	});
+
+	it('maintains fixed positioning and centered max-width layout alignment for guest header', () => {
+		render(GuestPage);
+
+		const header = screen.getByRole('banner');
+		expect(header).toHaveClass('fixed', 'inset-x-0', 'top-0');
+
+		const headerContainer = header.firstElementChild;
+		expect(headerContainer).toHaveClass('mx-auto', 'max-w-5xl', 'px-6');
+	});
 });
