@@ -156,7 +156,8 @@ export function getCustomPassages(): GuestPassage[] {
 
 export function saveCustomPassage(input: { text: string; source?: string | null }): GuestPassage {
 	const current = getCustomPassages();
-	const newId = Date.now() + Math.floor(Math.random() * 1000);
+	const maxId = current.reduce((max, p) => Math.max(max, p.id), 7);
+	const newId = Math.max(Date.now(), maxId + 1);
 	const newPassage: GuestPassage = {
 		id: newId,
 		text: input.text.trim(),
@@ -226,8 +227,11 @@ export function saveGuestTestRun(result: CompletedTestResult): GuestTestRun {
 	const allPassages = getAllPassages();
 	const matchedPassage = allPassages.find((p) => p.id === result.passageId) ?? null;
 
+	const maxId = currentRuns.reduce((max, r) => Math.max(max, r.id), 0);
+	const newId = Math.max(Date.now(), maxId + 1);
+
 	const newRun: GuestTestRun = {
-		id: Date.now() + Math.floor(Math.random() * 1000),
+		id: newId,
 		passageId: result.passageId,
 		mode: result.mode,
 		duration: result.duration,
