@@ -109,20 +109,7 @@
 		</div>
 	{/if}
 
-	<form
-		method="POST"
-		action={action}
-		onsubmit={handleSubmit}
-		use:enhance={() => {
-			return async ({ result, update }) => {
-				if (result.type === 'success') {
-					setMode(theme);
-				}
-				await update();
-			};
-		}}
-		class="space-y-6"
-	>
+	{#snippet formContent()}
 		<!-- Test Mode Settings -->
 		<Card.Root>
 			<Card.Header>
@@ -235,5 +222,27 @@
 		<div class="flex justify-end">
 			<Button type="submit" size="lg" disabled={isSaving}>Save Settings</Button>
 		</div>
-	</form>
+	{/snippet}
+
+	{#if onSave}
+		<form onsubmit={handleSubmit} class="space-y-6">
+			{@render formContent()}
+		</form>
+	{:else}
+		<form
+			method="POST"
+			action={action}
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					if (result.type === 'success') {
+						setMode(theme);
+					}
+					await update();
+				};
+			}}
+			class="space-y-6"
+		>
+			{@render formContent()}
+		</form>
+	{/if}
 </div>

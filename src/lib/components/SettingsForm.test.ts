@@ -58,11 +58,40 @@ describe('SettingsForm Component', () => {
 		expect(await screen.findByText(/settings saved successfully/i)).toBeInTheDocument();
 	});
 
-	it('displays error message from server form action or onSave', async () => {
+	it('renders pure client-side form without POST method/action when onSave is provided', () => {
+		const onSave = vi.fn();
 		render(SettingsForm, {
-			form: { error: 'Failed to update user settings' }
+			settings: {
+				mode: 'passage',
+				duration: 30,
+				passageLength: 'all',
+				zenMode: false,
+				theme: 'system'
+			},
+			onSave
 		});
 
-		expect(screen.getByText('Failed to update user settings')).toBeInTheDocument();
+		const form = document.querySelector('form');
+		expect(form).not.toBeNull();
+		expect(form).not.toHaveAttribute('method', 'POST');
+		expect(form).not.toHaveAttribute('action');
+	});
+
+	it('renders server-backed form with POST method and action when onSave is not provided', () => {
+		render(SettingsForm, {
+			settings: {
+				mode: 'passage',
+				duration: 30,
+				passageLength: 'all',
+				zenMode: false,
+				theme: 'system'
+			},
+			action: '?/save'
+		});
+
+		const form = document.querySelector('form');
+		expect(form).not.toBeNull();
+		expect(form).toHaveAttribute('method', 'POST');
+		expect(form).toHaveAttribute('action', '?/save');
 	});
 });
