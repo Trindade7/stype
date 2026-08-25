@@ -262,18 +262,21 @@
 				</button>
 			</div>
 			
-			{#if mode === 'timed'}
-				<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50 animate-in fade-in slide-in-from-left-2">
-					{#each [15, 30, 60] as limit}
-						<button 
-							class="px-3 py-1 rounded-md transition-colors {timeLimit === limit ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
-							onclick={() => { timeLimit = limit; focusInput(); }}
-						>
-							{limit}s
-						</button>
-					{/each}
-				</div>
-			{/if}
+			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50 transition-opacity {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}">
+				{#each [15, 30, 60] as limit}
+					<button 
+						disabled={mode === 'passage'}
+						class="px-3 py-1 rounded-md transition-colors {timeLimit === limit ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'} {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}"
+						onclick={() => { 
+							if (mode === 'passage') return;
+							timeLimit = limit; 
+							focusInput(); 
+						}}
+					>
+						{limit}s
+					</button>
+				{/each}
+			</div>
 
 			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
 				<button 

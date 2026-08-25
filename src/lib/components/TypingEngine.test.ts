@@ -47,6 +47,54 @@ describe('TypingEngine', () => {
 		expect(screen.getByText('Zen')).toBeInTheDocument();
 	});
 
+	it('renders duration buttons as disabled when initialMode is passage', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		render(TypingEngine, {
+			passage,
+			initialMode: 'passage',
+			initialDuration: 30
+		});
+
+		const btn15 = screen.getByRole('button', { name: '15s' });
+		const btn30 = screen.getByRole('button', { name: '30s' });
+		const btn60 = screen.getByRole('button', { name: '60s' });
+
+		expect(btn15).toBeInTheDocument();
+		expect(btn30).toBeInTheDocument();
+		expect(btn60).toBeInTheDocument();
+
+		expect(btn15).toBeDisabled();
+		expect(btn30).toBeDisabled();
+		expect(btn60).toBeDisabled();
+
+		expect(btn15).toHaveClass('opacity-50', 'pointer-events-none');
+		expect(btn30).toHaveClass('opacity-50', 'pointer-events-none');
+		expect(btn60).toHaveClass('opacity-50', 'pointer-events-none');
+
+		// Clicking a disabled duration button should not update duration or cause state change
+		await fireEvent.click(btn60);
+		expect(btn60).not.toHaveClass('bg-zinc-800 text-zinc-100');
+	});
+
+	it('enables duration buttons when switching from passage to timed mode', async () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		render(TypingEngine, {
+			passage,
+			initialMode: 'passage',
+			initialDuration: 30
+		});
+
+		const timedButton = screen.getByRole('button', { name: 'Timed' });
+		await fireEvent.click(timedButton);
+
+		const btn60 = screen.getByRole('button', { name: '60s' });
+		expect(btn60).not.toBeDisabled();
+		expect(btn60).not.toHaveClass('opacity-50', 'pointer-events-none');
+
+		await fireEvent.click(btn60);
+		expect(btn60).toHaveClass('bg-zinc-800 text-zinc-100');
+	});
+
 	it('hides live HUD metrics during active typing when Zen Mode is enabled', async () => {
 		const passage = { id: 1, text: 'Hello world', source: 'Test' };
 		const { container } = render(TypingEngine, {

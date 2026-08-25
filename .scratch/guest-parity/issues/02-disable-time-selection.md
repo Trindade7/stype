@@ -4,9 +4,9 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] In `TypingEngine.svelte`, remove the `{#if mode === 'timed'}` block wrapping the duration selection buttons.
-- [ ] When `mode === 'passage'`, apply disabled CSS classes (`opacity-50 pointer-events-none`) to the duration buttons.
-- [ ] Ensure that clicking the disabled buttons does not update the selected time duration or cause any state changes.
-- [ ] Write or update component tests in `TypingEngine.test.ts` to assert that duration buttons render but are disabled when initialMode is 'passage'.
+- [x] In `TypingEngine.svelte`, remove the `{#if mode === 'timed'}` block wrapping the duration selection buttons.
+- [x] When `mode === 'passage'`, apply disabled CSS classes (`opacity-50 pointer-events-none`) to the duration buttons.
+- [x] Ensure that clicking the disabled buttons does not update the selected time duration or cause any state changes.
+- [x] Write or update component tests in `TypingEngine.test.ts` to assert that duration buttons render but are disabled when initialMode is 'passage'.
