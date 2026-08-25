@@ -18,7 +18,6 @@
 		Chart01Icon
 	} from '@hugeicons/core-free-icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { Badge } from '$lib/components/ui/badge';
 	import { buttonVariants } from '$lib/components/ui/button';
 
 	let { data, children } = $props();
@@ -59,33 +58,31 @@
 
 {#if data.user}
 	<div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-		<header class="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-			<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-				<div class="flex items-center gap-3">
+		<header class="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+			<div class="mx-auto flex max-w-5xl items-center justify-between sm:justify-start px-6 py-4">
+				<div class="flex sm:w-1/3 items-center gap-3">
 					<a href="/app" class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary transition-colors hover:bg-secondary/80">
 						<HugeiconsIcon icon={KeyboardIcon} size={20} />
 					</a>
 					<a href="/app" class="text-xl font-bold tracking-tight text-foreground hover:text-foreground/80 transition-colors">stype</a>
-					
-					<Badge variant="outline" class="ml-2 gap-1.5 border-primary/20 bg-primary/10 text-primary font-normal hidden sm:inline-flex">
-						<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
-						Session active
-					</Badge>
-					<a href="/app/history" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+				</div>
+
+				<div class="hidden sm:flex sm:w-1/3 items-center justify-center gap-6">
+					<a href="/app/history" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
 						History
 					</a>
-					<a href="/app/stats" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+					<a href="/app/stats" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
 						Stats
 					</a>
-					<a href="/app/passages" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+					<a href="/app/passages" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
 						Passages
 					</a>
-					<a href="/app/settings" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+					<a href="/app/settings" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
 						Settings
 					</a>
 				</div>
 
-				<div class="flex items-center gap-2 sm:gap-4">
+				<div class="flex sm:w-1/3 items-center justify-end gap-2 sm:gap-4">
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' }) + " h-9 w-9 rounded-md"}>
 							<div class="flex items-center justify-center dark:hidden">
@@ -163,7 +160,7 @@
 				</div>
 			</div>
 		</header>
-		<main class="flex-1">
+		<main class="flex-1 mt-[69px]">
 			{@render children()}
 		</main>
 	</div>

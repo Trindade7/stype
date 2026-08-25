@@ -22,7 +22,6 @@ describe('App Layout Shell', () => {
 
 		expect(screen.getByTestId('child')).toBeInTheDocument();
 		expect(screen.queryByText('stype')).not.toBeInTheDocument();
-		expect(screen.queryByText('Session active')).not.toBeInTheDocument();
 	});
 
 	it('renders shell header and components when user is authenticated', () => {
@@ -38,8 +37,6 @@ describe('App Layout Shell', () => {
 		expect(screen.getByTestId('child')).toBeInTheDocument();
 		// Header brand
 		expect(screen.getByText('stype')).toBeInTheDocument();
-		// Session badge
-		expect(screen.getByText('Session active')).toBeInTheDocument();
 		// User profile trigger
 		expect(screen.getByText('testuser')).toBeInTheDocument();
 		// Theme switcher button should be present
