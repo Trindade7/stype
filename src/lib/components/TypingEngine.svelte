@@ -366,7 +366,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div 
-		class="relative rounded-xl bg-zinc-900/50 p-8 shadow-inner border transition-all duration-200 {isFocused ? 'border-primary ring-2 ring-primary/20' : 'border-zinc-800/50 ring-0'}"
+		class="relative rounded-xl bg-zinc-900/50 p-8 shadow-inner border transition-colors duration-200 {isFocused ? 'border-zinc-700' : 'border-zinc-800/40'}"
 		onclick={focusInput}
 	>
 		{#if !isFinished}

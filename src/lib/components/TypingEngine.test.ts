@@ -235,28 +235,27 @@ describe('TypingEngine', () => {
 		expect(document.activeElement).toBe(input);
 
 		const typingArea = input.closest('div[class*="rounded-xl"]');
-		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+		expect(typingArea).toHaveClass('border-zinc-700');
 	});
 
-	it('dynamically updates container border and ring styling on blur and focus transitions', async () => {
+	it('dynamically updates container border styling on blur and focus transitions', async () => {
 		const passage = { id: 1, text: 'Hello', source: 'Test' };
 		const { container } = render(TypingEngine, { passage });
 
 		const input = container.querySelector('input') as HTMLInputElement;
 		const typingArea = input.closest('div[class*="rounded-xl"]')!;
 
-		// Initially focused on mount
-		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+		// Initially focused on mount (undimmed)
+		expect(typingArea).toHaveClass('border-zinc-700');
 
-		// Blur input
+		// Blur input (dimmed)
 		await fireEvent.blur(input);
-		expect(typingArea).not.toHaveClass('border-primary');
-		expect(typingArea).not.toHaveClass('ring-2');
-		expect(typingArea).toHaveClass('border-zinc-800/50');
+		expect(typingArea).not.toHaveClass('border-zinc-700');
+		expect(typingArea).toHaveClass('border-zinc-800/40');
 
-		// Refocus input
+		// Refocus input (undimmed)
 		await fireEvent.focus(input);
-		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+		expect(typingArea).toHaveClass('border-zinc-700');
 	});
 
 	it('toggles character cursor underline pulse animation based on focus state', async () => {
@@ -289,7 +288,7 @@ describe('TypingEngine', () => {
 
 		// Explicitly blur the input
 		await fireEvent.blur(input);
-		expect(typingArea).not.toHaveClass('border-primary');
+		expect(typingArea).not.toHaveClass('border-zinc-700');
 
 		// Press 'H' globally while blurred
 		await fireEvent.keyDown(window, { key: 'H' });
@@ -297,7 +296,7 @@ describe('TypingEngine', () => {
 		// Input should refocus and capture 'H'
 		expect(document.activeElement).toBe(input);
 		expect(input.value).toBe('H');
-		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+		expect(typingArea).toHaveClass('border-zinc-700');
 	});
 
 	it('refocuses typing engine and handles backspace when blurred', async () => {
@@ -312,7 +311,7 @@ describe('TypingEngine', () => {
 
 		// Blur input
 		await fireEvent.blur(input);
-		expect(typingArea).not.toHaveClass('border-primary');
+		expect(typingArea).not.toHaveClass('border-zinc-700');
 
 		// Press Backspace on window
 		await fireEvent.keyDown(window, { key: 'Backspace' });
@@ -320,7 +319,7 @@ describe('TypingEngine', () => {
 		// Input should refocus and value should be 'H'
 		expect(document.activeElement).toBe(input);
 		expect(input.value).toBe('H');
-		expect(typingArea).toHaveClass('border-primary', 'ring-2', 'ring-primary/20');
+		expect(typingArea).toHaveClass('border-zinc-700');
 	});
 
 	it('does not steal keystrokes when focus is inside another editable element', async () => {
