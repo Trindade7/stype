@@ -67,3 +67,14 @@ _Avoid_: Status bar, overlay, dashboard, stats bar
 **Zen Mode**:
 A setting that hides the live HUD metrics during typing until the test run completes.
 _Avoid_: Distraction-free mode, blind mode, focus mode
+
+**Guest**:
+An unauthenticated user interacting with the static SPA, whose test history and settings are stored locally.
+_Avoid_: Anonymous user, visitor, local user
+
+**Local Store**:
+The client-side storage mechanism (e.g., localStorage or IndexedDB) used to save a Guest's `Test Run`s and `Settings` while they are unauthenticated.
+_Avoid_: Offline cache, local database
+
+**Component Props Strategy**:
+Shared UI components (like HUD and History tables) receive their data entirely via props. They do not know whether they are rendering Guest data (from Local Store) or User data (from the database).
