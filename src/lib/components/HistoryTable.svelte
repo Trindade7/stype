@@ -1,9 +1,15 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardContent } from '$lib/components/ui/card';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Pagination from '$lib/components/ui/pagination';
+	import * as Popover from '$lib/components/ui/popover';
+	import { Calendar } from '$lib/components/ui/calendar';
+	import { DateFormatter, type DateValue, getLocalTimeZone } from '@internationalized/date';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { Calendar03Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+	import { cn } from '$lib/utils';
 
 	export interface HistoryRunItem {
 		id?: number | string;
@@ -22,8 +28,19 @@
 	let { runs = [] }: { runs?: HistoryRunItem[] } = $props();
 
 	let filterMode = $state<string>('all');
-	let filterDate = $state<string>('');
+	let selectedDate = $state<DateValue | undefined>(undefined);
+	let isCalendarOpen = $state(false);
 	let currentPage = $state(1);
+
+	const df = new DateFormatter('en-US', {
+		dateStyle: 'medium'
+	});
+
+	let filterDateString = $derived(
+		selectedDate
+			? `${selectedDate.year}-${String(selectedDate.month).padStart(2, '0')}-${String(selectedDate.day).padStart(2, '0')}`
+			: ''
+	);
 
 	let filteredRuns = $derived(
 		runs.filter((run) => {
@@ -32,7 +49,7 @@
 			if (filterMode === 'timed') matchesMode = run.mode === 'timed';
 
 			let matchesDate = true;
-			if (filterDate) {
+			if (filterDateString) {
 				const dateObj = new Date(run.createdAt);
 				const runDate =
 					dateObj.getFullYear() +
@@ -40,7 +57,7 @@
 					String(dateObj.getMonth() + 1).padStart(2, '0') +
 					'-' +
 					String(dateObj.getDate()).padStart(2, '0');
-				matchesDate = runDate === filterDate;
+				matchesDate = runDate === filterDateString;
 			}
 
 			return matchesMode && matchesDate;
@@ -71,8 +88,43 @@
 		</div>
 
 		<div class="w-full sm:w-auto">
-			<Label for="dateFilter" class="mb-2 block">Filter by Date</Label>
-			<Input type="date" id="dateFilter" bind:value={filterDate} class="w-full sm:w-[200px]" />
+			<Label class="mb-2 block">Filter by Date</Label>
+			<div class="flex items-center gap-2">
+				<Popover.Root bind:open={isCalendarOpen}>
+					<Popover.Trigger
+						class={cn(
+							buttonVariants({ variant: 'outline' }),
+							'w-full sm:w-[220px] justify-start text-left font-normal',
+							!selectedDate && 'text-muted-foreground'
+						)}
+						aria-label="Filter by date"
+					>
+						<HugeiconsIcon icon={Calendar03Icon} size={16} class="mr-2 shrink-0" />
+						{selectedDate ? df.format(selectedDate.toDate(getLocalTimeZone())) : 'Pick a date'}
+					</Popover.Trigger>
+					<Popover.Content class="w-auto p-0" align="start">
+						<Calendar
+							type="single"
+							bind:value={selectedDate}
+							onValueChange={() => {
+								isCalendarOpen = false;
+							}}
+						/>
+					</Popover.Content>
+				</Popover.Root>
+
+				{#if selectedDate}
+					<Button
+						variant="ghost"
+						size="icon"
+						class="h-9 w-9 text-muted-foreground hover:text-foreground"
+						aria-label="Clear date filter"
+						onclick={() => (selectedDate = undefined)}
+					>
+						<HugeiconsIcon icon={Cancel01Icon} size={16} />
+					</Button>
+				{/if}
+			</div>
 		</div>
 	</div>
 

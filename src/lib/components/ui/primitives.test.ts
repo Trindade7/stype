@@ -11,6 +11,8 @@ import { Switch } from './switch';
 import { Checkbox } from './checkbox';
 import * as RadioGroup from './radio-group';
 import * as Select from './select';
+import { Calendar } from './calendar';
+import * as Popover from './popover';
 
 function createSnippet(text: string) {
 	return createRawSnippet(() => ({
@@ -231,6 +233,39 @@ describe('UI Primitives', () => {
 
 			const trigger = screen.getByText('Select Option');
 			expect(trigger).toBeInTheDocument();
+		});
+	});
+
+	describe('Calendar Primitive', () => {
+		it('renders calendar component with navigation buttons', () => {
+			render(Calendar, {
+				props: {
+					type: 'single'
+				}
+			});
+
+			const prevBtn = screen.getByRole('button', { name: /previous/i });
+			const nextBtn = screen.getByRole('button', { name: /next/i });
+			expect(prevBtn).toBeInTheDocument();
+			expect(nextBtn).toBeInTheDocument();
+		});
+	});
+
+	describe('Popover Primitive', () => {
+		it('renders popover root with trigger element', () => {
+			const popoverSnippet = createRawSnippet(() => ({
+				render: () => `
+					<button type="button" data-slot="popover-trigger">Open Popover</button>
+				`
+			}));
+
+			render(Popover.Root, {
+				props: {
+					children: popoverSnippet
+				}
+			});
+
+			expect(screen.getByText('Open Popover')).toBeInTheDocument();
 		});
 	});
 });

@@ -63,14 +63,66 @@ describe('HistoryTable Component', () => {
 		expect(screen.getByText('95 WPM')).toBeInTheDocument();
 	});
 
-	it('filters runs by date correctly', async () => {
-		render(HistoryTable, { runs: mockRuns });
+	it('filters runs by date correctly and allows clearing date filter', async () => {
+		// Mock runs with current month / year to match default calendar view
+		const now = new Date();
+		const currentYear = now.getFullYear();
+		const currentMonth = now.getMonth();
+		const date1 = new Date(currentYear, currentMonth, 10, 10, 30);
+		const date2 = new Date(currentYear, currentMonth, 20, 14, 0);
 
-		const dateInput = screen.getByLabelText(/filter by date/i) as HTMLInputElement;
-		await fireEvent.input(dateInput, { target: { value: '2025-01-15' } });
+		const dynamicRuns = [
+			{
+				id: 101,
+				mode: 'passage' as const,
+				duration: null,
+				wpm: 80,
+				accuracy: 98,
+				createdAt: date1,
+				timeElapsed: 45,
+				passage: {
+					source: 'The Great Gatsby',
+					text: 'Sample passage text.'
+				}
+			},
+			{
+				id: 102,
+				mode: 'timed' as const,
+				duration: 30,
+				wpm: 95,
+				accuracy: 100,
+				createdAt: date2,
+				timeElapsed: 30,
+				passage: {
+					source: null,
+					text: 'Another passage text.'
+				}
+			}
+		];
+
+		render(HistoryTable, { runs: dynamicRuns });
+
+		const dateTrigger = screen.getByRole('button', { name: /filter by date/i });
+		await fireEvent.click(dateTrigger);
+
+		// Click the day button for day 10
+		const dayButtons = screen.getAllByRole('button');
+		const day10Button = dayButtons.find((btn) => btn.textContent?.trim() === '10');
+		expect(day10Button).toBeDefined();
+
+		if (day10Button) {
+			await fireEvent.click(day10Button);
+		}
 
 		expect(screen.getByText('80 WPM')).toBeInTheDocument();
 		expect(screen.queryByText('95 WPM')).not.toBeInTheDocument();
+
+		// Clear filter
+		const clearButton = screen.getByRole('button', { name: /clear date filter/i });
+		await fireEvent.click(clearButton);
+
+		expect(screen.getByText('80 WPM')).toBeInTheDocument();
+		expect(screen.getByText('95 WPM')).toBeInTheDocument();
 	});
 
 	it('paginates runs, showing only 10 per page initially, and navigates to the next page', async () => {
