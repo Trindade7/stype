@@ -92,13 +92,23 @@ describe('HistoryTable Component', () => {
 		// Should not show 70 WPM yet
 		expect(screen.queryByText('70 WPM')).not.toBeInTheDocument();
 
-		// Click next
+		const prevButton = screen.getByRole('button', { name: /previous/i });
 		const nextButton = screen.getByRole('button', { name: /next/i });
+
+		// Previous button should be disabled on page 1
+		expect(prevButton).toBeDisabled();
+		expect(nextButton).not.toBeDisabled();
+
+		// Click next
 		await fireEvent.click(nextButton);
 
 		// Now 60 WPM should be hidden, 70 WPM should be visible
 		expect(screen.queryByText('60 WPM')).not.toBeInTheDocument();
 		expect(screen.getByText('70 WPM')).toBeInTheDocument();
 		expect(screen.getByText('74 WPM')).toBeInTheDocument();
+
+		// Next button should be disabled on page 2 (last page)
+		expect(prevButton).not.toBeDisabled();
+		expect(nextButton).toBeDisabled();
 	});
 });

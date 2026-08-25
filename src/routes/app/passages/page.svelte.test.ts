@@ -86,13 +86,23 @@ describe('Passages Management Page', () => {
 		// Should not show passage 11 yet
 		expect(screen.queryByText('Source 11')).not.toBeInTheDocument();
 
-		// Click next
+		const prevButton = screen.getByRole('button', { name: /previous/i });
 		const nextButton = screen.getByRole('button', { name: /next/i });
+
+		// Previous button should be disabled on page 1
+		expect(prevButton).toBeDisabled();
+		expect(nextButton).not.toBeDisabled();
+
+		// Click next
 		await fireEvent.click(nextButton);
 
 		// Now 1 should be hidden, 11 and 12 should be visible
 		expect(screen.queryByText('Source 1')).not.toBeInTheDocument();
 		expect(screen.getByText('Source 11')).toBeInTheDocument();
 		expect(screen.getByText('Source 12')).toBeInTheDocument();
+
+		// Next button should be disabled on page 2 (last page)
+		expect(prevButton).not.toBeDisabled();
+		expect(nextButton).toBeDisabled();
 	});
 });
