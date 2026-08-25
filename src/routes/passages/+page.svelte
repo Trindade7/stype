@@ -6,6 +6,7 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Pagination from '$lib/components/ui/pagination';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
@@ -39,8 +40,6 @@
 			currentPage = totalPages;
 		}
 	});
-
-	const textareaClass = "flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 	function displayPassageLength(text: string) {
 		const len = getPassageLength(text);
@@ -120,14 +119,14 @@
 						<div class="grid gap-4 py-4">
 							<div class="grid gap-2">
 								<Label for="text">Text</Label>
-								<textarea
+								<Textarea
 									id="text"
 									name="text"
 									required
 									bind:value={newText}
-									class={textareaClass}
+									class="min-h-[120px]"
 									placeholder="Type or paste passage text here..."
-								></textarea>
+								/>
 							</div>
 							<div class="grid gap-2">
 								<Label for="source">Source (Optional)</Label>
@@ -182,7 +181,7 @@
 												<div class="grid gap-4 py-4">
 													<div class="grid gap-2">
 														<Label for="edit-text">Text</Label>
-														<textarea id="edit-text" name="text" required bind:value={editText} class={textareaClass}></textarea>
+														<Textarea id="edit-text" name="text" required bind:value={editText} class="min-h-[120px]" />
 													</div>
 													<div class="grid gap-2">
 														<Label for="edit-source">Source</Label>

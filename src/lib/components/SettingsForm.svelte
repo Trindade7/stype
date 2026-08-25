@@ -2,6 +2,9 @@
 	import { enhance } from '$app/forms';
 	import { setMode } from 'mode-watcher';
 	import * as Card from '$lib/components/ui/card';
+	import * as Select from '$lib/components/ui/select';
+	import * as RadioGroup from '$lib/components/ui/radio-group';
+	import { Switch } from '$lib/components/ui/switch';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
@@ -36,7 +39,7 @@
 	}: SettingsFormProps = $props();
 
 	let mode = $state<'passage' | 'timed'>('passage');
-	let duration = $state<number>(30);
+	let duration = $state<string>('30');
 	let passageLength = $state<'all' | 'short' | 'medium' | 'long'>('all');
 	let zenMode = $state<boolean>(false);
 	let theme = $state<'system' | 'dark' | 'light'>('system');
@@ -45,18 +48,34 @@
 	let localError = $state<string | null>(null);
 	let isSaving = $state(false);
 
+	const durationLabels: Record<string, string> = {
+		'15': '15 seconds',
+		'30': '30 seconds',
+		'60': '60 seconds'
+	};
+
+	const passageLengthLabels: Record<string, string> = {
+		all: 'All Lengths',
+		short: 'Short (< 50 words)',
+		medium: 'Medium (50–100 words)',
+		long: 'Long (> 100 words)'
+	};
+
+	const themeLabels: Record<string, string> = {
+		system: 'System Default',
+		dark: 'Dark',
+		light: 'Light'
+	};
+
 	$effect.pre(() => {
 		if (settings) {
 			mode = settings.mode ?? 'passage';
-			duration = settings.duration ?? 30;
+			duration = String(settings.duration ?? 30);
 			passageLength = settings.passageLength ?? 'all';
 			zenMode = settings.zenMode ?? false;
 			theme = settings.theme ?? 'system';
 		}
 	});
-
-	const selectClass =
-		'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 
 	async function handleSubmit(e: SubmitEvent) {
 		if (onSave) {
@@ -68,7 +87,7 @@
 				setMode(theme);
 				const result = await onSave({
 					mode,
-					duration,
+					duration: Number(duration),
 					passageLength,
 					zenMode,
 					theme
@@ -117,50 +136,43 @@
 				<Card.Description>Choose your default test mode when starting a practice session.</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					<label
+				<RadioGroup.Root bind:value={mode} name="mode" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<Label
+						for="mode-passage"
 						class="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-muted/50 {mode === 'passage' ? 'border-primary bg-primary/5 ring-1 ring-primary' : ''}"
 					>
-						<input
-							type="radio"
-							name="mode"
-							value="passage"
-							checked={mode === 'passage'}
-							onchange={() => (mode = 'passage')}
-							class="mt-1"
-						/>
+						<RadioGroup.Item value="passage" id="mode-passage" class="mt-1" />
 						<div>
 							<span class="font-medium text-foreground block">Passage Mode</span>
 							<span class="text-xs text-muted-foreground">Type the entire passage from start to finish with an upward timer.</span>
 						</div>
-					</label>
+					</Label>
 
-					<label
+					<Label
+						for="mode-timed"
 						class="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-muted/50 {mode === 'timed' ? 'border-primary bg-primary/5 ring-1 ring-primary' : ''}"
 					>
-						<input
-							type="radio"
-							name="mode"
-							value="timed"
-							checked={mode === 'timed'}
-							onchange={() => (mode = 'timed')}
-							class="mt-1"
-						/>
+						<RadioGroup.Item value="timed" id="mode-timed" class="mt-1" />
 						<div>
 							<span class="font-medium text-foreground block">Timed Mode</span>
 							<span class="text-xs text-muted-foreground">Type against a countdown timer with fixed sprint durations.</span>
 						</div>
-					</label>
-				</div>
+					</Label>
+				</RadioGroup.Root>
 
 				{#if mode === 'timed'}
 					<div class="grid gap-2 pt-2 animate-in fade-in">
-						<Label for="duration">Default Duration</Label>
-						<select id="duration" name="duration" bind:value={duration} class={selectClass}>
-							<option value={15}>15 seconds</option>
-							<option value={30}>30 seconds</option>
-							<option value={60}>60 seconds</option>
-						</select>
+						<Label id="duration-label" for="duration">Default Duration</Label>
+						<Select.Root type="single" name="duration" bind:value={duration}>
+							<Select.Trigger id="duration" class="w-full" aria-labelledby="duration-label">
+								{durationLabels[duration] || 'Select duration'}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="15" label="15 seconds">15 seconds</Select.Item>
+								<Select.Item value="30" label="30 seconds">30 seconds</Select.Item>
+								<Select.Item value="60" label="60 seconds">60 seconds</Select.Item>
+							</Select.Content>
+						</Select.Root>
 					</div>
 				{/if}
 			</Card.Content>
@@ -174,13 +186,18 @@
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="grid gap-2">
-					<Label for="passageLength">Preferred Passage Length</Label>
-					<select id="passageLength" name="passageLength" bind:value={passageLength} class={selectClass}>
-						<option value="all">All Lengths</option>
-						<option value="short">Short (&lt; 50 words)</option>
-						<option value="medium">Medium (50–100 words)</option>
-						<option value="long">Long (&gt; 100 words)</option>
-					</select>
+					<Label id="passageLength-label" for="passageLength">Preferred Passage Length</Label>
+					<Select.Root type="single" name="passageLength" bind:value={passageLength}>
+						<Select.Trigger id="passageLength" class="w-full" aria-labelledby="passageLength-label">
+							{passageLengthLabels[passageLength] || 'Select passage length'}
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="all" label="All Lengths">All Lengths</Select.Item>
+							<Select.Item value="short" label="Short (< 50 words)">Short (&lt; 50 words)</Select.Item>
+							<Select.Item value="medium" label="Medium (50–100 words)">Medium (50–100 words)</Select.Item>
+							<Select.Item value="long" label="Long (> 100 words)">Long (&gt; 100 words)</Select.Item>
+						</Select.Content>
+					</Select.Root>
 				</div>
 			</Card.Content>
 		</Card.Root>
@@ -193,28 +210,27 @@
 			</Card.Header>
 			<Card.Content class="space-y-6">
 				<div class="grid gap-2">
-					<Label for="theme">Visual Theme</Label>
-					<select id="theme" name="theme" bind:value={theme} class={selectClass}>
-						<option value="system">System Default</option>
-						<option value="dark">Dark</option>
-						<option value="light">Light</option>
-					</select>
+					<Label id="theme-label" for="theme">Visual Theme</Label>
+					<Select.Root type="single" name="theme" bind:value={theme}>
+						<Select.Trigger id="theme" class="w-full" aria-labelledby="theme-label">
+							{themeLabels[theme] || 'Select theme'}
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="system" label="System Default">System Default</Select.Item>
+							<Select.Item value="dark" label="Dark">Dark</Select.Item>
+							<Select.Item value="light" label="Light">Light</Select.Item>
+						</Select.Content>
+					</Select.Root>
 				</div>
 
-				<div class="flex items-start gap-3 rounded-lg border border-border p-4">
-					<input
-						type="checkbox"
-						id="zenMode"
-						name="zenMode"
-						bind:checked={zenMode}
-						class="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-primary"
-					/>
+				<div class="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
 					<div class="grid gap-0.5">
 						<Label for="zenMode" class="font-medium cursor-pointer">Zen Mode</Label>
 						<p class="text-xs text-muted-foreground">
 							Hide live HUD metrics (WPM, accuracy, timer) while typing. Metrics are revealed once the test run completes.
 						</p>
 					</div>
+					<Switch id="zenMode" name="zenMode" bind:checked={zenMode} />
 				</div>
 			</Card.Content>
 		</Card.Root>

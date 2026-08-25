@@ -5,6 +5,7 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Pagination from '$lib/components/ui/pagination';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
@@ -25,8 +26,6 @@
 			currentPage = totalPages;
 		}
 	});
-
-	const textareaClass = "flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 	function displayPassageLength(text: string) {
 		const len = getPassageLength(text);
@@ -63,7 +62,7 @@
 					<div class="grid gap-4 py-4">
 						<div class="grid gap-2">
 							<Label for="text">Text</Label>
-							<textarea id="text" name="text" required class={textareaClass} placeholder="Type or paste passage text here..."></textarea>
+							<Textarea id="text" name="text" required class="min-h-[120px]" placeholder="Type or paste passage text here..." />
 						</div>
 						<div class="grid gap-2">
 							<Label for="source">Source (Optional)</Label>
@@ -102,7 +101,7 @@
 						{#if passage.userId !== null}
 							<div class="flex items-center gap-1">
 								<Dialog.Root open={editingId === passage.id} onOpenChange={(open) => { if(!open) editingId = null; else editingId = passage.id; }}>
-									<Dialog.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' }) + " h-8 w-8"}>
+									<Dialog.Trigger aria-label="Edit passage" class={buttonVariants({ variant: 'ghost', size: 'icon' }) + " h-8 w-8"}>
 										<HugeiconsIcon icon={Edit01Icon} size={16} />
 									</Dialog.Trigger>
 									<Dialog.Content>
@@ -119,7 +118,7 @@
 											<div class="grid gap-4 py-4">
 												<div class="grid gap-2">
 													<Label for="edit-text">Text</Label>
-													<textarea id="edit-text" name="text" required class={textareaClass}>{passage.text}</textarea>
+													<Textarea id="edit-text" name="text" required class="min-h-[120px]" value={passage.text} />
 												</div>
 												<div class="grid gap-2">
 													<Label for="edit-source">Source</Label>
@@ -136,7 +135,7 @@
 
 								<form method="POST" action="?/delete" use:enhance>
 									<input type="hidden" name="id" value={passage.id} />
-									<Button type="submit" variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive">
+									<Button type="submit" variant="ghost" size="icon" aria-label="Delete passage" class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive">
 										<HugeiconsIcon icon={Delete01Icon} size={16} />
 									</Button>
 								</form>

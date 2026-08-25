@@ -21,10 +21,10 @@ describe('SettingsForm Component', () => {
 
 		expect(screen.getByLabelText(/passage mode/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/timed mode/i)).toBeInTheDocument();
-		expect(screen.getByLabelText(/default duration/i)).toHaveValue('60');
-		expect(screen.getByLabelText(/preferred passage length/i)).toHaveValue('medium');
-		expect(screen.getByLabelText(/visual theme/i)).toHaveValue('dark');
-		expect(screen.getByLabelText(/zen mode/i)).toBeChecked();
+		expect(screen.getByRole('button', { name: /default duration/i })).toHaveTextContent('60 seconds');
+		expect(screen.getByRole('button', { name: /preferred passage length/i })).toHaveTextContent('Medium (50–100 words)');
+		expect(screen.getByRole('button', { name: /visual theme/i })).toHaveTextContent('Dark');
+		expect(screen.getByRole('switch', { name: /zen mode/i })).toHaveAttribute('aria-checked', 'true');
 	});
 
 	it('calls onSave callback when submitted and displays success', async () => {
@@ -77,14 +77,14 @@ describe('SettingsForm Component', () => {
 		expect(form).not.toHaveAttribute('action');
 	});
 
-	it('renders server-backed form with POST method and action when onSave is not provided', () => {
+	it('renders server-backed form with inputs for form actions when onSave is not provided', () => {
 		render(SettingsForm, {
 			settings: {
-				mode: 'passage',
-				duration: 30,
-				passageLength: 'all',
-				zenMode: false,
-				theme: 'system'
+				mode: 'timed',
+				duration: 60,
+				passageLength: 'medium',
+				zenMode: true,
+				theme: 'dark'
 			},
 			action: '?/save'
 		});
@@ -93,5 +93,48 @@ describe('SettingsForm Component', () => {
 		expect(form).not.toBeNull();
 		expect(form).toHaveAttribute('method', 'POST');
 		expect(form).toHaveAttribute('action', '?/save');
+
+		// Inputs for bits-ui primitives supporting form actions
+		expect(document.querySelector('input[name="mode"]')).toHaveValue('timed');
+		expect(document.querySelector('input[name="duration"]')).toHaveValue('60');
+		expect(document.querySelector('input[name="passageLength"]')).toHaveValue('medium');
+		expect(document.querySelector('input[name="theme"]')).toHaveValue('dark');
+		const zenInput = document.querySelector('input[name="zenMode"]') as HTMLInputElement;
+		expect(zenInput).not.toBeNull();
+		expect(zenInput.checked).toBe(true);
+	});
+
+	it('displays error notification when form error is provided or onSave fails', async () => {
+		render(SettingsForm, {
+			settings: {
+				mode: 'passage',
+				duration: 30,
+				passageLength: 'all',
+				zenMode: false,
+				theme: 'system'
+			},
+			form: { error: 'Server validation error' }
+		});
+
+		expect(screen.getByText('Server validation error')).toBeInTheDocument();
+	});
+
+	it('handles onSave error response correctly', async () => {
+		const onSave = vi.fn().mockResolvedValue({ error: 'Custom save failure' });
+		render(SettingsForm, {
+			settings: {
+				mode: 'passage',
+				duration: 30,
+				passageLength: 'all',
+				zenMode: false,
+				theme: 'system'
+			},
+			onSave
+		});
+
+		const saveButton = screen.getByRole('button', { name: /save settings/i });
+		await fireEvent.click(saveButton);
+
+		expect(await screen.findByText('Custom save failure')).toBeInTheDocument();
 	});
 });

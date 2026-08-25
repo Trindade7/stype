@@ -6,6 +6,11 @@ import { Button, buttonVariants } from './button';
 import { Input } from './input';
 import { Label } from './label';
 import * as Card from './card';
+import { Textarea } from './textarea';
+import { Switch } from './switch';
+import { Checkbox } from './checkbox';
+import * as RadioGroup from './radio-group';
+import * as Select from './select';
 
 function createSnippet(text: string) {
 	return createRawSnippet(() => ({
@@ -134,6 +139,98 @@ describe('UI Primitives', () => {
 
 			render(Card.Action, { props: { children: createSnippet('Action') } });
 			expect(screen.getByText('Action').closest('[data-slot="card-action"]')).toBeInTheDocument();
+		});
+	});
+
+	describe('Textarea Primitive', () => {
+		it('renders a textarea with data-slot and custom attributes', () => {
+			render(Textarea, {
+				props: {
+					placeholder: 'Type something here...',
+					id: 'test-textarea',
+					name: 'notes',
+					rows: 4
+				}
+			});
+
+			const textarea = screen.getByPlaceholderText('Type something here...');
+			expect(textarea).toBeInTheDocument();
+			expect(textarea).toHaveAttribute('id', 'test-textarea');
+			expect(textarea).toHaveAttribute('name', 'notes');
+			expect(textarea).toHaveAttribute('data-slot', 'textarea');
+		});
+	});
+
+	describe('Switch Primitive', () => {
+		it('renders switch with data-slot and handles checked state', () => {
+			render(Switch, {
+				props: {
+					id: 'test-switch',
+					name: 'notifications',
+					checked: true
+				}
+			});
+
+			const switchEl = screen.getByRole('switch');
+			expect(switchEl).toBeInTheDocument();
+			expect(switchEl).toHaveAttribute('data-slot', 'switch');
+			expect(switchEl).toHaveAttribute('aria-checked', 'true');
+		});
+	});
+
+	describe('Checkbox Primitive', () => {
+		it('renders checkbox with data-slot and handles checked state', () => {
+			render(Checkbox, {
+				props: {
+					id: 'test-checkbox',
+					name: 'agree',
+					checked: true
+				}
+			});
+
+			const checkbox = screen.getByRole('checkbox');
+			expect(checkbox).toBeInTheDocument();
+			expect(checkbox).toHaveAttribute('data-slot', 'checkbox');
+			expect(checkbox).toHaveAttribute('aria-checked', 'true');
+		});
+	});
+
+	describe('RadioGroup Primitives', () => {
+		it('renders radio group root with data-slot', () => {
+			render(RadioGroup.Root, {
+				props: {
+					value: 'option1',
+					name: 'test-group',
+					children: createSnippet('Radio Group Content')
+				}
+			});
+
+			const groupContent = screen.getByText('Radio Group Content');
+			const group = groupContent.closest('[data-slot="radio-group"]');
+			expect(group).toBeInTheDocument();
+		});
+	});
+
+	describe('Select Primitives', () => {
+		it('renders select root with trigger and data-slot', () => {
+			const selectSnippet = createRawSnippet(() => ({
+				render: () => `
+					<button type="button" data-slot="select-trigger">
+						<span>Select Option</span>
+					</button>
+				`
+			}));
+
+			render(Select.Root, {
+				props: {
+					type: 'single',
+					value: 'option1',
+					children: selectSnippet
+				}
+			});
+
+			const trigger = screen.getByText('Select Option');
+			expect(trigger).toBeInTheDocument();
 		});
 	});
 });

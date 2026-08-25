@@ -52,11 +52,11 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 
 		render(GuestSettingsPage);
 
-		const timedRadio = screen.getByLabelText(/timed mode/i) as HTMLInputElement;
-		expect(timedRadio.checked).toBe(true);
+		const timedRadio = screen.getByRole('radio', { name: /timed mode/i });
+		expect(timedRadio).toHaveAttribute('aria-checked', 'true');
 
-		const zenCheckbox = screen.getByLabelText(/zen mode/i) as HTMLInputElement;
-		expect(zenCheckbox.checked).toBe(true);
+		const zenSwitch = screen.getByRole('switch', { name: /zen mode/i });
+		expect(zenSwitch).toHaveAttribute('aria-checked', 'true');
 	});
 
 	it('saves modified settings to localStore and shows success notification on submit', async () => {

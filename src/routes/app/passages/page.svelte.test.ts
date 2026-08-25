@@ -105,4 +105,41 @@ describe('Passages Management Page', () => {
 		expect(prevButton).not.toBeDisabled();
 		expect(nextButton).toBeDisabled();
 	});
+
+	it('opens create passage dialog with Textarea and source inputs', async () => {
+		render(PassagesPage, {
+			data: {
+				user: { id: 'user-1', username: 'testuser', createdAt: new Date() },
+				passages: mockPassages,
+				settings: null
+			} as any,
+			form: null
+		});
+
+		const newPassageButton = screen.getByRole('button', { name: /new passage/i });
+		await fireEvent.click(newPassageButton);
+
+		expect(screen.getByRole('heading', { level: 2, name: /create custom passage/i })).toBeInTheDocument();
+		expect(screen.getByPlaceholderText(/type or paste passage text here/i)).toBeInTheDocument();
+		expect(screen.getByPlaceholderText(/e\.g\. 1984, George Orwell/i)).toBeInTheDocument();
+	});
+
+	it('opens edit passage dialog for custom passage with Textarea populated', async () => {
+		render(PassagesPage, {
+			data: {
+				user: { id: 'user-1', username: 'testuser', createdAt: new Date() },
+				passages: mockPassages,
+				settings: null
+			} as any,
+			form: null
+		});
+
+		// Find edit button for custom passage
+		const editTrigger = screen.getByRole('button', { name: /edit passage/i });
+		await fireEvent.click(editTrigger);
+
+		expect(screen.getByRole('heading', { level: 2, name: /edit passage/i })).toBeInTheDocument();
+		expect(screen.getByDisplayValue(mockPassages[1].text)).toBeInTheDocument();
+		expect(screen.getByDisplayValue(mockPassages[1].source)).toBeInTheDocument();
+	});
 });
