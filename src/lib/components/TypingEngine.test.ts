@@ -126,31 +126,56 @@ describe('TypingEngine', () => {
 		expect(container.querySelector('svg')).toBeInTheDocument();
 	});
 
-	it('clears snapshots on reset', async () => {
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: true,
-			json: async () => ({
-				id: 1,
-				passageId: 1,
-				wpm: 60,
-				accuracy: 100,
-				timeElapsed: 1,
-				correctChars: 2,
-				incorrectChars: 0,
-				extraChars: 0,
-				missedChars: 0,
-				timelineSnapshots: [{ second: 1, wpm: 60, accuracy: 100 }]
-			})
+	it('invokes custom onSave callback when provided on completion', async () => {
+		const onSaveMock = vi.fn().mockResolvedValue({
+			id: 42,
+			passageId: 1,
+			wpm: 80,
+			accuracy: 100,
+			timeElapsed: 1,
+			timelineSnapshots: []
 		});
-		globalThis.fetch = fetchMock;
 
 		const passage = { id: 1, text: 'Hi', source: 'Test' };
-		const { container } = render(TypingEngine, { passage });
+		const { container } = render(TypingEngine, {
+			passage,
+			onSave: onSaveMock
+		});
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(onSaveMock).toHaveBeenCalledTimes(1);
+		expect(onSaveMock.mock.calls[0][0].passageId).toBe(1);
+		expect(await screen.findByText('80')).toBeInTheDocument();
+	});
+
+	it('invokes custom onNextPassage callback when tab or next button is triggered', async () => {
+		const onNextMock = vi.fn();
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
+		render(TypingEngine, {
+			passage,
+			onNextPassage: onNextMock
+		});
+
+		await fireEvent.keyDown(window, { key: 'Tab' });
+		expect(onNextMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('clears snapshots on reset and invokes onRestart', async () => {
+		const onRestartMock = vi.fn();
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
+		const { container } = render(TypingEngine, {
+			passage,
+			onRestart: onRestartMock
+		});
 
 		const input = container.querySelector('input') as HTMLInputElement;
 		await fireEvent.input(input, { target: { value: 'H' } });
 		await fireEvent.keyDown(window, { key: 'Escape' });
 
 		expect(input.value).toBe('');
+		expect(onRestartMock).toHaveBeenCalledTimes(1);
 	});
 });

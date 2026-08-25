@@ -2,18 +2,38 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import type { TestRun, TimelineSnapshot } from '$lib/server/db/schema';
-	import TimelineChart from './TimelineChart.svelte';
+	import ResultSummary from './ResultSummary.svelte';
+
+	export interface CompletedTestResult {
+		passageId: number;
+		mode: 'passage' | 'timed';
+		duration: number | null;
+		wpm: number;
+		accuracy: number;
+		timeElapsed: number;
+		correctChars: number;
+		incorrectChars: number;
+		extraChars: number;
+		missedChars: number;
+		timelineSnapshots: TimelineSnapshot[];
+	}
 
 	let { 
 		passage,
 		initialMode = 'passage',
 		initialDuration = 30,
-		initialZenMode = false
+		initialZenMode = false,
+		onSave,
+		onNextPassage,
+		onRestart
 	} = $props<{ 
 		passage: { id: number; text: string; source: string | null };
 		initialMode?: 'passage' | 'timed';
 		initialDuration?: number;
 		initialZenMode?: boolean;
+		onSave?: (result: CompletedTestResult) => Promise<TestRun | null | void> | TestRun | null | void;
+		onNextPassage?: () => void | Promise<void>;
+		onRestart?: () => void;
 	}>();
 
 	let inputEl: HTMLInputElement | undefined = $state();
@@ -72,7 +92,7 @@
 			});
 		}
 
-		const payload = {
+		const payload: CompletedTestResult = {
 			passageId: passage.id,
 			mode,
 			duration: mode === 'timed' ? timeLimit : null,
@@ -87,13 +107,20 @@
 		};
 
 		try {
-			const res = await fetch('/api/test-runs', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-			if (res.ok) {
-				savedRun = await res.json();
+			if (onSave) {
+				const res = await onSave(payload);
+				if (res) {
+					savedRun = res;
+				}
+			} else {
+				const res = await fetch('/api/test-runs', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload)
+				});
+				if (res.ok) {
+					savedRun = await res.json();
+				}
 			}
 		} catch (err) {
 			console.error('Failed to save test run', err);
@@ -180,11 +207,18 @@
 			inputEl.value = '';
 			inputEl.focus();
 		}
+		if (onRestart) {
+			onRestart();
+		}
 	}
 
 	async function loadNewPassage() {
 		reset();
-		await invalidateAll();
+		if (onNextPassage) {
+			await onNextPassage();
+		} else {
+			await invalidateAll();
+		}
 	}
 
 	function handleGlobalKeydown(e: KeyboardEvent) {
@@ -318,43 +352,14 @@
 				</div>
 			{/if}
 		{:else}
-			<div class="flex flex-col items-center justify-center py-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-				<div class="flex items-center gap-3 text-emerald-400">
-					<i class="bi bi-check-circle-fill text-3xl"></i>
-					<h3 class="text-3xl font-bold text-zinc-100">Passage Complete</h3>
-				</div>
-				
-				{#if isSaving}
-					<div class="text-zinc-400 animate-pulse">Saving results...</div>
-				{:else}
-					<div class="grid grid-cols-3 gap-8 w-full max-w-lg">
-						<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-							<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Speed</span>
-							<span class="text-4xl font-bold text-emerald-400">{savedRun?.wpm ?? wpm} <span class="text-lg text-emerald-500/50">WPM</span></span>
-						</div>
-						<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-							<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Accuracy</span>
-							<span class="text-4xl font-bold text-zinc-100">{savedRun?.accuracy ?? accuracy}<span class="text-lg text-zinc-500">%</span></span>
-						</div>
-						<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
-							<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Time</span>
-							<span class="text-4xl font-bold text-zinc-100">{savedRun?.timeElapsed ?? Math.floor(timeElapsed)}<span class="text-lg text-zinc-500">s</span></span>
-						</div>
-					</div>
-
-					<div class="w-full max-w-2xl">
-						<TimelineChart snapshots={savedRun?.timelineSnapshots && savedRun.timelineSnapshots.length > 0 ? savedRun.timelineSnapshots : timelineSnapshots} />
-					</div>
-				{/if}
-
-				<button
-					onclick={loadNewPassage}
-					class="mt-4 flex items-center gap-2 rounded-lg bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
-				>
-					<i class="bi bi-arrow-counterclockwise"></i>
-					Type Again (Tab)
-				</button>
-			</div>
+			<ResultSummary
+				wpm={savedRun?.wpm ?? wpm}
+				accuracy={savedRun?.accuracy ?? accuracy}
+				timeElapsed={savedRun?.timeElapsed ?? (mode === 'timed' && timeElapsed >= timeLimit ? timeLimit : Math.round(timeElapsed))}
+				timelineSnapshots={savedRun?.timelineSnapshots && savedRun.timelineSnapshots.length > 0 ? savedRun.timelineSnapshots : timelineSnapshots}
+				{isSaving}
+				onRestart={loadNewPassage}
+			/>
 		{/if}
 	</div>
 
