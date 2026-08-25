@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
+	import PerformanceChart from '$lib/components/PerformanceChart.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { localStore, type GuestTestRun } from '$lib/localStore';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
@@ -82,6 +83,17 @@
 					</CardContent>
 				</Card>
 			{/each}
+		</div>
+
+		<div class="mt-8">
+			<Card>
+				<CardHeader>
+					<CardTitle class="text-lg font-semibold">Performance Trend</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<PerformanceChart {runs} />
+				</CardContent>
+			</Card>
 		</div>
 	</main>
 </div>

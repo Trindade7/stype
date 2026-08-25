@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import PerformanceChart from '$lib/components/PerformanceChart.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { 
@@ -66,5 +67,16 @@
 				</CardContent>
 			</Card>
 		{/each}
+	</div>
+
+	<div class="mt-8">
+		<Card>
+			<CardHeader>
+				<CardTitle class="text-lg font-semibold">Performance Trend</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<PerformanceChart runs={data.runs} />
+			</CardContent>
+		</Card>
 	</div>
 </div>

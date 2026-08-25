@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/svelte';
+import { render, screen, fireEvent, cleanup } from '@testing-library/svelte';
 import GuestStatsPage from './+page.svelte';
 import {
 	saveGuestTestRun,
@@ -36,7 +36,7 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 		).toBeInTheDocument();
 	});
 
-	it('displays zeroed metrics when localStore has no test runs', () => {
+	it('displays zeroed metrics and empty chart state when localStore has no test runs', () => {
 		clearGuestTestRuns();
 		render(GuestStatsPage);
 
@@ -49,10 +49,15 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 
 		expect(screen.getByText('Average Accuracy')).toBeInTheDocument();
 		expect(screen.getByText('0%')).toBeInTheDocument();
+
+		expect(screen.getByTestId('performance-chart-empty')).toBeInTheDocument();
 	});
 
-	it('calculates and displays lifetime stats from stored test runs', () => {
+	it('calculates and displays lifetime stats and performance chart from stored test runs', async () => {
 		const passage = DEFAULT_PASSAGES[0];
+
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2025-01-01T10:00:00Z'));
 
 		saveGuestTestRun({
 			passageId: passage.id,
@@ -68,6 +73,8 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 			timelineSnapshots: []
 		});
 
+		vi.setSystemTime(new Date('2025-01-02T10:00:00Z'));
+
 		saveGuestTestRun({
 			passageId: passage.id,
 			mode: 'timed',
@@ -82,7 +89,9 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 			timelineSnapshots: []
 		});
 
-		render(GuestStatsPage);
+		vi.useRealTimers();
+
+		const { container } = render(GuestStatsPage);
 
 		expect(screen.getByText('2')).toBeInTheDocument();
 		expect(screen.getByText('80 WPM')).toBeInTheDocument();
@@ -90,5 +99,18 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 		expect(screen.getByText('98%')).toBeInTheDocument();
 		expect(screen.getByText('Total lifetime runs')).toBeInTheDocument();
 		expect(screen.getByText('Personal best')).toBeInTheDocument();
+
+		// Performance chart checks
+		expect(container.querySelector('path[data-testid="wpm-line"]')).toBeInTheDocument();
+		expect(container.querySelector('path[data-testid="accuracy-line"]')).toBeInTheDocument();
+
+		const hoverAreas = container.querySelectorAll('[data-testid="hover-trigger"]');
+		expect(hoverAreas.length).toBe(2);
+
+		await fireEvent.mouseEnter(hoverAreas[1]);
+		const tooltip = screen.getByTestId('performance-tooltip');
+		expect(tooltip).toBeInTheDocument();
+		expect(tooltip).toHaveTextContent('90 WPM');
+		expect(tooltip).toHaveTextContent('100%');
 	});
 });
