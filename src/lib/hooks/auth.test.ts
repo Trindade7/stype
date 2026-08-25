@@ -50,22 +50,24 @@ describe('auth server hook', () => {
 		expect(resolveCalled).toBe(false);
 	});
 
-	it('allows unauthenticated user to access guest route', async () => {
+	it('allows unauthenticated user to access guest routes', async () => {
 		const { db } = initializeDatabase(':memory:');
 		const handle = createAuthHandle(db);
-		const { event } = createMockEvent('/');
 
-		let resolveCalled = false;
-		const resolve = async () => {
-			resolveCalled = true;
-			return new Response('GUEST_PAGE');
-		};
+		for (const path of ['/', '/history', '/settings']) {
+			const { event } = createMockEvent(path);
+			let resolveCalled = false;
+			const resolve = async () => {
+				resolveCalled = true;
+				return new Response('GUEST_PAGE');
+			};
 
-		const response = await handle({ event, resolve });
-		expect(resolveCalled).toBe(true);
-		expect(await response.text()).toBe('GUEST_PAGE');
-		expect(event.locals.user).toBeNull();
-		expect(event.locals.session).toBeNull();
+			const response = await handle({ event, resolve });
+			expect(resolveCalled).toBe(true);
+			expect(await response.text()).toBe('GUEST_PAGE');
+			expect(event.locals.user).toBeNull();
+			expect(event.locals.session).toBeNull();
+		}
 	});
 
 	it('allows unauthenticated user to access /app/login', async () => {
@@ -128,7 +130,7 @@ describe('auth server hook', () => {
 		});
 	});
 
-	it('redirects authenticated user accessing guest route to /app', async () => {
+	it('redirects authenticated user accessing guest routes to /app', async () => {
 		const { db } = initializeDatabase(':memory:');
 		await seedAdminUser(db);
 
@@ -136,14 +138,16 @@ describe('auth server hook', () => {
 		const session = await createSession(db, admin.id);
 
 		const handle = createAuthHandle(db);
-		const { event } = createMockEvent('/', session.id);
 
-		const resolve = async () => new Response('GUEST_PAGE');
+		for (const path of ['/', '/history', '/settings']) {
+			const { event } = createMockEvent(path, session.id);
+			const resolve = async () => new Response('GUEST_PAGE');
 
-		await expect(handle({ event, resolve })).rejects.toMatchObject({
-			status: 303,
-			location: '/app'
-		});
+			await expect(handle({ event, resolve })).rejects.toMatchObject({
+				status: 303,
+				location: '/app'
+			});
+		}
 	});
 
 	it('deletes invalid or expired session cookie and redirects to /app/login', async () => {

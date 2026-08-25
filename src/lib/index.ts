@@ -3,6 +3,7 @@ export { default as ResultSummary } from './components/ResultSummary.svelte';
 export { default as HistoryTable } from './components/HistoryTable.svelte';
 export { default as SettingsForm } from './components/SettingsForm.svelte';
 export { default as TimelineChart } from './components/TimelineChart.svelte';
+export { default as GuestHeader } from './components/GuestHeader.svelte';
 
 export * from './localStore';
 

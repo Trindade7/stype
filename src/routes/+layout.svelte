@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ModeWatcher, setMode } from 'mode-watcher';
+	import { localStore } from '$lib/localStore';
 	import favicon from '$lib/assets/favicon.svg';
 	import '../app.css';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
@@ -40,6 +41,11 @@
 	onMount(() => {
 		if (data.settings?.theme) {
 			setMode(data.settings.theme);
+		} else if (!data.user) {
+			const guestSettings = localStore.getSettings();
+			if (guestSettings?.theme) {
+				setMode(guestSettings.theme);
+			}
 		}
 	});
 </script>
