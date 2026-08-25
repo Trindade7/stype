@@ -5,10 +5,10 @@ The application's core views (the typing test HUD, the history table, and the se
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** closed
 
-- [ ] Extract the typing test HUD/engine interface into a shared component that accepts configuration and initial state via props.
-- [ ] Extract the history data table and result summary views into shared components that accept an array of `Test Run`s via props.
-- [ ] Extract the settings form into a shared component that takes the current settings and a callback/event dispatcher for saves.
-- [ ] Refactor the existing routes (`/`, `/history`, `/settings`) to use these new components, passing down data loaded from their `+page.server.ts` files.
-- [ ] Verify existing component and page tests pass.
+- [x] Extract the typing test HUD/engine interface into a shared component that accepts configuration and initial state via props.
+- [x] Extract the history data table and result summary views into shared components that accept an array of `Test Run`s via props.
+- [x] Extract the settings form into a shared component that takes the current settings and a callback/event dispatcher for saves.
+- [x] Refactor the existing routes (`/`, `/history`, `/settings`) to use these new components, passing down data loaded from their `+page.server.ts` files.
+- [x] Verify existing component and page tests pass.
