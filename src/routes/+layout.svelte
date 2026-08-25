@@ -56,25 +56,25 @@
 		<header class="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 			<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
 				<div class="flex items-center gap-3">
-					<a href="/" class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary transition-colors hover:bg-secondary/80">
+					<a href="/app" class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary transition-colors hover:bg-secondary/80">
 						<HugeiconsIcon icon={KeyboardIcon} size={20} />
 					</a>
-					<a href="/" class="text-xl font-bold tracking-tight text-foreground hover:text-foreground/80 transition-colors">stype</a>
+					<a href="/app" class="text-xl font-bold tracking-tight text-foreground hover:text-foreground/80 transition-colors">stype</a>
 					
 					<Badge variant="outline" class="ml-2 gap-1.5 border-primary/20 bg-primary/10 text-primary font-normal hidden sm:inline-flex">
 						<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
 						Session active
 					</Badge>
-					<a href="/history" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+					<a href="/app/history" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
 						History
 					</a>
-					<a href="/stats" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+					<a href="/app/stats" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
 						Stats
 					</a>
-					<a href="/passages" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+					<a href="/app/passages" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
 						Passages
 					</a>
-					<a href="/settings" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
+					<a href="/app/settings" class="ml-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hidden sm:inline-block">
 						Settings
 					</a>
 				</div>
@@ -120,31 +120,31 @@
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item class="w-full cursor-pointer p-0">
-								<a href="/history" class="w-full flex items-center px-2 py-1.5">
+								<a href="/app/history" class="w-full flex items-center px-2 py-1.5">
 									<HugeiconsIcon icon={Time02Icon} size={16} class="mr-2" />
 									History
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Item class="w-full cursor-pointer p-0">
-								<a href="/stats" class="w-full flex items-center px-2 py-1.5">
+								<a href="/app/stats" class="w-full flex items-center px-2 py-1.5">
 									<HugeiconsIcon icon={Chart01Icon} size={16} class="mr-2" />
 									Stats
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Item class="w-full cursor-pointer p-0">
-								<a href="/passages" class="w-full flex items-center px-2 py-1.5">
+								<a href="/app/passages" class="w-full flex items-center px-2 py-1.5">
 									<HugeiconsIcon icon={Book01Icon} size={16} class="mr-2" />
 									Passages
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Item class="w-full cursor-pointer p-0">
-								<a href="/settings" class="w-full flex items-center px-2 py-1.5">
+								<a href="/app/settings" class="w-full flex items-center px-2 py-1.5">
 									<HugeiconsIcon icon={Settings02Icon} size={16} class="mr-2" />
 									Settings
 								</a>
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
-							<form method="POST" action="/?/logout">
+							<form method="POST" action="/app/logout">
 								<DropdownMenu.Item class="text-destructive w-full cursor-pointer p-0">
 									<button type="submit" class="w-full flex items-center px-2 py-1.5 text-left text-destructive">
 										<HugeiconsIcon icon={LogOutIcon} size={16} class="mr-2" />

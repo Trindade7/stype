@@ -15,7 +15,7 @@ describe('/settings page.server', () => {
 		vi.spyOn(dbModule, 'db', 'get').mockReturnValue(testDb);
 	});
 
-	it('redirects unauthenticated users to /login', async () => {
+	it('redirects unauthenticated users to /app/login', async () => {
 		await expect(load({ locals: {} } as any)).rejects.toThrow();
 	});
 
@@ -58,7 +58,7 @@ describe('/settings page.server', () => {
 		formData.set('zenMode', 'on');
 		formData.set('theme', 'dark');
 
-		const request = new Request('http://localhost/settings', {
+		const request = new Request('http://localhost/app/settings', {
 			method: 'POST',
 			body: formData
 		});
@@ -90,7 +90,7 @@ describe('/settings page.server', () => {
 		const formData = new FormData();
 		formData.set('mode', 'invalid_mode');
 
-		const request = new Request('http://localhost/settings', {
+		const request = new Request('http://localhost/app/settings', {
 			method: 'POST',
 			body: formData
 		});

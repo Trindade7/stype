@@ -28,14 +28,21 @@ export function createAuthHandle(
 			}
 		}
 
-		const isLoginPage = event.url.pathname === '/login';
+		const isAppRoute = event.url.pathname.startsWith('/app');
+		const isLoginPage = event.url.pathname === '/app/login';
 
-		if (!event.locals.user && !isLoginPage) {
-			redirect(303, '/login');
-		}
-
-		if (event.locals.user && isLoginPage) {
-			redirect(303, '/');
+		if (isAppRoute) {
+			if (!event.locals.user && !isLoginPage) {
+				redirect(303, '/app/login');
+			}
+			if (event.locals.user && isLoginPage) {
+				redirect(303, '/app');
+			}
+		} else {
+			// Redirect authenticated users away from Guest routes to /app
+			if (event.locals.user) {
+				redirect(303, '/app');
+			}
 		}
 
 		return resolve(event);

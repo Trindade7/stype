@@ -9,7 +9,7 @@ const VALID_THEMES = ['light', 'dark', 'system'] as const;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
-		throw redirect(302, '/login');
+		throw redirect(302, '/app/login');
 	}
 
 	const settings = await getUserSettings(db, locals.user.id);

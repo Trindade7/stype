@@ -4,7 +4,7 @@ import { createLogoutAction } from '../login/auth-actions';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	redirect(303, '/');
+	redirect(303, '/app');
 };
 
 export const actions: Actions = {

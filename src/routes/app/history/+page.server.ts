@@ -6,7 +6,7 @@ import { desc, eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
-		throw redirect(302, '/login');
+		throw redirect(302, '/app/login');
 	}
 
 	const runs = await db

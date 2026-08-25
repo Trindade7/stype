@@ -55,7 +55,7 @@ describe('login and logout form actions', () => {
 
 		await expect(loginAction(event)).rejects.toMatchObject({
 			status: 303,
-			location: '/'
+			location: '/app'
 		});
 
 		const cookie = getSetCookie();
@@ -119,7 +119,7 @@ describe('login and logout form actions', () => {
 
 		await expect(logoutAction(logoutEvent)).rejects.toMatchObject({
 			status: 303,
-			location: '/login'
+			location: '/app/login'
 		});
 
 		expect(getDeletedCookie()).toBe(SESSION_COOKIE_NAME);

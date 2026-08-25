@@ -32,10 +32,10 @@ describe('auth server hook', () => {
 		return { event, deletedCookies };
 	}
 
-	it('redirects unauthenticated user accessing protected route to /login', async () => {
+	it('redirects unauthenticated user accessing protected route to /app/login', async () => {
 		const { db } = initializeDatabase(':memory:');
 		const handle = createAuthHandle(db);
-		const { event } = createMockEvent('/');
+		const { event } = createMockEvent('/app/dashboard');
 
 		let resolveCalled = false;
 		const resolve = async () => {
@@ -45,15 +45,33 @@ describe('auth server hook', () => {
 
 		await expect(handle({ event, resolve })).rejects.toMatchObject({
 			status: 303,
-			location: '/login'
+			location: '/app/login'
 		});
 		expect(resolveCalled).toBe(false);
 	});
 
-	it('allows unauthenticated user to access /login', async () => {
+	it('allows unauthenticated user to access guest route', async () => {
 		const { db } = initializeDatabase(':memory:');
 		const handle = createAuthHandle(db);
-		const { event } = createMockEvent('/login');
+		const { event } = createMockEvent('/');
+
+		let resolveCalled = false;
+		const resolve = async () => {
+			resolveCalled = true;
+			return new Response('GUEST_PAGE');
+		};
+
+		const response = await handle({ event, resolve });
+		expect(resolveCalled).toBe(true);
+		expect(await response.text()).toBe('GUEST_PAGE');
+		expect(event.locals.user).toBeNull();
+		expect(event.locals.session).toBeNull();
+	});
+
+	it('allows unauthenticated user to access /app/login', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/app/login');
 
 		let resolveCalled = false;
 		const resolve = async () => {
@@ -76,7 +94,7 @@ describe('auth server hook', () => {
 		const session = await createSession(db, admin.id);
 
 		const handle = createAuthHandle(db);
-		const { event } = createMockEvent('/', session.id);
+		const { event } = createMockEvent('/app', session.id);
 
 		let resolveCalled = false;
 		const resolve = async () => {
@@ -92,7 +110,7 @@ describe('auth server hook', () => {
 		expect(event.locals.session?.id).toBe(session.id);
 	});
 
-	it('redirects authenticated user accessing /login to /', async () => {
+	it('redirects authenticated user accessing /app/login to /app', async () => {
 		const { db } = initializeDatabase(':memory:');
 		await seedAdminUser(db);
 
@@ -100,26 +118,44 @@ describe('auth server hook', () => {
 		const session = await createSession(db, admin.id);
 
 		const handle = createAuthHandle(db);
-		const { event } = createMockEvent('/login', session.id);
+		const { event } = createMockEvent('/app/login', session.id);
 
 		const resolve = async () => new Response('LOGIN_PAGE');
 
 		await expect(handle({ event, resolve })).rejects.toMatchObject({
 			status: 303,
-			location: '/'
+			location: '/app'
 		});
 	});
 
-	it('deletes invalid or expired session cookie and redirects to /login', async () => {
+	it('redirects authenticated user accessing guest route to /app', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+		const session = await createSession(db, admin.id);
+
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/', session.id);
+
+		const resolve = async () => new Response('GUEST_PAGE');
+
+		await expect(handle({ event, resolve })).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+	});
+
+	it('deletes invalid or expired session cookie and redirects to /app/login', async () => {
 		const { db } = initializeDatabase(':memory:');
 		const handle = createAuthHandle(db);
-		const { event, deletedCookies } = createMockEvent('/', 'invalid-token-123');
+		const { event, deletedCookies } = createMockEvent('/app/dashboard', 'invalid-token-123');
 
 		const resolve = async () => new Response('OK');
 
 		await expect(handle({ event, resolve })).rejects.toMatchObject({
 			status: 303,
-			location: '/login'
+			location: '/app/login'
 		});
 		expect(deletedCookies).toContain(SESSION_COOKIE_NAME);
 		expect(event.locals.user).toBeNull();

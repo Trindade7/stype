@@ -54,7 +54,7 @@ export function createLoginAction(db: BetterSQLite3Database<typeof schema>) {
 			secure: process.env.NODE_ENV === 'production'
 		});
 
-		redirect(303, '/');
+		redirect(303, '/app');
 	};
 }
 
@@ -68,6 +68,6 @@ export function createLogoutAction(db: BetterSQLite3Database<typeof schema>) {
 		locals.user = null;
 		locals.session = null;
 
-		redirect(303, '/login');
+		redirect(303, '/app/login');
 	};
 }
