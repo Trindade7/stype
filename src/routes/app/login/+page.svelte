@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { ActionData } from './$types';
+	import { enhance } from '$app/forms';
+	import { localStore } from '$lib/localStore';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { KeyboardIcon, UserIcon, Key01Icon, Alert01Icon, LogInIcon } from '@hugeicons/core-free-icons';
 
@@ -9,6 +11,36 @@
 	import * as Card from '$lib/components/ui/card';
 
 	let { form }: { form: ActionData } = $props();
+	
+	let isSyncing = $state(false);
+
+	function handleLogin() {
+		return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
+			if (result.type === 'redirect' || result.type === 'success') {
+				const guestData = localStore.getGuestData();
+				const hasMeaningfulData = guestData.testRuns.length > 0 || guestData.customPassages.length > 0;
+				
+				if (hasMeaningfulData) {
+					isSyncing = true;
+					try {
+						const res = await fetch('/app/api/sync', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(guestData)
+						});
+						if (res.ok) {
+							localStore.clearGuestData();
+						}
+					} catch (err) {
+						console.error('Failed to sync guest data:', err);
+					} finally {
+						isSyncing = false;
+					}
+				}
+			}
+			await update();
+		};
+	}
 </script>
 
 <svelte:head>
@@ -33,7 +65,7 @@
 				</div>
 			{/if}
 
-			<form method="POST" class="space-y-5">
+			<form method="POST" class="space-y-5" use:enhance={handleLogin}>
 				<div class="space-y-2">
 					<Label for="username" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 						Username
@@ -78,9 +110,10 @@
 				<Button
 					type="submit"
 					class="h-10 w-full"
+					disabled={isSyncing}
 				>
 					<HugeiconsIcon icon={LogInIcon} size={20} />
-					<span class="ml-2">Log in</span>
+					<span class="ml-2">{isSyncing ? 'Syncing...' : 'Log in'}</span>
 				</Button>
 			</form>
 		</Card.Content>
