@@ -116,6 +116,14 @@
 					<span class="ml-2">{isSyncing ? 'Syncing...' : 'Log in'}</span>
 				</Button>
 			</form>
+
+			<Button
+				variant="outline"
+				href="/"
+				class="mt-3 h-10 w-full"
+			>
+				Continue as Guest
+			</Button>
 		</Card.Content>
 
 		<Card.Footer class="pb-8">

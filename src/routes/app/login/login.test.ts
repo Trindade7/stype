@@ -87,6 +87,24 @@ describe('Login View Contract', () => {
 		expect(screen.getByText('admin123')).toBeInTheDocument();
 	});
 
+	it('renders Continue as Guest outline button inside card content area below the login button', () => {
+		render(LoginPage, { form: null });
+
+		const guestButton = screen.getByRole('link', { name: /continue as guest/i });
+		expect(guestButton).toBeInTheDocument();
+		expect(guestButton).toHaveAttribute('href', '/');
+		expect(guestButton).toHaveAttribute('data-slot', 'button');
+		expect(guestButton.className).toContain('w-full');
+		expect(guestButton.className).toContain('border-border');
+
+		const cardContent = guestButton.closest('[data-slot="card-content"]');
+		expect(cardContent).toBeInTheDocument();
+
+		const submitButton = screen.getByRole('button', { name: /log in/i });
+		expect(submitButton).toBeInTheDocument();
+		expect(submitButton.compareDocumentPosition(guestButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
 	it('syncs guest data to /app/api/sync on successful login when there is meaningful data', async () => {
 		global.fetch = vi.fn().mockResolvedValue({ ok: true });
 		

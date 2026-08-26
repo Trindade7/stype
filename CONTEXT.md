@@ -57,8 +57,12 @@ A single character input event registered during a test run, tracked as either c
 _Avoid_: Keypress, input event, stroke
 
 **Settings**:
-Stored user preferences that control test behavior such as timer direction, passage selection, and Zen Mode.
+Stored user preferences that control test behavior such as timer direction, passage selection, Zen Mode, and Scroll Mode.
 _Avoid_: Options, config, preferences
+
+**Scroll Mode**:
+A setting that controls how the passage text scrolls within the typing area during a test run (`manual`, `center`, or `step`).
+_Avoid_: Scroll behavior, auto-scroll type, viewport scroll
 
 **HUD**:
 The live metrics display showing elapsed or remaining time, current WPM, and accuracy during an active test run.
