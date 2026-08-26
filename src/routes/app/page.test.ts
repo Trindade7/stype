@@ -53,4 +53,26 @@ describe('Main Page Content', () => {
 		expect(input).toBeInTheDocument();
 		expect(document.activeElement).toBe(input);
 	});
+
+	it('constrains authenticated app typing page within viewport with overflow-hidden and flex layout', () => {
+		const { container } = render(Page, {
+			data: {
+				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
+		});
+
+		const pageWrapper = container.firstElementChild as HTMLElement;
+		expect(pageWrapper).toHaveClass('overflow-hidden', 'flex-1', 'min-h-0', 'h-[calc(100dvh-69px)]');
+	});
 });

@@ -4,10 +4,10 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] The root typing screen (`/`) and authenticated app typing screen (`/app`) are constrained to `100dvh` with `overflow-hidden`.
-- [ ] Navigation header, HUD metrics, test mode toolbar, and bottom restart/next controls remain fixed in place and visible within the viewport.
-- [ ] The typing container expands vertically to fill available screen height (`flex-1 min-h-0`) with internal text scrolling (`overflow-y-auto`).
-- [ ] Completing a test run displays `ResultSummary` within the internal scrollable container on compact screens without expanding the outer window or triggering page scrollbars.
-- [ ] Route and layout tests verify viewport constraint classes and non-overflowing behavior.
+- [x] The root typing screen (`/`) and authenticated app typing screen (`/app`) are constrained to `100dvh` with `overflow-hidden`.
+- [x] Navigation header, HUD metrics, test mode toolbar, and bottom restart/next controls remain fixed in place and visible within the viewport.
+- [x] The typing container expands vertically to fill available screen height (`flex-1 min-h-0`) with internal text scrolling (`overflow-y-auto`).
+- [x] Completing a test run displays `ResultSummary` within the internal scrollable container on compact screens without expanding the outer window or triggering page scrollbars.
+- [x] Route and layout tests verify viewport constraint classes and non-overflowing behavior.

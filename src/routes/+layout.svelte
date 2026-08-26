@@ -160,7 +160,7 @@
 				</div>
 			</div>
 		</header>
-		<main class="flex-1 mt-[69px]">
+		<main class="flex-1 mt-[69px] flex flex-col min-h-0">
 			{@render children()}
 		</main>
 	</div>

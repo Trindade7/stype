@@ -136,4 +136,14 @@ describe('Guest Root Route (+page.svelte)', () => {
 		expect(input).toHaveAttribute('autofocus');
 		expect(document.activeElement).toBe(input);
 	});
+
+	it('constrains guest typing page to 100dvh with overflow-hidden and flexible layout', () => {
+		const { container } = render(GuestPage);
+
+		const rootWrapper = container.firstElementChild as HTMLElement;
+		expect(rootWrapper).toHaveClass('h-screen', 'h-[100dvh]', 'overflow-hidden');
+
+		const mainElement = container.querySelector('main') as HTMLElement;
+		expect(mainElement).toHaveClass('flex-1', 'min-h-0', 'overflow-hidden');
+	});
 });

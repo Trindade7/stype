@@ -25,10 +25,10 @@
 	<title>Stype — Minimalist Typing Test</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+<div class="flex h-screen h-[100dvh] flex-col overflow-hidden bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
 	<GuestHeader />
 
-	<main class="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center px-6 py-12 mt-[69px]">
+	<main class="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col items-center px-6 pt-20 pb-6 overflow-hidden">
 		{#if currentPassage}
 			<TypingEngine
 				passage={currentPassage}
@@ -43,7 +43,7 @@
 				}}
 			/>
 		{:else}
-			<div class="w-full max-w-2xl text-center space-y-4">
+			<div class="w-full max-w-2xl text-center space-y-4 my-auto">
 				<h2 class="text-3xl font-bold tracking-tight text-foreground">Ready to type</h2>
 				<p class="text-sm text-muted-foreground">
 					No passages available.

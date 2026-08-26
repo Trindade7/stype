@@ -376,4 +376,35 @@ describe('TypingEngine', () => {
 		expect(input.value).toBe('');
 		expect(document.activeElement).not.toBe(input);
 	});
+
+	it('expands typing container vertically with flex-1 min-h-0 and internal text scrolling overflow-y-auto', () => {
+		const passage = { id: 1, text: 'Hello viewport layout lock test', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const rootEngine = container.firstElementChild as HTMLElement;
+		expect(rootEngine).toHaveClass('flex-1', 'min-h-0');
+
+		const typingArea = container.querySelector('input')?.parentElement as HTMLElement;
+		expect(typingArea).toHaveClass('flex-1', 'min-h-0');
+
+		const textScrollContainer = container.querySelector('div[class*="overflow-y-auto"]') as HTMLElement;
+		expect(textScrollContainer).toBeInTheDocument();
+		expect(textScrollContainer).toHaveClass('flex-1', 'min-h-0', 'overflow-y-auto');
+	});
+
+	it('renders ResultSummary inside an internally scrollable container (overflow-y-auto max-h-full) when completed', async () => {
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		// Test is completed, ResultSummary is rendered
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		const resultSummaryWrapper = screen.getByText('Passage Complete').closest('div[class*="overflow-y-auto"]');
+		expect(resultSummaryWrapper).toBeInTheDocument();
+		expect(resultSummaryWrapper).toHaveClass('overflow-y-auto', 'max-h-full');
+	});
 });

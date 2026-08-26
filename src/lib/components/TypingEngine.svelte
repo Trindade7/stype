@@ -315,10 +315,10 @@
 	});
 </script>
 
-<div class="relative w-full max-w-4xl mx-auto flex flex-col gap-8">
+<div class="relative w-full max-w-4xl mx-auto flex flex-1 min-h-0 flex-col gap-4 sm:gap-6 justify-between">
 	<!-- Toolbar -->
 	{#if !isFinished && !startTime}
-		<div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-1rem] transition-opacity">
+		<div class="shrink-0 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-0.5rem] transition-opacity">
 			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
 				<button 
 					class="px-3 py-1 rounded-md transition-colors {mode === 'passage' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
@@ -365,7 +365,7 @@
 
 	<!-- HUD -->
 	{#if !isFinished && (!zenMode || !startTime)}
-		<div class="flex items-center justify-between text-zinc-400 font-mono text-sm px-2">
+		<div class="shrink-0 flex items-center justify-between text-zinc-400 font-mono text-sm px-2">
 			<div class="flex gap-6">
 				<div class="flex flex-col">
 					<span class="uppercase text-xs font-semibold text-zinc-500">WPM</span>
@@ -393,7 +393,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div 
-		class="relative rounded-xl bg-zinc-900/50 p-8 shadow-inner border transition-colors duration-200 {isFocused ? 'border-zinc-700' : 'border-zinc-800/40'}"
+		class="relative flex-1 min-h-0 rounded-xl bg-zinc-900/50 p-6 sm:p-8 shadow-inner border transition-colors duration-200 flex flex-col overflow-hidden {isFocused ? 'border-zinc-700' : 'border-zinc-800/40'}"
 		onclick={focusInput}
 	>
 		{#if !isFinished}
@@ -414,37 +414,41 @@
 				value={typedText}
 			/>
 
-			<div class="font-mono text-2xl leading-relaxed tracking-wide text-zinc-500 pointer-events-none select-none break-words whitespace-pre-wrap">
-				{#each chars as char, i}
-					{@const typedChar = typedText[i]}
-					{@const isCorrect = typedChar === char}
-					{@const isIncorrect = typedChar !== undefined && !isCorrect}
-					{@const isCurrent = i === typedText.length}
-					<span class="relative transition-colors duration-75 {isCorrect ? 'text-zinc-100' : isIncorrect ? 'text-red-400 bg-red-400/10 rounded-sm' : ''} {isCurrent ? (isFocused ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-emerald-400 after:animate-pulse' : 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-zinc-600') : ''}"
-					>{char}</span>
-				{/each}
-			</div>
-			
-			{#if passage.source}
-				<div class="mt-4 text-right text-sm text-zinc-500 italic">
-					— {passage.source}
+			<div class="flex-1 min-h-0 overflow-y-auto pr-1">
+				<div class="font-mono text-2xl leading-relaxed tracking-wide text-zinc-500 pointer-events-none select-none break-words whitespace-pre-wrap">
+					{#each chars as char, i}
+						{@const typedChar = typedText[i]}
+						{@const isCorrect = typedChar === char}
+						{@const isIncorrect = typedChar !== undefined && !isCorrect}
+						{@const isCurrent = i === typedText.length}
+						<span class="relative transition-colors duration-75 {isCorrect ? 'text-zinc-100' : isIncorrect ? 'text-red-400 bg-red-400/10 rounded-sm' : ''} {isCurrent ? (isFocused ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-emerald-400 after:animate-pulse' : 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-zinc-600') : ''}"
+						>{char}</span>
+					{/each}
 				</div>
-			{/if}
+				
+				{#if passage.source}
+					<div class="mt-4 text-right text-sm text-zinc-500 italic">
+						— {passage.source}
+					</div>
+				{/if}
+			</div>
 		{:else}
-			<ResultSummary
-				wpm={savedRun?.wpm ?? wpm}
-				accuracy={savedRun?.accuracy ?? accuracy}
-				timeElapsed={savedRun?.timeElapsed ?? (mode === 'timed' && timeElapsed >= timeLimit ? timeLimit : Math.round(timeElapsed))}
-				timelineSnapshots={savedRun?.timelineSnapshots && savedRun.timelineSnapshots.length > 0 ? savedRun.timelineSnapshots : timelineSnapshots}
-				{isSaving}
-				onRestart={loadNewPassage}
-			/>
+			<div class="flex-1 min-h-0 overflow-y-auto max-h-full">
+				<ResultSummary
+					wpm={savedRun?.wpm ?? wpm}
+					accuracy={savedRun?.accuracy ?? accuracy}
+					timeElapsed={savedRun?.timeElapsed ?? (mode === 'timed' && timeElapsed >= timeLimit ? timeLimit : Math.round(timeElapsed))}
+					timelineSnapshots={savedRun?.timelineSnapshots && savedRun.timelineSnapshots.length > 0 ? savedRun.timelineSnapshots : timelineSnapshots}
+					{isSaving}
+					onRestart={loadNewPassage}
+				/>
+			</div>
 		{/if}
 	</div>
 
 	<!-- Controls -->
 	{#if !isFinished}
-		<div class="flex justify-center gap-4 text-zinc-500 transition-opacity {startTime ? 'opacity-0 pointer-events-none' : 'opacity-100'}">
+		<div class="shrink-0 flex justify-center gap-4 text-zinc-500 transition-opacity {startTime ? 'opacity-0 pointer-events-none' : 'opacity-100'}">
 			<button 
 				class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
 				onclick={reset}
