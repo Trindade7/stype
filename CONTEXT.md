@@ -72,6 +72,10 @@ _Avoid_: Status bar, overlay, dashboard, stats bar
 A setting that hides the live HUD metrics during typing until the test run completes.
 _Avoid_: Distraction-free mode, blind mode, focus mode
 
+**Inactivity Reset**:
+An automatic reset of an in-progress Test Run after 10 seconds without a keystroke, returning the input and timer to zero on the same passage.
+_Avoid_: Idle timeout, auto-restart, pause timeout
+
 **Guest**:
 An unauthenticated user interacting with the static SPA, whose test history and settings are stored locally.
 _Avoid_: Anonymous user, visitor, local user
