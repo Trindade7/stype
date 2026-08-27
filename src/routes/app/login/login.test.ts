@@ -87,7 +87,23 @@ describe('Login View Contract', () => {
 		expect(screen.getByText('admin123')).toBeInTheDocument();
 	});
 
-	it('renders Continue as Guest outline button inside card content area below the login button', () => {
+	it('renders a visual divider with "or continue without an account" separating form from guest flow', () => {
+		render(LoginPage, { form: null });
+
+		const dividerText = screen.getByText(/or continue without an account/i);
+		expect(dividerText).toBeInTheDocument();
+
+		const form = screen.getByRole('button', { name: /log in/i }).closest('form');
+		const guestButton = screen.getByRole('link', { name: /continue as guest/i });
+
+		expect(form).toBeInTheDocument();
+		expect(guestButton).toBeInTheDocument();
+
+		expect(form!.compareDocumentPosition(dividerText) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+		expect(dividerText.compareDocumentPosition(guestButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it('renders Continue as Guest as a full-width secondary action with an icon', () => {
 		render(LoginPage, { form: null });
 
 		const guestButton = screen.getByRole('link', { name: /continue as guest/i });
@@ -95,14 +111,69 @@ describe('Login View Contract', () => {
 		expect(guestButton).toHaveAttribute('href', '/');
 		expect(guestButton).toHaveAttribute('data-slot', 'button');
 		expect(guestButton.className).toContain('w-full');
-		expect(guestButton.className).toContain('border-border');
+		expect(guestButton.className).toContain('bg-secondary');
 
-		const cardContent = guestButton.closest('[data-slot="card-content"]');
-		expect(cardContent).toBeInTheDocument();
+		const svgIcon = guestButton.querySelector('svg');
+		expect(svgIcon).toBeInTheDocument();
+	});
 
-		const submitButton = screen.getByRole('button', { name: /log in/i });
-		expect(submitButton).toBeInTheDocument();
-		expect(submitButton.compareDocumentPosition(guestButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	it('renders an explanatory caption under the guest action explaining local storage', () => {
+		render(LoginPage, { form: null });
+
+		const guestButton = screen.getByRole('link', { name: /continue as guest/i });
+		const caption = screen.getByText(/saved locally in the browser/i);
+		expect(caption).toBeInTheDocument();
+
+		expect(guestButton.compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it('renders clean chips for default seeded credentials and quick-fills fields on click', async () => {
+		render(LoginPage, { form: null });
+
+		const adminChip = screen.getByRole('button', { name: 'admin' });
+		const passwordChip = screen.getByRole('button', { name: 'admin123' });
+
+		expect(adminChip).toBeInTheDocument();
+		expect(passwordChip).toBeInTheDocument();
+
+		const usernameInput = screen.getByLabelText(/username/i) as HTMLInputElement;
+		const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
+
+		expect(usernameInput.value).toBe('');
+		expect(passwordInput.value).toBe('');
+
+		await fireEvent.click(adminChip);
+		expect(usernameInput.value).toBe('admin');
+		expect(passwordInput.value).toBe('admin123');
+
+		await fireEvent.input(usernameInput, { target: { value: '' } });
+		await fireEvent.input(passwordInput, { target: { value: '' } });
+		expect(usernameInput.value).toBe('');
+		expect(passwordInput.value).toBe('');
+
+		await fireEvent.click(passwordChip);
+		expect(usernameInput.value).toBe('admin');
+		expect(passwordInput.value).toBe('admin123');
+	});
+
+	it('submitting form after clicking quick-fill uses the populated credentials', async () => {
+		global.fetch = vi.fn().mockResolvedValue({ ok: true });
+		localStore.saveCustomPassage({ text: 'mock passage' });
+
+		render(LoginPage, { form: null });
+
+		const adminChip = screen.getByRole('button', { name: 'admin' });
+		await fireEvent.click(adminChip);
+
+		const usernameInput = screen.getByLabelText(/username/i) as HTMLInputElement;
+		const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
+		expect(usernameInput.value).toBe('admin');
+		expect(passwordInput.value).toBe('admin123');
+
+		const form = screen.getByRole('button', { name: /log in/i }).closest('form')!;
+		await fireEvent.submit(form);
+
+		expect(global.fetch).toHaveBeenCalledWith('/app/api/sync', expect.anything());
 	});
 
 	it('syncs guest data to /app/api/sync on successful login when there is meaningful data', async () => {
