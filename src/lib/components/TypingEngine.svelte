@@ -315,7 +315,7 @@
 	});
 </script>
 
-<div class="relative w-full max-w-4xl mx-auto flex flex-col justify-center gap-4 sm:gap-6 my-auto max-h-full min-h-0">
+<div class="relative w-full max-w-4xl mx-auto flex flex-col gap-4 sm:gap-6 max-h-full min-h-0">
 	<!-- Toolbar -->
 	{#if !isFinished && !startTime}
 		<div class="shrink-0 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-0.5rem] transition-opacity">
