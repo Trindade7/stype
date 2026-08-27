@@ -377,19 +377,20 @@ describe('TypingEngine', () => {
 		expect(document.activeElement).not.toBe(input);
 	});
 
-	it('expands typing container vertically with flex-1 min-h-0 and internal text scrolling overflow-y-auto', () => {
+	it('fits typing container to content without overflowing and enables internal text scrolling', () => {
 		const passage = { id: 1, text: 'Hello viewport layout lock test', source: 'Test' };
 		const { container } = render(TypingEngine, { passage });
 
 		const rootEngine = container.firstElementChild as HTMLElement;
-		expect(rootEngine).toHaveClass('flex-1', 'min-h-0');
+		expect(rootEngine).toHaveClass('min-h-0', 'max-h-full');
 
 		const typingArea = container.querySelector('input')?.parentElement as HTMLElement;
-		expect(typingArea).toHaveClass('flex-1', 'min-h-0');
+		expect(typingArea).toHaveClass('min-h-0', 'max-h-full', 'overflow-hidden');
+		expect(typingArea).not.toHaveClass('flex-1');
 
 		const textScrollContainer = container.querySelector('div[class*="overflow-y-auto"]') as HTMLElement;
 		expect(textScrollContainer).toBeInTheDocument();
-		expect(textScrollContainer).toHaveClass('flex-1', 'min-h-0', 'overflow-y-auto');
+		expect(textScrollContainer).toHaveClass('overflow-y-auto');
 	});
 
 	it('renders ResultSummary inside an internally scrollable container (overflow-y-auto max-h-full) when completed', async () => {

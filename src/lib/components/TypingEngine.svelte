@@ -315,7 +315,7 @@
 	});
 </script>
 
-<div class="relative w-full max-w-4xl mx-auto flex flex-1 min-h-0 flex-col gap-4 sm:gap-6 justify-between">
+<div class="relative w-full max-w-4xl mx-auto flex flex-col justify-center gap-4 sm:gap-6 my-auto max-h-full min-h-0">
 	<!-- Toolbar -->
 	{#if !isFinished && !startTime}
 		<div class="shrink-0 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-0.5rem] transition-opacity">
@@ -393,7 +393,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div 
-		class="relative flex-1 min-h-0 rounded-xl bg-zinc-900/50 p-6 sm:p-8 shadow-inner border transition-colors duration-200 flex flex-col overflow-hidden {isFocused ? 'border-zinc-700' : 'border-zinc-800/40'}"
+		class="relative rounded-xl bg-zinc-900/50 p-6 sm:p-8 shadow-inner border transition-colors duration-200 flex flex-col min-h-0 max-h-full overflow-hidden shrink {isFocused ? 'border-zinc-700' : 'border-zinc-800/40'}"
 		onclick={focusInput}
 	>
 		{#if !isFinished}

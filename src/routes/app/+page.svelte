@@ -9,7 +9,7 @@
 	<title>Stype — Minimalist Typing Test</title>
 </svelte:head>
 
-<div class="mx-auto flex w-full max-w-5xl flex-1 min-h-0 h-[calc(100dvh-69px)] max-h-[calc(100dvh-69px)] flex-col items-center px-6 py-6 overflow-hidden">
+<div class="mx-auto flex w-full max-w-5xl flex-1 min-h-0 h-[calc(100dvh-69px)] max-h-[calc(100dvh-69px)] flex-col items-center justify-center px-6 py-6 overflow-hidden">
 	{#if data.passage}
 		<TypingEngine 
 			passage={data.passage} 
