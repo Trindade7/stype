@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/svelte';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { Button, buttonVariants } from './button';
 import { Input } from './input';
@@ -56,6 +56,32 @@ describe('UI Primitives', () => {
 			render(Button, { props: { disabled: true, children: createSnippet('Disabled') } });
 			const btn = screen.getByRole('button', { name: /disabled/i });
 			expect(btn).toBeDisabled();
+		});
+
+		it('applies cursor-pointer by default and not-allowed cursor when disabled', async () => {
+			const activeClasses = buttonVariants();
+			expect(activeClasses).toContain('cursor-pointer');
+			expect(activeClasses).toContain('disabled:cursor-not-allowed');
+			expect(activeClasses).toContain('aria-disabled:cursor-not-allowed');
+
+			// Check anchor button with disabled
+			const clickSpy = vi.fn();
+			render(Button, {
+				props: {
+					href: '/disabled-link',
+					disabled: true,
+					onclick: clickSpy,
+					children: createSnippet('Disabled Link')
+				}
+			});
+			const disabledLink = screen.getByText('Disabled Link').closest('a');
+			expect(disabledLink).toBeInTheDocument();
+			expect(disabledLink).toHaveAttribute('aria-disabled', 'true');
+			expect(disabledLink).toHaveClass('aria-disabled:cursor-not-allowed');
+
+			// Verify pointer interactions are prevented
+			await fireEvent.click(disabledLink!);
+			expect(clickSpy).not.toHaveBeenCalled();
 		});
 	});
 

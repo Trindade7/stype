@@ -272,6 +272,16 @@ describe('TypingEngine', () => {
 		expect(typingArea).toHaveClass('border-zinc-700');
 	});
 
+	it('retains default non-pointer cursor on the invisible character capture input', () => {
+		const passage = { id: 1, text: 'Hello', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		expect(input).toBeInTheDocument();
+		expect(input).toHaveClass('cursor-default');
+		expect(input).not.toHaveClass('cursor-pointer');
+	});
+
 	it('toggles character cursor underline pulse animation based on focus state', async () => {
 		const passage = { id: 1, text: 'Hello', source: 'Test' };
 		const { container } = render(TypingEngine, { passage });
