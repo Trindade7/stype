@@ -6,6 +6,7 @@ import type { PageServerLoad, Actions } from './$types';
 const VALID_MODES = ['passage', 'timed'] as const;
 const VALID_LENGTHS = ['all', 'short', 'medium', 'long'] as const;
 const VALID_THEMES = ['light', 'dark', 'system'] as const;
+const VALID_SCROLL_MODES = ['manual', 'center', 'step'] as const;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -32,6 +33,7 @@ export const actions: Actions = {
 		const passageLength = data.get('passageLength');
 		const zenMode = data.get('zenMode');
 		const theme = data.get('theme');
+		const scrollMode = data.get('scrollMode');
 
 		if (mode && !VALID_MODES.includes(mode as any)) {
 			return fail(400, { error: 'Invalid mode' });
@@ -53,6 +55,10 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid theme' });
 		}
 
+		if (scrollMode && !VALID_SCROLL_MODES.includes(scrollMode as any)) {
+			return fail(400, { error: 'Invalid scroll mode' });
+		}
+
 		const isZenMode = zenMode === 'on' || zenMode === 'true';
 
 		await updateUserSettings(db, locals.user.id, {
@@ -60,7 +66,8 @@ export const actions: Actions = {
 			...(parsedDuration !== undefined ? { duration: parsedDuration } : {}),
 			...(passageLength ? { passageLength: passageLength as any } : {}),
 			zenMode: isZenMode,
-			...(theme ? { theme: theme as any } : {})
+			...(theme ? { theme: theme as any } : {}),
+			...(scrollMode ? { scrollMode: scrollMode as any } : {})
 		});
 
 		return { success: true };

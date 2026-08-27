@@ -37,7 +37,8 @@ describe('/settings page.server', () => {
 				duration: 30,
 				passageLength: 'all',
 				zenMode: false,
-				theme: 'system'
+				theme: 'system',
+				scrollMode: 'center'
 			})
 		});
 	});
@@ -57,6 +58,7 @@ describe('/settings page.server', () => {
 		formData.set('passageLength', 'medium');
 		formData.set('zenMode', 'on');
 		formData.set('theme', 'dark');
+		formData.set('scrollMode', 'step');
 
 		const request = new Request('http://localhost/app/settings', {
 			method: 'POST',
@@ -76,6 +78,7 @@ describe('/settings page.server', () => {
 		expect(updated.passageLength).toBe('medium');
 		expect(updated.zenMode).toBe(true);
 		expect(updated.theme).toBe('dark');
+		expect(updated.scrollMode).toBe('step');
 	});
 
 	it('validates invalid settings input', async () => {
@@ -101,5 +104,31 @@ describe('/settings page.server', () => {
 		} as any);
 
 		expect(result).toHaveProperty('status', 400);
+	});
+
+	it('validates invalid scroll mode input', async () => {
+		const userId = randomUUID();
+		testDb.insert(users).values({
+			id: userId,
+			username: 'bob',
+			passwordHash: 'hash',
+			createdAt: new Date()
+		}).run();
+
+		const formData = new FormData();
+		formData.set('scrollMode', 'invalid_scroll_mode');
+
+		const request = new Request('http://localhost/app/settings', {
+			method: 'POST',
+			body: formData
+		});
+
+		const result = await actions.save({
+			request,
+			locals: { user: { id: userId, username: 'bob' } }
+		} as any);
+
+		expect(result).toHaveProperty('status', 400);
+		expect(result).toHaveProperty('data', { error: 'Invalid scroll mode' });
 	});
 });

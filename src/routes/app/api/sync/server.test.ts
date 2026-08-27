@@ -66,7 +66,8 @@ describe('POST /app/api/sync', () => {
 				duration: 60,
 				passageLength: 'short',
 				zenMode: true,
-				theme: 'dark'
+				theme: 'dark',
+				scrollMode: 'step'
 			},
 			customPassages: [
 				{
@@ -119,6 +120,7 @@ describe('POST /app/api/sync', () => {
 		expect(settings.theme).toBe('dark');
 		expect(settings.mode).toBe('timed');
 		expect(settings.zenMode).toBe(true);
+		expect(settings.scrollMode).toBe('step');
 
 		// Check custom passages
 		const allPassages = await dbInstance.select().from(passages).all();

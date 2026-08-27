@@ -28,7 +28,8 @@ describe('userSettings database operations', () => {
 			duration: 30,
 			passageLength: 'all',
 			zenMode: false,
-			theme: 'system'
+			theme: 'system',
+			scrollMode: 'center'
 		}));
 	});
 
@@ -46,7 +47,8 @@ describe('userSettings database operations', () => {
 			duration: 60,
 			passageLength: 'short',
 			zenMode: true,
-			theme: 'dark'
+			theme: 'dark',
+			scrollMode: 'step'
 		});
 
 		expect(updated).toEqual(expect.objectContaining({
@@ -55,7 +57,8 @@ describe('userSettings database operations', () => {
 			duration: 60,
 			passageLength: 'short',
 			zenMode: true,
-			theme: 'dark'
+			theme: 'dark',
+			scrollMode: 'step'
 		}));
 
 		const fetched = await getUserSettings(testDb, userId);
@@ -64,6 +67,7 @@ describe('userSettings database operations', () => {
 		expect(fetched.passageLength).toBe('short');
 		expect(fetched.zenMode).toBe(true);
 		expect(fetched.theme).toBe('dark');
+		expect(fetched.scrollMode).toBe('step');
 	});
 
 	it('cascades deletion when user is deleted', async () => {

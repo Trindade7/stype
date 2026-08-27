@@ -61,6 +61,7 @@ export const userSettings = sqliteTable('user_settings', {
 	passageLength: text('passage_length').$type<'all' | 'short' | 'medium' | 'long'>().notNull().default('all'),
 	zenMode: integer('zen_mode', { mode: 'boolean' }).notNull().default(false),
 	theme: text('theme').$type<'light' | 'dark' | 'system'>().notNull().default('system'),
+	scrollMode: text('scroll_mode').$type<'manual' | 'center' | 'step'>().notNull().default('center'),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 	updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull()
 });

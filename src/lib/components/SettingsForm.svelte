@@ -16,6 +16,7 @@
 		passageLength: 'all' | 'short' | 'medium' | 'long';
 		zenMode: boolean;
 		theme: 'system' | 'dark' | 'light';
+		scrollMode: 'manual' | 'center' | 'step';
 	}
 
 	export interface SettingsFormProps {
@@ -31,7 +32,8 @@
 			duration: 30,
 			passageLength: 'all',
 			zenMode: false,
-			theme: 'system'
+			theme: 'system',
+			scrollMode: 'center'
 		},
 		action = '?/save',
 		form = null,
@@ -43,6 +45,7 @@
 	let passageLength = $state<'all' | 'short' | 'medium' | 'long'>('all');
 	let zenMode = $state<boolean>(false);
 	let theme = $state<'system' | 'dark' | 'light'>('system');
+	let scrollMode = $state<'manual' | 'center' | 'step'>('center');
 
 	let localSuccess = $state(false);
 	let localError = $state<string | null>(null);
@@ -67,6 +70,12 @@
 		light: 'Light'
 	};
 
+	const scrollModeLabels: Record<string, string> = {
+		center: 'Centered (Default)',
+		step: 'Step Scroll',
+		manual: 'Manual'
+	};
+
 	$effect.pre(() => {
 		if (settings) {
 			mode = settings.mode ?? 'passage';
@@ -74,6 +83,7 @@
 			passageLength = settings.passageLength ?? 'all';
 			zenMode = settings.zenMode ?? false;
 			theme = settings.theme ?? 'system';
+			scrollMode = settings.scrollMode ?? 'center';
 		}
 	});
 
@@ -90,7 +100,8 @@
 					duration: Number(duration),
 					passageLength,
 					zenMode,
-					theme
+					theme,
+					scrollMode
 				});
 				if (result && typeof result === 'object') {
 					if (result.success) {
@@ -219,6 +230,20 @@
 							<Select.Item value="system" label="System Default">System Default</Select.Item>
 							<Select.Item value="dark" label="Dark">Dark</Select.Item>
 							<Select.Item value="light" label="Light">Light</Select.Item>
+						</Select.Content>
+					</Select.Root>
+				</div>
+
+				<div class="grid gap-2">
+					<Label id="scrollMode-label" for="scrollMode">Scroll Mode</Label>
+					<Select.Root type="single" name="scrollMode" bind:value={scrollMode}>
+						<Select.Trigger id="scrollMode" class="w-full" aria-labelledby="scrollMode-label">
+							{scrollModeLabels[scrollMode] || 'Select scroll mode'}
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="center" label="Centered (Default)">Centered (Default)</Select.Item>
+							<Select.Item value="step" label="Step Scroll">Step Scroll</Select.Item>
+							<Select.Item value="manual" label="Manual">Manual</Select.Item>
 						</Select.Content>
 					</Select.Root>
 				</div>

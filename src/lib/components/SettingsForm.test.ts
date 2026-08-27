@@ -15,7 +15,8 @@ describe('SettingsForm Component', () => {
 				duration: 60,
 				passageLength: 'medium',
 				zenMode: true,
-				theme: 'dark'
+				theme: 'dark',
+				scrollMode: 'step'
 			}
 		});
 
@@ -24,6 +25,7 @@ describe('SettingsForm Component', () => {
 		expect(screen.getByRole('button', { name: /default duration/i })).toHaveTextContent('60 seconds');
 		expect(screen.getByRole('button', { name: /preferred passage length/i })).toHaveTextContent('Medium (50–100 words)');
 		expect(screen.getByRole('button', { name: /visual theme/i })).toHaveTextContent('Dark');
+		expect(screen.getByRole('button', { name: /scroll mode/i })).toHaveTextContent('Step Scroll');
 		expect(screen.getByRole('switch', { name: /zen mode/i })).toHaveAttribute('aria-checked', 'true');
 	});
 
@@ -52,7 +54,8 @@ describe('SettingsForm Component', () => {
 			duration: 30,
 			passageLength: 'all',
 			zenMode: false,
-			theme: 'system'
+			theme: 'system',
+			scrollMode: 'center'
 		});
 
 		expect(await screen.findByText(/settings saved successfully/i)).toBeInTheDocument();
@@ -84,7 +87,8 @@ describe('SettingsForm Component', () => {
 				duration: 60,
 				passageLength: 'medium',
 				zenMode: true,
-				theme: 'dark'
+				theme: 'dark',
+				scrollMode: 'step'
 			},
 			action: '?/save'
 		});
@@ -99,6 +103,7 @@ describe('SettingsForm Component', () => {
 		expect(document.querySelector('input[name="duration"]')).toHaveValue('60');
 		expect(document.querySelector('input[name="passageLength"]')).toHaveValue('medium');
 		expect(document.querySelector('input[name="theme"]')).toHaveValue('dark');
+		expect(document.querySelector('input[name="scrollMode"]')).toHaveValue('step');
 		const zenInput = document.querySelector('input[name="zenMode"]') as HTMLInputElement;
 		expect(zenInput).not.toBeNull();
 		expect(zenInput.checked).toBe(true);

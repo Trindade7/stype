@@ -18,6 +18,7 @@ describe('Settings Page', () => {
 				passageLength: 'medium' as const,
 				zenMode: true,
 				theme: 'dark' as const,
+				scrollMode: 'step' as const,
 				createdAt: new Date(),
 				updatedAt: new Date()
 			}
@@ -29,6 +30,7 @@ describe('Settings Page', () => {
 		expect(screen.getByLabelText(/passage mode/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/timed mode/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/zen mode/i)).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /scroll mode/i })).toHaveTextContent('Step Scroll');
 		expect(screen.getByRole('button', { name: /save settings/i })).toBeInTheDocument();
 	});
 
@@ -42,6 +44,7 @@ describe('Settings Page', () => {
 				passageLength: 'all' as const,
 				zenMode: false,
 				theme: 'system' as const,
+				scrollMode: 'center' as const,
 				createdAt: new Date(),
 				updatedAt: new Date()
 			}

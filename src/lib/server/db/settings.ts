@@ -8,7 +8,8 @@ export const DEFAULT_USER_SETTINGS = {
 	duration: 30,
 	passageLength: 'all' as const,
 	zenMode: false,
-	theme: 'system' as const
+	theme: 'system' as const,
+	scrollMode: 'center' as const
 };
 
 export async function getUserSettings(
@@ -33,6 +34,7 @@ export async function getUserSettings(
 		passageLength: DEFAULT_USER_SETTINGS.passageLength,
 		zenMode: DEFAULT_USER_SETTINGS.zenMode,
 		theme: DEFAULT_USER_SETTINGS.theme,
+		scrollMode: DEFAULT_USER_SETTINGS.scrollMode,
 		createdAt: now,
 		updatedAt: now
 	};
@@ -58,6 +60,7 @@ export async function updateUserSettings(
 		passageLength: updates.passageLength ?? current.passageLength,
 		zenMode: updates.zenMode ?? current.zenMode,
 		theme: updates.theme ?? current.theme,
+		scrollMode: updates.scrollMode ?? current.scrollMode,
 		updatedAt: now
 	};
 

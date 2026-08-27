@@ -21,7 +21,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				duration: settings.duration,
 				passageLength: settings.passageLength,
 				zenMode: settings.zenMode,
-				theme: settings.theme
+				theme: settings.theme,
+				...(settings.scrollMode ? { scrollMode: settings.scrollMode } : {})
 			});
 		}
 

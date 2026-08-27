@@ -33,13 +33,15 @@ describe('localStore utility', () => {
 			expect(settings.passageLength).toBe('all');
 			expect(settings.zenMode).toBe(false);
 			expect(settings.theme).toBe('system');
+			expect(settings.scrollMode).toBe('center');
 		});
 
 		it('saves and merges updated settings into localStorage', () => {
 			const updated = saveGuestSettings({
 				mode: 'timed',
 				duration: 60,
-				zenMode: true
+				zenMode: true,
+				scrollMode: 'step'
 			});
 
 			expect(updated.mode).toBe('timed');
@@ -47,11 +49,13 @@ describe('localStore utility', () => {
 			expect(updated.zenMode).toBe(true);
 			expect(updated.passageLength).toBe('all');
 			expect(updated.theme).toBe('system');
+			expect(updated.scrollMode).toBe('step');
 
 			const stored = JSON.parse(localStorage.getItem('stype_guest_settings') || '{}');
 			expect(stored.mode).toBe('timed');
 			expect(stored.duration).toBe(60);
 			expect(stored.zenMode).toBe(true);
+			expect(stored.scrollMode).toBe('step');
 
 			// Re-reading reflects saved settings
 			expect(getGuestSettings()).toEqual(updated);

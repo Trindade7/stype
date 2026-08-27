@@ -8,6 +8,7 @@ export interface GuestSettings {
 	passageLength: 'all' | 'short' | 'medium' | 'long';
 	zenMode: boolean;
 	theme: 'light' | 'dark' | 'system';
+	scrollMode: 'manual' | 'center' | 'step';
 }
 
 export interface GuestPassage {
@@ -56,7 +57,8 @@ export const DEFAULT_GUEST_SETTINGS: GuestSettings = {
 	duration: 30,
 	passageLength: 'all',
 	zenMode: false,
-	theme: 'system'
+	theme: 'system',
+	scrollMode: 'center'
 };
 
 export const DEFAULT_PASSAGES: readonly GuestPassage[] = [
@@ -128,7 +130,8 @@ export function getGuestSettings(): GuestSettings {
 		duration: stored.duration ?? DEFAULT_GUEST_SETTINGS.duration,
 		passageLength: stored.passageLength ?? DEFAULT_GUEST_SETTINGS.passageLength,
 		zenMode: stored.zenMode ?? DEFAULT_GUEST_SETTINGS.zenMode,
-		theme: stored.theme ?? DEFAULT_GUEST_SETTINGS.theme
+		theme: stored.theme ?? DEFAULT_GUEST_SETTINGS.theme,
+		scrollMode: stored.scrollMode ?? DEFAULT_GUEST_SETTINGS.scrollMode
 	};
 }
 
@@ -139,7 +142,8 @@ export function saveGuestSettings(updates: Partial<GuestSettings>): GuestSetting
 		duration: updates.duration ?? current.duration,
 		passageLength: updates.passageLength ?? current.passageLength,
 		zenMode: updates.zenMode ?? current.zenMode,
-		theme: updates.theme ?? current.theme
+		theme: updates.theme ?? current.theme,
+		scrollMode: updates.scrollMode ?? current.scrollMode
 	};
 	safeSetItem(STORAGE_KEYS.SETTINGS, merged);
 	return merged;

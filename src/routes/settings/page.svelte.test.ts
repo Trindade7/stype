@@ -38,6 +38,7 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 		expect(screen.getByLabelText(/passage mode/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/timed mode/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/zen mode/i)).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /scroll mode/i })).toHaveTextContent('Centered (Default)');
 		expect(screen.getByRole('button', { name: /save settings/i })).toBeInTheDocument();
 	});
 
@@ -47,7 +48,8 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 			duration: 60,
 			passageLength: 'short',
 			zenMode: true,
-			theme: 'dark'
+			theme: 'dark',
+			scrollMode: 'step'
 		});
 
 		render(GuestSettingsPage);
@@ -57,6 +59,8 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 
 		const zenSwitch = screen.getByRole('switch', { name: /zen mode/i });
 		expect(zenSwitch).toHaveAttribute('aria-checked', 'true');
+
+		expect(screen.getByRole('button', { name: /scroll mode/i })).toHaveTextContent('Step Scroll');
 	});
 
 	it('saves modified settings to localStore and shows success notification on submit', async () => {
@@ -78,5 +82,6 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 		const stored = getGuestSettings();
 		expect(stored.mode).toBe('timed');
 		expect(stored.zenMode).toBe(true);
+		expect(stored.scrollMode).toBe('center');
 	});
 });

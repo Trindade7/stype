@@ -65,6 +65,7 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			passage_length TEXT NOT NULL DEFAULT 'all',
 			zen_mode INTEGER NOT NULL DEFAULT 0,
 			theme TEXT NOT NULL DEFAULT 'system',
+			scroll_mode TEXT NOT NULL DEFAULT 'center',
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		);
@@ -88,6 +89,12 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 	// Ensure timeline_snapshots column exists for pre-existing tables
 	try {
 		sqlite.exec('ALTER TABLE test_runs ADD COLUMN timeline_snapshots TEXT');
+	} catch {
+		// Column already exists or table was just created
+	}
+
+	try {
+		sqlite.exec("ALTER TABLE user_settings ADD COLUMN scroll_mode TEXT NOT NULL DEFAULT 'center'");
 	} catch {
 		// Column already exists or table was just created
 	}

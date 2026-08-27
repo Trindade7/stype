@@ -43,7 +43,8 @@ describe('API /api/settings', () => {
 				zenMode: true,
 				mode: 'timed',
 				duration: 15,
-				passageLength: 'short'
+				passageLength: 'short',
+				scrollMode: 'step'
 			})
 		});
 
@@ -59,9 +60,11 @@ describe('API /api/settings', () => {
 		expect(data.mode).toBe('timed');
 		expect(data.duration).toBe(15);
 		expect(data.passageLength).toBe('short');
+		expect(data.scrollMode).toBe('step');
 
 		const saved = await getUserSettings(testDb, userId);
 		expect(saved.theme).toBe('dark');
 		expect(saved.zenMode).toBe(true);
+		expect(saved.scrollMode).toBe('step');
 	});
 });

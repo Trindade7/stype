@@ -4,10 +4,10 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] SQLite `userSettings` table includes `scrollMode` column (`manual` | `center` | `step`) defaulting to `center`.
-- [ ] Guest `DEFAULT_GUEST_SETTINGS` and `localStore` support `scrollMode` defaulting to `center`.
-- [ ] `SettingsForm` displays a "Scroll Mode" selector under "Display & Focus" with options for `Centered (Default)`, `Step Scroll`, and `Manual`.
-- [ ] Updating and submitting the Settings form persists the selected `scrollMode` to SQLite for authenticated users and `localStore` for guests.
-- [ ] Unit and integration tests verify schema defaults, persistence roundtrips, and form interaction for both user and guest modes.
+- [x] SQLite `userSettings` table includes `scrollMode` column (`manual` | `center` | `step`) defaulting to `center`.
+- [x] Guest `DEFAULT_GUEST_SETTINGS` and `localStore` support `scrollMode` defaulting to `center`.
+- [x] `SettingsForm` displays a "Scroll Mode" selector under "Display & Focus" with options for `Centered (Default)`, `Step Scroll`, and `Manual`.
+- [x] Updating and submitting the Settings form persists the selected `scrollMode` to SQLite for authenticated users and `localStore` for guests.
+- [x] Unit and integration tests verify schema defaults, persistence roundtrips, and form interaction for both user and guest modes.
