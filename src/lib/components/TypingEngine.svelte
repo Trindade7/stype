@@ -377,77 +377,79 @@
 
 <div class="relative w-full max-w-4xl mx-auto flex flex-col gap-4 sm:gap-6 max-h-full min-h-0">
 	<!-- Toolbar -->
-	{#if !isFinished && !startTime}
-		<div class="shrink-0 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-0.5rem] transition-opacity">
-			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
-				<button 
-					class="px-3 py-1 rounded-md transition-colors {mode === 'passage' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
-					onclick={() => { mode = 'passage'; focusInput(); }}
-				>
-					Passage
-				</button>
-				<button 
-					class="px-3 py-1 rounded-md transition-colors {mode === 'timed' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
-					onclick={() => { mode = 'timed'; focusInput(); }}
-				>
-					Timed
-				</button>
-			</div>
-			
-			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50 transition-opacity {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}">
-				{#each [15, 30, 60] as limit}
-					<button 
-						disabled={mode === 'passage'}
-						class="px-3 py-1 rounded-md transition-colors {timeLimit === limit ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'} {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}"
-						onclick={() => { 
-							if (mode === 'passage') return;
-							timeLimit = limit; 
-							focusInput(); 
-						}}
-					>
-						{limit}s
-					</button>
-				{/each}
-			</div>
-
-			<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
-				<button 
-					class="flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors {zenMode ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
-					onclick={() => { zenMode = !zenMode; focusInput(); }}
-					title="Zen Mode: Hide live HUD metrics during active typing"
-				>
-					<i class="bi {zenMode ? 'bi-eye-slash-fill' : 'bi-eye'}"></i>
-					<span>Zen</span>
-				</button>
-			</div>
+	<div 
+		data-testid="toolbar"
+		class="shrink-0 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-0.5rem] transition-opacity duration-200 {startTime || isFinished ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
+	>
+		<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
+			<button 
+				class="px-3 py-1 rounded-md transition-colors {mode === 'passage' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+				onclick={() => { mode = 'passage'; focusInput(); }}
+			>
+				Passage
+			</button>
+			<button 
+				class="px-3 py-1 rounded-md transition-colors {mode === 'timed' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+				onclick={() => { mode = 'timed'; focusInput(); }}
+			>
+				Timed
+			</button>
 		</div>
-	{/if}
+		
+		<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50 transition-opacity {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}">
+			{#each [15, 30, 60] as limit}
+				<button 
+					disabled={mode === 'passage'}
+					class="px-3 py-1 rounded-md transition-colors {timeLimit === limit ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'} {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}"
+					onclick={() => { 
+						if (mode === 'passage') return;
+						timeLimit = limit; 
+						focusInput(); 
+					}}
+				>
+					{limit}s
+				</button>
+			{/each}
+		</div>
+
+		<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
+			<button 
+				class="flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors {zenMode ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+				onclick={() => { zenMode = !zenMode; focusInput(); }}
+				title="Zen Mode: Hide live HUD metrics during active typing"
+			>
+				<i class="bi {zenMode ? 'bi-eye-slash-fill' : 'bi-eye'}"></i>
+				<span>Zen</span>
+			</button>
+		</div>
+	</div>
 
 	<!-- HUD -->
-	{#if !isFinished && (!zenMode || !startTime)}
-		<div class="shrink-0 flex items-center justify-between text-zinc-400 font-mono text-sm px-2">
-			<div class="flex gap-6">
-				<div class="flex flex-col">
-					<span class="uppercase text-xs font-semibold text-zinc-500">WPM</span>
-					<span class="text-2xl font-bold text-zinc-100">{wpm}</span>
-				</div>
-				<div class="flex flex-col">
-					<span class="uppercase text-xs font-semibold text-zinc-500">ACC</span>
-					<span class="text-2xl font-bold text-zinc-100">{accuracy}%</span>
-				</div>
+	<div 
+		data-testid="hud"
+		class="shrink-0 flex items-center justify-between text-zinc-400 font-mono text-sm px-2 transition-opacity duration-200 {isFinished || (zenMode && startTime) ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
+	>
+		<div class="flex gap-6">
+			<div class="flex flex-col">
+				<span class="uppercase text-xs font-semibold text-zinc-500">WPM</span>
+				<span class="text-2xl font-bold text-zinc-100">{wpm}</span>
 			</div>
-			<div class="flex flex-col items-end">
-				<span class="uppercase text-xs font-semibold text-zinc-500">Time</span>
-				<span class="text-2xl font-bold text-zinc-100">
-					{#if mode === 'timed'}
-						{Math.max(0, timeLimit - Math.floor(timeElapsed))}s
-					{:else}
-						{Math.floor(timeElapsed)}s
-					{/if}
-				</span>
+			<div class="flex flex-col">
+				<span class="uppercase text-xs font-semibold text-zinc-500">ACC</span>
+				<span class="text-2xl font-bold text-zinc-100">{accuracy}%</span>
 			</div>
 		</div>
-	{/if}
+		<div class="flex flex-col items-end">
+			<span class="uppercase text-xs font-semibold text-zinc-500">Time</span>
+			<span class="text-2xl font-bold text-zinc-100">
+				{#if mode === 'timed'}
+					{Math.max(0, timeLimit - Math.floor(timeElapsed))}s
+				{:else}
+					{Math.floor(timeElapsed)}s
+				{/if}
+			</span>
+		</div>
+	</div>
 
 	<!-- Typing Area -->
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -510,24 +512,25 @@
 	</div>
 
 	<!-- Controls -->
-	{#if !isFinished}
-		<div class="shrink-0 flex justify-center gap-4 text-zinc-500 transition-opacity {startTime ? 'opacity-0 pointer-events-none' : 'opacity-100'}">
-			<button 
-				class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
-				onclick={reset}
-				title="Restart Test (Esc)"
-			>
-				<i class="bi bi-arrow-counterclockwise"></i>
-				<span class="text-sm font-semibold">Restart (Esc)</span>
-			</button>
-			<button 
-				class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
-				onclick={loadNewPassage}
-				title="Next Passage (Tab)"
-			>
-				<i class="bi bi-skip-forward-fill"></i>
-				<span class="text-sm font-semibold">Next (Tab)</span>
-			</button>
-		</div>
-	{/if}
+	<div 
+		data-testid="bottom-controls"
+		class="shrink-0 flex justify-center gap-4 text-zinc-500 transition-opacity duration-200 {startTime || isFinished ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
+	>
+		<button 
+			class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
+			onclick={reset}
+			title="Restart Test (Esc)"
+		>
+			<i class="bi bi-arrow-counterclockwise"></i>
+			<span class="text-sm font-semibold">Restart (Esc)</span>
+		</button>
+		<button 
+			class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
+			onclick={loadNewPassage}
+			title="Next Passage (Tab)"
+		>
+			<i class="bi bi-skip-forward-fill"></i>
+			<span class="text-sm font-semibold">Next (Tab)</span>
+		</button>
+	</div>
 </div>

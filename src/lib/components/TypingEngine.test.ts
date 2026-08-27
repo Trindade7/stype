@@ -95,28 +95,105 @@ describe('TypingEngine', () => {
 		expect(btn60).toHaveClass('bg-zinc-800 text-zinc-100');
 	});
 
-	it('hides live HUD metrics during active typing when Zen Mode is enabled', async () => {
+	it('keeps top toolbar mounted with zero opacity and disabled pointer events during active typing, restoring on reset', async () => {
+		const passage = { id: 1, text: 'Hello world', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const toolbar = screen.getByTestId('toolbar');
+		expect(toolbar).toBeInTheDocument();
+		expect(toolbar).toHaveClass('opacity-100');
+		expect(toolbar).not.toHaveClass('opacity-0', 'pointer-events-none');
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+
+		// Toolbar remains in DOM during active typing
+		expect(screen.getByTestId('toolbar')).toBeInTheDocument();
+		expect(toolbar).toHaveClass('opacity-0', 'pointer-events-none');
+		expect(toolbar).not.toHaveClass('opacity-100');
+
+		// Reset restores toolbar opacity
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		expect(screen.getByTestId('toolbar')).toBeInTheDocument();
+		expect(toolbar).toHaveClass('opacity-100');
+		expect(toolbar).not.toHaveClass('opacity-0', 'pointer-events-none');
+	});
+
+	it('keeps bottom controls mounted with zero opacity and disabled pointer events during active typing and test finish, restoring on reset', async () => {
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const controls = screen.getByTestId('bottom-controls');
+		expect(controls).toBeInTheDocument();
+		expect(controls).toHaveClass('opacity-100');
+		expect(controls).not.toHaveClass('opacity-0', 'pointer-events-none');
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+
+		// Controls remain in DOM during active typing
+		expect(screen.getByTestId('bottom-controls')).toBeInTheDocument();
+		expect(controls).toHaveClass('opacity-0', 'pointer-events-none');
+
+		// Complete the test
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		// Controls remain mounted in DOM when finished
+		expect(screen.getByTestId('bottom-controls')).toBeInTheDocument();
+		expect(controls).toHaveClass('opacity-0', 'pointer-events-none');
+
+		// Reset restores controls opacity
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		expect(screen.getByTestId('bottom-controls')).toBeInTheDocument();
+		expect(controls).toHaveClass('opacity-100');
+		expect(controls).not.toHaveClass('opacity-0', 'pointer-events-none');
+	});
+
+	it('in Zen Mode, keeps HUD mounted and fades to zero opacity when typing begins, restoring on reset', async () => {
 		const passage = { id: 1, text: 'Hello world', source: 'Test' };
 		const { container } = render(TypingEngine, {
 			passage,
 			initialZenMode: true
 		});
 
+		const hud = screen.getByTestId('hud');
+		expect(hud).toBeInTheDocument();
+		expect(hud).toHaveClass('opacity-100');
+
 		const input = container.querySelector('input') as HTMLInputElement;
-		expect(input).toBeInTheDocument();
-
-		// Before typing, toolbar is present
-		expect(screen.getByText('Zen')).toBeInTheDocument();
-
-		// Type first character -> active typing begins
 		await fireEvent.input(input, { target: { value: 'H' } });
 
-		// HUD metrics should be hidden during active typing in zen mode
-		expect(screen.queryByText('WPM')).not.toBeInTheDocument();
-		expect(screen.queryByText('ACC')).not.toBeInTheDocument();
+		// HUD stays mounted in DOM, but is zero opacity with pointer events disabled
+		expect(screen.getByTestId('hud')).toBeInTheDocument();
+		expect(hud).toHaveClass('opacity-0', 'pointer-events-none');
+
+		// Reset restores HUD opacity
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		expect(screen.getByTestId('hud')).toBeInTheDocument();
+		expect(hud).toHaveClass('opacity-100');
 	});
 
-	it('toggles Zen Mode on toolbar button click', async () => {
+	it('with Zen Mode disabled, keeps HUD visible and responsive throughout active test run', async () => {
+		const passage = { id: 1, text: 'Hello world', source: 'Test' };
+		const { container } = render(TypingEngine, {
+			passage,
+			initialZenMode: false
+		});
+
+		const hud = screen.getByTestId('hud');
+		expect(hud).toHaveClass('opacity-100');
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+
+		// With zen mode disabled, HUD remains visible during active typing
+		expect(screen.getByTestId('hud')).toBeInTheDocument();
+		expect(hud).toHaveClass('opacity-100');
+		expect(hud).not.toHaveClass('opacity-0', 'pointer-events-none');
+	});
+
+	it('toggles Zen Mode on toolbar button click and fades HUD when typing', async () => {
 		const passage = { id: 1, text: 'Hello world', source: 'Test' };
 		const { container } = render(TypingEngine, {
 			passage,
@@ -126,11 +203,13 @@ describe('TypingEngine', () => {
 		const zenButton = screen.getByRole('button', { name: /zen/i });
 		await fireEvent.click(zenButton);
 
+		const hud = screen.getByTestId('hud');
 		const input = container.querySelector('input') as HTMLInputElement;
 		await fireEvent.input(input, { target: { value: 'H' } });
 
-		// HUD should now be hidden
-		expect(screen.queryByText('WPM')).not.toBeInTheDocument();
+		// HUD should remain in DOM with zero opacity and disabled pointer events
+		expect(screen.getByTestId('hud')).toBeInTheDocument();
+		expect(hud).toHaveClass('opacity-0', 'pointer-events-none');
 	});
 
 	it('submits timeline snapshots and displays the timeline chart on result summary', async () => {

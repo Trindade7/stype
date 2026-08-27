@@ -21,7 +21,7 @@
 	} = $props();
 </script>
 
-<div class="flex flex-col items-center justify-center py-6 sm:py-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+<div class="flex flex-col items-center justify-center py-6 sm:py-8 space-y-6 sm:space-y-8 animate-in fade-in duration-500">
 	<div class="flex items-center gap-3 text-emerald-400">
 		<i class="bi bi-check-circle-fill text-3xl"></i>
 		<h3 class="text-3xl font-bold text-zinc-100">Passage Complete</h3>
@@ -30,18 +30,18 @@
 	{#if isSaving}
 		<div class="text-zinc-400 animate-pulse">Saving results...</div>
 	{:else}
-		<div class="grid grid-cols-3 gap-8 w-full max-w-lg">
-			<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+		<div class="grid grid-cols-3 gap-3 sm:gap-6 md:gap-8 w-full max-w-lg">
+			<div class="flex flex-col items-center p-2.5 sm:p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
 				<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Speed</span>
-				<span class="text-4xl font-bold text-emerald-400">{wpm} <span class="text-lg text-emerald-500/50">WPM</span></span>
+				<span class="text-2xl sm:text-4xl font-bold text-emerald-400 whitespace-nowrap">{wpm} <span class="text-sm sm:text-lg text-emerald-500/50">WPM</span></span>
 			</div>
-			<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+			<div class="flex flex-col items-center p-2.5 sm:p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
 				<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Accuracy</span>
-				<span class="text-4xl font-bold text-zinc-100">{accuracy}<span class="text-lg text-zinc-500">%</span></span>
+				<span class="text-2xl sm:text-4xl font-bold text-zinc-100 whitespace-nowrap">{accuracy}<span class="text-sm sm:text-lg text-zinc-500">%</span></span>
 			</div>
-			<div class="flex flex-col items-center p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+			<div class="flex flex-col items-center p-2.5 sm:p-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
 				<span class="uppercase text-xs font-semibold text-zinc-500 mb-1">Time</span>
-				<span class="text-4xl font-bold text-zinc-100">{timeElapsed}<span class="text-lg text-zinc-500">s</span></span>
+				<span class="text-2xl sm:text-4xl font-bold text-zinc-100 whitespace-nowrap">{timeElapsed}<span class="text-sm sm:text-lg text-zinc-500">s</span></span>
 			</div>
 		</div>
 

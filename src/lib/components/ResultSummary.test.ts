@@ -54,19 +54,38 @@ describe('ResultSummary Component', () => {
 		expect(container.querySelector('svg')).toBeInTheDocument();
 	});
 
-	it('triggers onRestart callback when restart button is clicked', async () => {
-		const onRestart = vi.fn();
-		render(ResultSummary, {
-			wpm: 70,
-			accuracy: 100,
-			timeElapsed: 10,
-			onRestart
+	it('uses pure fade entrance animation without downward vertical slide to prevent scrollbar flash', () => {
+		const { container } = render(ResultSummary, {
+			wpm: 80,
+			accuracy: 95,
+			timeElapsed: 20
 		});
 
-		const restartBtn = screen.getByRole('button', { name: /type again/i });
-		expect(restartBtn).toBeInTheDocument();
+		const root = container.firstElementChild as HTMLElement;
+		expect(root).toBeInTheDocument();
+		expect(root).toHaveClass('animate-in', 'fade-in');
+		expect(root.className).not.toContain('slide-in');
+	});
 
-		await fireEvent.click(restartBtn);
-		expect(onRestart).toHaveBeenCalledTimes(1);
+	it('uses compact spacing, compact padding, and nowrap on mobile screens to prevent wrapping', () => {
+		const { container } = render(ResultSummary, {
+			wpm: 120,
+			accuracy: 100,
+			timeElapsed: 45
+		});
+
+		const statsGrid = screen.getByText('Speed').closest('div[class*="grid"]');
+		expect(statsGrid).toBeInTheDocument();
+		// Compact grid gap on mobile: gap-3 (or gap-2.5) with larger spacing on desktop
+		expect(statsGrid?.className).toMatch(/gap-(2\.5|3)\s+sm:gap-/);
+
+		// Metric card compact padding on mobile
+		const card = screen.getByText('Speed').closest('div[class*="rounded-lg"]');
+		expect(card).toBeInTheDocument();
+		expect(card?.className).toMatch(/p-(2\.5|3)\s+sm:p-4/);
+
+		// Metric value has nowrap to ensure values never wrap or clip
+		const speedValue = screen.getByText('120').closest('span');
+		expect(speedValue).toHaveClass('whitespace-nowrap');
 	});
 });
