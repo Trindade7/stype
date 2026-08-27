@@ -69,8 +69,96 @@ describe('+page.server.ts load', () => {
 			passageLength: 'long'
 		});
 
-		const result = (await load({ locals: { user: { id: userId, username: 'alice' } } } as any)) as any;
+		const result = (await load({ locals: { user: { id: userId, username: 'alice' } }, url: new URL('http://localhost/app') } as any)) as any;
 		expect(result.passage?.id).toBe(2);
 		expect(result.settings.passageLength).toBe('long');
+	});
+
+	it('loads specified seeded passage when passageId is provided in URL', async () => {
+		const userId = randomUUID();
+		testDb.insert(users).values({
+			id: userId,
+			username: 'alice',
+			passwordHash: 'hash',
+			createdAt: new Date()
+		}).run();
+
+		testDb.insert(passages).values([
+			{ id: 1, text: 'First passage text.', source: 'Source 1', userId: null, createdAt: new Date() },
+			{ id: 2, text: 'Second passage text.', source: 'Source 2', userId: null, createdAt: new Date() }
+		]).run();
+
+		const result = (await load({
+			locals: { user: { id: userId, username: 'alice' } },
+			url: new URL('http://localhost/app?passageId=2')
+		} as any)) as any;
+
+		expect(result.passage?.id).toBe(2);
+	});
+
+	it('loads custom passage owned by the authenticated user when passageId is provided in URL', async () => {
+		const userId = randomUUID();
+		testDb.insert(users).values({
+			id: userId,
+			username: 'alice',
+			passwordHash: 'hash',
+			createdAt: new Date()
+		}).run();
+
+		testDb.insert(passages).values([
+			{ id: 1, text: 'Seeded passage.', source: 'Seeded', userId: null, createdAt: new Date() },
+			{ id: 10, text: 'Alice custom passage.', source: 'Alice', userId, createdAt: new Date() }
+		]).run();
+
+		const result = (await load({
+			locals: { user: { id: userId, username: 'alice' } },
+			url: new URL('http://localhost/app?passageId=10')
+		} as any)) as any;
+
+		expect(result.passage?.id).toBe(10);
+	});
+
+	it('falls back to random passage when passageId belongs to another user (unpermitted)', async () => {
+		const aliceId = randomUUID();
+		const bobId = randomUUID();
+		testDb.insert(users).values([
+			{ id: aliceId, username: 'alice', passwordHash: 'hash', createdAt: new Date() },
+			{ id: bobId, username: 'bob', passwordHash: 'hash', createdAt: new Date() }
+		]).run();
+
+		testDb.insert(passages).values([
+			{ id: 1, text: 'Seeded passage.', source: 'Seeded', userId: null, createdAt: new Date() },
+			{ id: 20, text: 'Bob custom passage.', source: 'Bob', userId: bobId, createdAt: new Date() }
+		]).run();
+
+		const result = (await load({
+			locals: { user: { id: aliceId, username: 'alice' } },
+			url: new URL('http://localhost/app?passageId=20')
+		} as any)) as any;
+
+		// Should fall back to seeded passage 1 and NOT return bob's passage 20
+		expect(result.passage?.id).toBe(1);
+	});
+
+	it('falls back to random passage when passageId is invalid or non-existent', async () => {
+		testDb.insert(passages).values({
+			id: 1,
+			text: 'Seeded passage text.',
+			source: 'Seeded',
+			userId: null,
+			createdAt: new Date()
+		}).run();
+
+		const resultInvalid = (await load({
+			locals: {},
+			url: new URL('http://localhost/app?passageId=invalid')
+		} as any)) as any;
+		expect(resultInvalid.passage?.id).toBe(1);
+
+		const resultNonExistent = (await load({
+			locals: {},
+			url: new URL('http://localhost/app?passageId=9999')
+		} as any)) as any;
+		expect(resultNonExistent.passage?.id).toBe(1);
 	});
 });

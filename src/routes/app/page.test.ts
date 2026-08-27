@@ -134,4 +134,71 @@ describe('Main Page Content', () => {
 		await fireEvent.keyDown(window, { key: 'Tab' });
 		expect(invalidateAll).toHaveBeenCalledTimes(1);
 	});
+
+	it('clears passageId query parameter from URL and calls invalidateAll when advancing with Next Passage', async () => {
+		window.history.pushState({}, '', '/app?passageId=10');
+
+		render(Page, {
+			data: {
+				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					scrollMode: 'center',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
+		});
+
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		const nextButton = screen.getByRole('button', { name: /next passage/i });
+		await fireEvent.click(nextButton);
+
+		expect(window.location.search).toBe('');
+		expect(invalidateAll).toHaveBeenCalled();
+	});
+
+	it('retains selected passage and keeps URL state when Retry is triggered', async () => {
+		window.history.pushState({}, '', '/app?passageId=10');
+
+		render(Page, {
+			data: {
+				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				passage: { id: 10, text: 'Hi', source: 'Unique Source Name', userId: null, createdAt: new Date() },
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					scrollMode: 'center',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
+		});
+
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		await fireEvent.keyDown(window, { key: ' ' });
+
+		expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+		expect(screen.getByText('— Unique Source Name')).toBeInTheDocument();
+	});
 });

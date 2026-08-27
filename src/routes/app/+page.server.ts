@@ -6,7 +6,7 @@ import { or, isNull, eq } from 'drizzle-orm';
 import { createLogoutAction } from './login/auth-actions';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const user = locals.user;
 	const settings = user
 		? await getUserSettings(db, user.id)
@@ -32,19 +32,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.where(condition)
 		.all();
 
-	const filteredPassages = filterPassagesByLength(
-		allEligiblePassages,
-		settings.passageLength as PassageLength
-	);
+	let selectedPassage = null;
+	const passageIdParam = url?.searchParams?.get('passageId');
+	if (passageIdParam && /^\d+$/.test(passageIdParam.trim())) {
+		const targetId = parseInt(passageIdParam.trim(), 10);
+		selectedPassage = allEligiblePassages.find((p) => p.id === targetId) ?? null;
+	}
 
-	const randomPassage =
-		filteredPassages.length > 0
-			? filteredPassages[Math.floor(Math.random() * filteredPassages.length)]
-			: null;
+	if (!selectedPassage) {
+		const filteredPassages = filterPassagesByLength(
+			allEligiblePassages,
+			settings.passageLength as PassageLength
+		);
+
+		selectedPassage =
+			filteredPassages.length > 0
+				? filteredPassages[Math.floor(Math.random() * filteredPassages.length)]
+				: null;
+	}
 
 	return {
 		user,
-		passage: randomPassage,
+		passage: selectedPassage,
 		settings
 	};
 };

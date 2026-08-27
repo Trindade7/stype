@@ -3,20 +3,32 @@
 	import TypingEngine from '$lib/components/TypingEngine.svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
 	import { localStore, type GuestPassage, type GuestSettings } from '$lib/localStore';
+	import { getPassageIdFromUrl, clearPassageQuery } from '$lib/passage-utils';
 
 	let settings = $state<GuestSettings>(localStore.getSettings());
+
+	function resolveInitialPassage(lengthFilter = settings.passageLength): GuestPassage | null {
+		const targetId = getPassageIdFromUrl();
+		if (targetId !== null) {
+			const found = localStore.getPassageById(targetId);
+			if (found) return found;
+		}
+		return localStore.getRandomPassage(lengthFilter);
+	}
+
 	let currentPassage = $state<GuestPassage | null>(
-		localStore.getRandomPassage(localStore.getSettings().passageLength)
+		resolveInitialPassage(localStore.getSettings().passageLength)
 	);
 
 	function loadNextPassage() {
+		clearPassageQuery();
 		currentPassage = localStore.getRandomPassage(settings.passageLength);
 	}
 
 	onMount(() => {
 		settings = localStore.getSettings();
 		if (!currentPassage) {
-			loadNextPassage();
+			currentPassage = resolveInitialPassage(settings.passageLength);
 		}
 	});
 </script>

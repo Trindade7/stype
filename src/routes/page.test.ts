@@ -191,4 +191,61 @@ describe('Guest Root Route (+page.svelte)', () => {
 		expect(await screen.findByText('— Source B')).toBeInTheDocument();
 		expect(callCount).toBe(2);
 	});
+
+	it('loads the specified passage from local store when visiting /?passageId=<id>', () => {
+		const targetPassage = DEFAULT_PASSAGES[3]; // id 4
+		window.history.pushState({}, '', `/?passageId=${targetPassage.id}`);
+
+		render(GuestPage);
+
+		expect(document.body.textContent).toContain(targetPassage.text);
+		expect(document.body.textContent).toContain(`— ${targetPassage.source}`);
+	});
+
+	it('falls back to random passage when passageId in URL is invalid or non-existent', () => {
+		const fallbackPassage = { id: 888, text: 'Fallback random passage.', source: 'Fallback' };
+		vi.spyOn(localStore, 'getRandomPassage').mockReturnValue(fallbackPassage);
+
+		window.history.pushState({}, '', '/?passageId=invalid');
+		render(GuestPage);
+
+		expect(document.body.textContent).toContain('Fallback random passage.');
+	});
+
+	it('retains selected passage on Retry and clears passageId from URL on Next Passage', async () => {
+		const targetPassage = saveCustomPassage({
+			text: 'Hi',
+			source: 'Target Selection'
+		});
+		const nextPassage = { id: 999, text: 'Subsequent random passage.', source: 'Random Next' };
+
+		vi.spyOn(localStore, 'getRandomPassage').mockReturnValue(nextPassage);
+
+		window.history.pushState({}, '', `/?passageId=${targetPassage.id}`);
+		render(GuestPage);
+
+		expect(screen.getByText('— Target Selection')).toBeInTheDocument();
+
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		// Retry with Space: retains same passage
+		await fireEvent.keyDown(window, { key: ' ' });
+		expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+		expect(screen.getByText('— Target Selection')).toBeInTheDocument();
+
+		// Complete again
+		const freshInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+		await fireEvent.input(freshInput, { target: { value: 'H' } });
+		await fireEvent.input(freshInput, { target: { value: 'Hi' } });
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		// Next Passage with Tab: clears URL query and loads random passage
+		await fireEvent.keyDown(window, { key: 'Tab' });
+		expect(window.location.search).toBe('');
+		expect(await screen.findByText('— Random Next')).toBeInTheDocument();
+	});
 });

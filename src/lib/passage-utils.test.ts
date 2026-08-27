@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { getPassageLength, filterPassagesByLength } from './passage-utils';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+	getPassageLength,
+	filterPassagesByLength,
+	getPassageIdFromUrl,
+	clearPassageQuery
+} from './passage-utils';
 
 describe('passage-utils', () => {
 	it('categorizes word counts into short, medium, and long', () => {
@@ -34,5 +39,61 @@ describe('passage-utils', () => {
 		const list = [shortPassage];
 
 		expect(filterPassagesByLength(list, 'long')).toEqual([shortPassage]);
+	});
+
+	describe('getPassageIdFromUrl', () => {
+		it('extracts valid positive integer passageId from URL or search string', () => {
+			expect(getPassageIdFromUrl('https://example.com/?passageId=42')).toBe(42);
+			expect(getPassageIdFromUrl('/app?passageId=7')).toBe(7);
+			expect(getPassageIdFromUrl('?passageId=10')).toBe(10);
+			expect(getPassageIdFromUrl(new URL('https://example.com/?passageId=3'))).toBe(3);
+			expect(getPassageIdFromUrl(new URLSearchParams('passageId=99'))).toBe(99);
+		});
+
+		it('returns null when passageId is missing, empty, or invalid', () => {
+			expect(getPassageIdFromUrl('https://example.com/')).toBeNull();
+			expect(getPassageIdFromUrl('?passageId=')).toBeNull();
+			expect(getPassageIdFromUrl('?passageId=abc')).toBeNull();
+			expect(getPassageIdFromUrl('?passageId=0')).toBeNull();
+			expect(getPassageIdFromUrl('?passageId=-5')).toBeNull();
+			expect(getPassageIdFromUrl('?passageId=NaN')).toBeNull();
+			expect(getPassageIdFromUrl(null)).toBeNull();
+		});
+
+		it('reads from window.location when no argument is supplied', () => {
+			window.history.pushState({}, '', '/?passageId=15');
+			expect(getPassageIdFromUrl()).toBe(15);
+
+			window.history.pushState({}, '', '/');
+			expect(getPassageIdFromUrl()).toBeNull();
+		});
+	});
+
+	describe('clearPassageQuery', () => {
+		it('removes passageId parameter from URL using state replacement while preserving other params', () => {
+			window.history.pushState({}, '', '/app?passageId=42&mode=timed#section');
+			clearPassageQuery();
+
+			expect(window.location.pathname).toBe('/app');
+			expect(window.location.search).toBe('?mode=timed');
+			expect(window.location.hash).toBe('#section');
+		});
+
+		it('clears query string completely if passageId was the only parameter', () => {
+			window.history.pushState({}, '', '/?passageId=42');
+			clearPassageQuery();
+
+			expect(window.location.pathname).toBe('/');
+			expect(window.location.search).toBe('');
+		});
+
+		it('does nothing when passageId is not in the URL', () => {
+			const replaceSpy = vi.spyOn(window.history, 'replaceState');
+			window.history.pushState({}, '', '/app?mode=timed');
+
+			clearPassageQuery();
+			expect(replaceSpy).not.toHaveBeenCalled();
+			expect(window.location.search).toBe('?mode=timed');
+		});
 	});
 });

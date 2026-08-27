@@ -142,4 +142,22 @@ describe('Passages Management Page', () => {
 		expect(screen.getByDisplayValue(mockPassages[1].text)).toBeInTheDocument();
 		expect(screen.getByDisplayValue(mockPassages[1].source)).toBeInTheDocument();
 	});
+
+	it('renders a Practice button for each passage card linking to /app?passageId=<id>', () => {
+		render(PassagesPage, {
+			data: {
+				user: { id: 'user-1', username: 'testuser', createdAt: new Date() },
+				passages: mockPassages,
+				settings: null
+			} as any,
+			form: null
+		});
+
+		const practiceLinks = screen.getAllByRole('link', { name: /^practice$/i });
+		expect(practiceLinks.length).toBe(mockPassages.length);
+
+		mockPassages.forEach((passage, idx) => {
+			expect(practiceLinks[idx]).toHaveAttribute('href', `/app?passageId=${passage.id}`);
+		});
+	});
 });

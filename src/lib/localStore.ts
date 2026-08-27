@@ -209,6 +209,11 @@ export function getAllPassages(): GuestPassage[] {
 	return [...DEFAULT_PASSAGES, ...custom];
 }
 
+export function getPassageById(id: number): GuestPassage | null {
+	const all = getAllPassages();
+	return all.find((p) => p.id === id) ?? null;
+}
+
 export function getRandomPassage(lengthFilter: PassageLength = 'all'): GuestPassage | null {
 	const all = getAllPassages();
 	const filtered = filterPassagesByLength(all, lengthFilter);
@@ -289,6 +294,7 @@ export const localStore = {
 	updateCustomPassage,
 	deleteCustomPassage,
 	getAllPassages,
+	getPassageById,
 	getRandomPassage,
 	getTestRuns: getGuestTestRuns,
 	saveTestRun: saveGuestTestRun,

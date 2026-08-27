@@ -181,4 +181,15 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		expect(prevButton).not.toBeDisabled();
 		expect(nextButton).toBeDisabled();
 	});
+
+	it('renders a Practice button for each passage card linking to /?passageId=<id>', () => {
+		render(GuestPassagesPage);
+
+		const practiceLinks = screen.getAllByRole('link', { name: /^practice$/i });
+		expect(practiceLinks.length).toBe(DEFAULT_PASSAGES.length);
+
+		DEFAULT_PASSAGES.forEach((passage, idx) => {
+			expect(practiceLinks[idx]).toHaveAttribute('href', `/?passageId=${passage.id}`);
+		});
+	});
 });

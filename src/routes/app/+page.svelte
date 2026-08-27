@@ -1,8 +1,15 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import TypingEngine from '$lib/components/TypingEngine.svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { clearPassageQuery } from '$lib/passage-utils';
 
 	let { data }: { data: PageData } = $props();
+
+	async function handleNextPassage() {
+		clearPassageQuery();
+		await invalidateAll();
+	}
 </script>
 
 <svelte:head>
@@ -17,6 +24,7 @@
 			initialDuration={data.settings?.duration}
 			initialZenMode={data.settings?.zenMode}
 			initialScrollMode={data.settings?.scrollMode}
+			onNextPassage={handleNextPassage}
 		/>
 	{:else}
 		<div class="w-full max-w-2xl text-center space-y-4 pt-12">

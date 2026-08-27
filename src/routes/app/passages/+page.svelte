@@ -86,71 +86,78 @@
 
 	<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 		{#each paginatedPassages as passage}
-			<Card.Root>
-				<Card.Header class="pb-3">
-					<div class="flex items-start justify-between gap-2">
-						<div class="flex items-center gap-2">
-							{#if passage.userId === null}
-								<Badge variant="secondary">Seeded</Badge>
-							{:else}
-								<Badge>Custom</Badge>
-							{/if}
-							<Badge variant="outline">{displayPassageLength(passage.text)}</Badge>
-						</div>
-						
-						{#if passage.userId !== null}
-							<div class="flex items-center gap-1">
-								<Dialog.Root open={editingId === passage.id} onOpenChange={(open) => { if(!open) editingId = null; else editingId = passage.id; }}>
-									<Dialog.Trigger aria-label="Edit passage" class={buttonVariants({ variant: 'ghost', size: 'icon' }) + " h-8 w-8"}>
-										<HugeiconsIcon icon={Edit01Icon} size={16} />
-									</Dialog.Trigger>
-									<Dialog.Content>
-										<Dialog.Header>
-											<Dialog.Title>Edit Passage</Dialog.Title>
-										</Dialog.Header>
-										<form method="POST" action="?/update" use:enhance={() => {
-											return async ({ update }) => {
-												editingId = null;
-												await update();
-											};
-										}}>
-											<input type="hidden" name="id" value={passage.id} />
-											<div class="grid gap-4 py-4">
-												<div class="grid gap-2">
-													<Label for="edit-text">Text</Label>
-													<Textarea id="edit-text" name="text" required class="min-h-[120px]" value={passage.text} />
-												</div>
-												<div class="grid gap-2">
-													<Label for="edit-source">Source</Label>
-													<Input id="edit-source" name="source" value={passage.source ?? ''} />
-												</div>
-											</div>
-											<Dialog.Footer>
-												<Button type="button" variant="outline" onclick={() => editingId = null}>Cancel</Button>
-												<Button type="submit">Save Changes</Button>
-											</Dialog.Footer>
-										</form>
-									</Dialog.Content>
-								</Dialog.Root>
-
-								<form method="POST" action="?/delete" use:enhance>
-									<input type="hidden" name="id" value={passage.id} />
-									<Button type="submit" variant="ghost" size="icon" aria-label="Delete passage" class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive">
-										<HugeiconsIcon icon={Delete01Icon} size={16} />
-									</Button>
-								</form>
+			<Card.Root class="flex flex-col justify-between">
+				<div>
+					<Card.Header class="pb-3">
+						<div class="flex items-start justify-between gap-2">
+							<div class="flex items-center gap-2">
+								{#if passage.userId === null}
+									<Badge variant="secondary">Seeded</Badge>
+								{:else}
+									<Badge>Custom</Badge>
+								{/if}
+								<Badge variant="outline">{displayPassageLength(passage.text)}</Badge>
 							</div>
-						{/if}
-					</div>
-					<Card.Title class="mt-4 line-clamp-1 text-base">
-						{passage.source || 'Unknown Source'}
-					</Card.Title>
-				</Card.Header>
-				<Card.Content>
-					<p class="line-clamp-4 text-sm text-muted-foreground">
-						{passage.text}
-					</p>
-				</Card.Content>
+							
+							{#if passage.userId !== null}
+								<div class="flex items-center gap-1">
+									<Dialog.Root open={editingId === passage.id} onOpenChange={(open) => { if(!open) editingId = null; else editingId = passage.id; }}>
+										<Dialog.Trigger aria-label="Edit passage" class={buttonVariants({ variant: 'ghost', size: 'icon' }) + " h-8 w-8"}>
+											<HugeiconsIcon icon={Edit01Icon} size={16} />
+										</Dialog.Trigger>
+										<Dialog.Content>
+											<Dialog.Header>
+												<Dialog.Title>Edit Passage</Dialog.Title>
+											</Dialog.Header>
+											<form method="POST" action="?/update" use:enhance={() => {
+												return async ({ update }) => {
+													editingId = null;
+													await update();
+												};
+											}}>
+												<input type="hidden" name="id" value={passage.id} />
+												<div class="grid gap-4 py-4">
+													<div class="grid gap-2">
+														<Label for="edit-text">Text</Label>
+														<Textarea id="edit-text" name="text" required class="min-h-[120px]" value={passage.text} />
+													</div>
+													<div class="grid gap-2">
+														<Label for="edit-source">Source</Label>
+														<Input id="edit-source" name="source" value={passage.source ?? ''} />
+													</div>
+												</div>
+												<Dialog.Footer>
+													<Button type="button" variant="outline" onclick={() => editingId = null}>Cancel</Button>
+													<Button type="submit">Save Changes</Button>
+												</Dialog.Footer>
+											</form>
+										</Dialog.Content>
+									</Dialog.Root>
+
+									<form method="POST" action="?/delete" use:enhance>
+										<input type="hidden" name="id" value={passage.id} />
+										<Button type="submit" variant="ghost" size="icon" aria-label="Delete passage" class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive">
+											<HugeiconsIcon icon={Delete01Icon} size={16} />
+										</Button>
+									</form>
+								</div>
+							{/if}
+						</div>
+						<Card.Title class="mt-4 line-clamp-1 text-base">
+							{passage.source || 'Unknown Source'}
+						</Card.Title>
+					</Card.Header>
+					<Card.Content>
+						<p class="line-clamp-4 text-sm text-muted-foreground">
+							{passage.text}
+						</p>
+					</Card.Content>
+				</div>
+				<Card.Footer class="pt-0 justify-end">
+					<Button variant="outline" size="sm" href={`/app?passageId=${passage.id}`}>
+						Practice
+					</Button>
+				</Card.Footer>
 			</Card.Root>
 		{/each}
 	</div>

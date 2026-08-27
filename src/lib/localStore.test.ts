@@ -152,6 +152,23 @@ describe('localStore utility', () => {
 			expect(getCustomPassages()).toEqual([]);
 			expect(getAllPassages().length).toBe(DEFAULT_PASSAGES.length);
 		});
+
+		it('gets a passage by id from seeded or custom passages', () => {
+			// Seeded passage
+			const seeded = localStore.getPassageById(DEFAULT_PASSAGES[1].id);
+			expect(seeded).toEqual(DEFAULT_PASSAGES[1]);
+
+			// Custom passage
+			const custom = saveCustomPassage({
+				text: 'Specific custom passage for ID lookup',
+				source: 'ID Lookup Test'
+			});
+			const foundCustom = localStore.getPassageById(custom.id);
+			expect(foundCustom).toEqual(custom);
+
+			// Non-existent passage
+			expect(localStore.getPassageById(999999)).toBeNull();
+		});
 	});
 
 	describe('Test Runs', () => {

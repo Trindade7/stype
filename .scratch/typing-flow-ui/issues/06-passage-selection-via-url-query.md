@@ -4,12 +4,12 @@
 
 **Blocked by:** 04 — Result Summary Post-Test Actions
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Each passage card in `/passages` renders a "Practice" button linking to `/?passageId=<id>`.
-- [ ] Each passage card in `/app/passages` renders a "Practice" button linking to `/app?passageId=<id>`.
-- [ ] Visiting `/?passageId=<id>` as a guest loads the specified passage from the local store into the typing engine.
-- [ ] Visiting `/app?passageId=<id>` as an authenticated user loads the specified passage from the database into the typing engine.
-- [ ] If an invalid or unpermitted `passageId` is provided in the URL, the application gracefully falls back to normal random passage selection.
-- [ ] Clicking "Retry" or pressing Space after completing a selected passage retains the selected passage.
-- [ ] Clicking "Next Passage" or pressing Tab after completing a selected passage clears the `passageId` parameter from the URL using state replacement and loads a normal random passage.
+- [x] Each passage card in `/passages` renders a "Practice" button linking to `/?passageId=<id>`.
+- [x] Each passage card in `/app/passages` renders a "Practice" button linking to `/app?passageId=<id>`.
+- [x] Visiting `/?passageId=<id>` as a guest loads the specified passage from the local store into the typing engine.
+- [x] Visiting `/app?passageId=<id>` as an authenticated user loads the specified passage from the database into the typing engine.
+- [x] If an invalid or unpermitted `passageId` is provided in the URL, the application gracefully falls back to normal random passage selection.
+- [x] Clicking "Retry" or pressing Space after completing a selected passage retains the selected passage.
+- [x] Clicking "Next Passage" or pressing Tab after completing a selected passage clears the `passageId` parameter from the URL using state replacement and loads a normal random passage.
