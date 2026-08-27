@@ -4,12 +4,12 @@
 
 **Blocked by:** 03 — Typing Layout Stability and Result Summary Mobile Polish
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] Typing the first character initiates a 10-second inactivity countdown in both Passage Mode and Timed Mode.
-- [ ] Each subsequent keystroke resets the countdown back to a full 10 seconds.
-- [ ] When 10 seconds elapse without a keystroke while a test is in progress, the engine resets typed text, elapsed time, and snapshots back to zero.
-- [ ] The inactivity reset keeps the typist on the same passage rather than advancing to a new text.
-- [ ] Before typing begins, the inactivity timer does not run, allowing typists to read the passage without being reset.
-- [ ] When a test run is completed and the Result Summary is visible, the inactivity timer is disabled.
-- [ ] Manually resetting with the Escape key or the restart button properly cancels any pending inactivity timer.
+- [x] Typing the first character initiates a 10-second inactivity countdown in both Passage Mode and Timed Mode.
+- [x] Each subsequent keystroke resets the countdown back to a full 10 seconds.
+- [x] When 10 seconds elapse without a keystroke while a test is in progress, the engine resets typed text, elapsed time, and snapshots back to zero.
+- [x] The inactivity reset keeps the typist on the same passage rather than advancing to a new text.
+- [x] Before typing begins, the inactivity timer does not run, allowing typists to read the passage without being reset.
+- [x] When a test run is completed and the Result Summary is visible, the inactivity timer is disabled.
+- [x] Manually resetting with the Escape key or the restart button properly cancels any pending inactivity timer.

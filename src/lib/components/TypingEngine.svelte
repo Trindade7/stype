@@ -58,6 +58,9 @@
 	let zenMode = $state<boolean>(false);
 	let scrollMode = $state<ScrollMode>('center');
 
+	const INACTIVITY_TIMEOUT_MS = 10000;
+	let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+
 	$effect.pre(() => {
 		mode = initialMode;
 		timeLimit = initialDuration;
@@ -152,6 +155,22 @@
 		}
 	}
 
+	function clearInactivityTimer() {
+		if (inactivityTimer !== null) {
+			clearTimeout(inactivityTimer);
+			inactivityTimer = null;
+		}
+	}
+
+	function resetInactivityTimer() {
+		clearInactivityTimer();
+		if (startTime !== null && !isFinished) {
+			inactivityTimer = setTimeout(() => {
+				reset();
+			}, INACTIVITY_TIMEOUT_MS);
+		}
+	}
+
 	function applyTypedValue(val: string) {
 		if (isFinished) return;
 
@@ -176,10 +195,14 @@
 
 		if (typedText.length === chars.length) {
 			isFinished = true;
+			clearInactivityTimer();
 			submitTestRun();
 		} else if (mode === 'timed' && timeElapsed >= timeLimit) {
 			isFinished = true;
+			clearInactivityTimer();
 			submitTestRun();
+		} else if (startTime && !isFinished) {
+			resetInactivityTimer();
 		}
 	}
 
@@ -196,6 +219,7 @@
 			captureSnapshots(elapsed);
 			if (mode === 'timed' && elapsed >= timeLimit) {
 				isFinished = true;
+				clearInactivityTimer();
 				submitTestRun();
 				return;
 			}
@@ -215,6 +239,7 @@
 	}
 
 	function reset() {
+		clearInactivityTimer();
 		resetScroll();
 		typedText = '';
 		startTime = null;
@@ -361,6 +386,7 @@
 		window.addEventListener('focus', handleWindowFocus);
 
 		return () => {
+			clearInactivityTimer();
 			cancelAnimationFrame(raf);
 			clearTimeout(timer);
 			window.removeEventListener('keydown', handleGlobalKeydown);
@@ -369,6 +395,7 @@
 	});
 
 	onDestroy(() => {
+		clearInactivityTimer();
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('keydown', handleGlobalKeydown);
 			window.removeEventListener('focus', handleWindowFocus);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/svelte';
 import TypingEngine from './TypingEngine.svelte';
 
@@ -765,4 +765,212 @@ describe('TypingEngine', () => {
 			expect(scrollContainer.scrollTop).toBe(0);
 		});
 	});
+
+	describe('Inactivity Reset', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+			cleanup();
+		});
+
+		it('automatically resets in-progress test run to zero on same passage after 10 seconds of inactivity in Passage Mode', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			expect(input.value).toBe('H');
+
+			// Advance by 10 seconds
+			vi.advanceTimersByTime(10000);
+
+			// Typed text must be reset to zero
+			expect(input.value).toBe('');
+
+			// Same passage is retained
+			expect(screen.getByText('— Test')).toBeInTheDocument();
+
+			// Result Summary should not be shown
+			expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+		});
+
+		it('resets the 10-second countdown back to a full 10 seconds on each subsequent keystroke', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+			expect(input.value).toBe('H');
+
+			// Wait 6 seconds (less than 10s timeout)
+			vi.advanceTimersByTime(6000);
+			expect(input.value).toBe('H');
+
+			// Type next character: resets inactivity timer
+			await fireEvent.input(input, { target: { value: 'He' } });
+			expect(input.value).toBe('He');
+
+			// Wait another 6 seconds (total 12s from start, but 6s from second keystroke)
+			vi.advanceTimersByTime(6000);
+			expect(input.value).toBe('He');
+
+			// Wait remaining 4 seconds (10s since second keystroke)
+			vi.advanceTimersByTime(4000);
+			expect(input.value).toBe('');
+		});
+
+		it('triggers inactivity reset in Timed Mode after 10 seconds without keystrokes', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				initialMode: 'timed',
+				initialDuration: 30
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+			expect(input.value).toBe('H');
+
+			vi.advanceTimersByTime(10000);
+
+			expect(input.value).toBe('');
+			expect(screen.getByText('— Test')).toBeInTheDocument();
+			expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+		});
+
+		it('does not run inactivity timer before typing begins, allowing typists to read without being reset', async () => {
+			const onRestartMock = vi.fn();
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				onRestart: onRestartMock
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+
+			// Advance by 15 seconds before any keystroke
+			vi.advanceTimersByTime(15000);
+
+			// onRestart should not have been called by an inactivity reset
+			expect(onRestartMock).not.toHaveBeenCalled();
+			expect(screen.getByText('— Test')).toBeInTheDocument();
+
+			// Typist can start typing normally now
+			await fireEvent.input(input, { target: { value: 'H' } });
+			expect(input.value).toBe('H');
+		});
+
+		it('disables inactivity timer when test run is completed and Result Summary is visible', async () => {
+			const onRestartMock = vi.fn();
+			const passage = { id: 1, text: 'Hi', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				onRestart: onRestartMock
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'Hi' } });
+
+			// Result Summary should be displayed
+			expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+			// Advance by 15 seconds
+			vi.advanceTimersByTime(15000);
+
+			// Result Summary is still visible and not reset by inactivity
+			expect(screen.getByText('Passage Complete')).toBeInTheDocument();
+			expect(onRestartMock).not.toHaveBeenCalled();
+		});
+
+		it('cancels pending inactivity timer when manually resetting with Escape key', async () => {
+			const onRestartMock = vi.fn();
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				onRestart: onRestartMock
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Press Escape to reset manually
+			await fireEvent.keyDown(window, { key: 'Escape' });
+			expect(onRestartMock).toHaveBeenCalledTimes(1);
+
+			// Advance by 10 seconds
+			vi.advanceTimersByTime(10000);
+
+			// Inactivity timer should not fire again
+			expect(onRestartMock).toHaveBeenCalledTimes(1);
+		});
+
+		it('cancels pending inactivity timer when manually resetting with restart button', async () => {
+			const onRestartMock = vi.fn();
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				onRestart: onRestartMock
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Click the Restart button
+			const restartBtn = screen.getByRole('button', { name: /restart/i });
+			await fireEvent.click(restartBtn);
+			expect(onRestartMock).toHaveBeenCalledTimes(1);
+
+			// Advance by 10 seconds
+			vi.advanceTimersByTime(10000);
+
+			// Inactivity timer should not fire again
+			expect(onRestartMock).toHaveBeenCalledTimes(1);
+		});
+
+		it('resets elapsed time, HUD metrics, and snapshots back to zero on inactivity reset', async () => {
+			const onSaveMock = vi.fn().mockResolvedValue({
+				id: 1,
+				passageId: 1,
+				wpm: 60,
+				accuracy: 100,
+				timeElapsed: 1,
+				timelineSnapshots: []
+			});
+
+			const passage = { id: 1, text: 'Hi', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				onSave: onSaveMock
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+
+			// Type first character
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Wait 10 seconds to trigger inactivity reset
+			vi.advanceTimersByTime(10000);
+
+			// HUD should show 0 WPM, 100% ACC, 0s Time
+			const hud = screen.getByTestId('hud');
+			expect(hud).toHaveTextContent('0');
+			expect(hud).toHaveTextContent('100%');
+			expect(hud).toHaveTextContent('0s');
+
+			// Now typist completes test run from scratch
+			await fireEvent.input(input, { target: { value: 'H' } });
+			await fireEvent.input(input, { target: { value: 'Hi' } });
+
+			expect(onSaveMock).toHaveBeenCalledTimes(1);
+			const savedResult = onSaveMock.mock.calls[0][0];
+			// The snapshots should only reflect the new run, not the abandoned run
+			expect(savedResult.timelineSnapshots.length).toBeGreaterThanOrEqual(1);
+			expect(savedResult.timelineSnapshots[0].second).toBe(1);
+		});
+	});
 });
+
