@@ -21,7 +21,7 @@
 	} = $props();
 </script>
 
-<div class="flex flex-col items-center justify-center py-6 sm:py-8 space-y-6 sm:space-y-8 animate-in fade-in duration-500">
+<div class="flex flex-col items-center justify-center py-4 space-y-6 sm:space-y-8 animate-in fade-in duration-500">
 	<div class="flex items-center gap-3 text-emerald-400">
 		<i class="bi bi-check-circle-fill text-3xl"></i>
 		<h3 class="text-3xl font-bold text-zinc-100">Passage Complete</h3>
