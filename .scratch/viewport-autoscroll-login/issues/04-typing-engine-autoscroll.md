@@ -4,13 +4,13 @@
 
 **Blocked by:** 02 — Full Viewport Layout Lock for Typing Screens, 03 — Scroll Mode Setting and Persistence
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `TypingEngine` accepts `initialScrollMode` / `scrollMode` prop defaulting to `center`.
-- [ ] In `center` mode, advancing keystrokes smoothly scroll the passage container to keep the active typing line centered vertically.
-- [ ] In `step` mode, the container scrolls down in stepped increments when the active line approaches the bottom visible boundary.
-- [ ] In `manual` mode, automatic container scrolling is disabled.
-- [ ] Backspacing across line boundaries keeps the active line visible.
-- [ ] Restarting a test run (`Escape`) or loading a new passage (`Tab`) resets container scroll position to `0`.
-- [ ] Guest and authenticated typing pages pass the user's saved `scrollMode` into `TypingEngine`.
-- [ ] Component tests verify scroll tracking calculations and reset behavior across all three scroll modes.
+- [x] `TypingEngine` accepts `initialScrollMode` / `scrollMode` prop defaulting to `center`.
+- [x] In `center` mode, advancing keystrokes smoothly scroll the passage container to keep the active typing line centered vertically.
+- [x] In `step` mode, the container scrolls down in stepped increments when the active line approaches the bottom visible boundary.
+- [x] In `manual` mode, automatic container scrolling is disabled.
+- [x] Backspacing across line boundaries keeps the active line visible.
+- [x] Restarting a test run (`Escape`) or loading a new passage (`Tab`) resets container scroll position to `0`.
+- [x] Guest and authenticated typing pages pass the user's saved `scrollMode` into `TypingEngine`.
+- [x] Component tests verify scroll tracking calculations and reset behavior across all three scroll modes.

@@ -408,4 +408,168 @@ describe('TypingEngine', () => {
 		expect(resultSummaryWrapper).toBeInTheDocument();
 		expect(resultSummaryWrapper).toHaveClass('overflow-y-auto', 'max-h-full');
 	});
+
+	describe('auto-scrolling behavior across scroll modes', () => {
+		function setupContainerLayout(containerEl: HTMLElement, height = 200, top = 50) {
+			Object.defineProperty(containerEl, 'clientHeight', { value: height, configurable: true });
+			vi.spyOn(containerEl, 'getBoundingClientRect').mockReturnValue({
+				top,
+				bottom: top + height,
+				height,
+				left: 0,
+				right: 400,
+				width: 400,
+				x: 0,
+				y: top,
+				toJSON: () => {}
+			});
+			if (!containerEl.scrollTo) {
+				containerEl.scrollTo = vi.fn((options: any) => {
+					if (typeof options === 'object' && options !== null && 'top' in options) {
+						containerEl.scrollTop = options.top;
+					}
+				});
+			} else {
+				vi.spyOn(containerEl, 'scrollTo').mockImplementation((options: any) => {
+					if (typeof options === 'object' && options !== null && 'top' in options) {
+						containerEl.scrollTop = options.top;
+					}
+				});
+			}
+		}
+
+		function mockActiveLine(scrollContainer: HTMLElement, lineTop: number, lineHeight = 30) {
+			const spans = scrollContainer.querySelectorAll('span[data-char-index]');
+			for (const span of spans) {
+				vi.spyOn(span, 'getBoundingClientRect').mockReturnValue({
+					top: lineTop,
+					bottom: lineTop + lineHeight,
+					height: lineHeight,
+					left: 0,
+					right: 20,
+					width: 20,
+					x: 0,
+					y: lineTop,
+					toJSON: () => {}
+				});
+			}
+		}
+
+		it('accepts initialScrollMode and scrollMode props defaulting to center', () => {
+			const passage = { id: 1, text: 'Hello', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				initialScrollMode: 'step'
+			});
+
+			const scrollContainer = container.querySelector('div[class*="overflow-y-auto pr-1"]') as HTMLElement;
+			expect(scrollContainer).toBeInTheDocument();
+		});
+
+		it('in center mode, advancing keystrokes scroll the passage container to keep active line centered', async () => {
+			const passage = { id: 1, text: 'First line text\nSecond line text\nThird line text', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				initialScrollMode: 'center'
+			});
+
+			const scrollContainer = container.querySelector('div[class*="overflow-y-auto pr-1"]') as HTMLElement;
+			setupContainerLayout(scrollContainer, 200, 50); // visible top is 50, center is at 50 + 100 = 150
+
+			const input = container.querySelector('input') as HTMLInputElement;
+
+			// Advance typing past line 1 into line 2 where active line center is at 180 + 15 = 195 (below container center 150)
+			mockActiveLine(scrollContainer, 180, 30);
+			await fireEvent.input(input, { target: { value: 'First line text\nS' } });
+
+			expect(scrollContainer.scrollTop).toBeGreaterThan(0);
+			expect(scrollContainer.scrollTo).toHaveBeenCalled();
+		});
+
+		it('in step mode, scrolls container down in stepped increments when approaching bottom boundary', async () => {
+			const passage = { id: 1, text: 'First line text\nSecond line text\nThird line text', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				initialScrollMode: 'step'
+			});
+
+			const scrollContainer = container.querySelector('div[class*="overflow-y-auto pr-1"]') as HTMLElement;
+			setupContainerLayout(scrollContainer, 200, 50); // visible: 50 to 250. bottom threshold: 250 - 30 = 220
+
+			const input = container.querySelector('input') as HTMLInputElement;
+
+			// Mock position approaching bottom boundary: top = 225, bottom = 255 (crosses 220 threshold)
+			mockActiveLine(scrollContainer, 225, 30);
+			await fireEvent.input(input, { target: { value: 'First line text\nS' } });
+
+			expect(scrollContainer.scrollTop).toBeGreaterThanOrEqual(60);
+		});
+
+		it('in manual mode, automatic container scrolling is disabled', async () => {
+			const passage = { id: 1, text: 'First line text\nSecond line text\nThird line text', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				initialScrollMode: 'manual'
+			});
+
+			const scrollContainer = container.querySelector('div[class*="overflow-y-auto pr-1"]') as HTMLElement;
+			setupContainerLayout(scrollContainer, 200, 50);
+			scrollContainer.scrollTop = 10;
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			mockActiveLine(scrollContainer, 240, 30);
+			await fireEvent.input(input, { target: { value: 'First line text\nS' } });
+
+			// In manual mode, scrollTop remains unchanged at 10
+			expect(scrollContainer.scrollTop).toBe(10);
+		});
+
+		it('backspacing across line boundaries keeps the active line visible', async () => {
+			const passage = { id: 1, text: 'Line 1\nLine 2\nLine 3', source: 'Test' };
+			const { container } = render(TypingEngine, {
+				passage,
+				initialScrollMode: 'center'
+			});
+
+			const scrollContainer = container.querySelector('div[class*="overflow-y-auto pr-1"]') as HTMLElement;
+			setupContainerLayout(scrollContainer, 200, 50);
+			scrollContainer.scrollTop = 80;
+
+			const input = container.querySelector('input') as HTMLInputElement;
+
+			// Advance to line 2
+			mockActiveLine(scrollContainer, 180, 30);
+			await fireEvent.input(input, { target: { value: 'Line 1\nL' } });
+
+			// Now backspace to Line 1 where line is higher up
+			mockActiveLine(scrollContainer, 60, 30); // center is 75, container center is 150 -> delta -75
+			await fireEvent.input(input, { target: { value: 'Line 1' } });
+
+			expect(scrollContainer.scrollTop).toBeLessThan(80);
+		});
+
+		it('resets scroll position to 0 on Escape (restart)', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const scrollContainer = container.querySelector('div[class*="overflow-y-auto pr-1"]') as HTMLElement;
+			scrollContainer.scrollTop = 120;
+
+			await fireEvent.keyDown(window, { key: 'Escape' });
+
+			expect(scrollContainer.scrollTop).toBe(0);
+		});
+
+		it('resets scroll position to 0 on Tab (next passage)', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const scrollContainer = container.querySelector('div[class*="overflow-y-auto pr-1"]') as HTMLElement;
+			scrollContainer.scrollTop = 150;
+
+			await fireEvent.keyDown(window, { key: 'Tab' });
+
+			expect(scrollContainer.scrollTop).toBe(0);
+		});
+	});
 });

@@ -17,6 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				passageLength: DEFAULT_USER_SETTINGS.passageLength,
 				zenMode: DEFAULT_USER_SETTINGS.zenMode,
 				theme: DEFAULT_USER_SETTINGS.theme,
+				scrollMode: DEFAULT_USER_SETTINGS.scrollMode,
 				createdAt: new Date(),
 				updatedAt: new Date()
 			};

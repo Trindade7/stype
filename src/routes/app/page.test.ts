@@ -20,6 +20,7 @@ describe('Main Page Content', () => {
 					passageLength: 'all',
 					zenMode: false,
 					theme: 'system',
+					scrollMode: 'center',
 					createdAt: new Date(),
 					updatedAt: new Date()
 				}
@@ -43,6 +44,7 @@ describe('Main Page Content', () => {
 					passageLength: 'all',
 					zenMode: false,
 					theme: 'system',
+					scrollMode: 'center',
 					createdAt: new Date(),
 					updatedAt: new Date()
 				}
@@ -66,6 +68,7 @@ describe('Main Page Content', () => {
 					passageLength: 'all',
 					zenMode: false,
 					theme: 'system',
+					scrollMode: 'center',
 					createdAt: new Date(),
 					updatedAt: new Date()
 				}
@@ -74,5 +77,27 @@ describe('Main Page Content', () => {
 
 		const pageWrapper = container.firstElementChild as HTMLElement;
 		expect(pageWrapper).toHaveClass('overflow-hidden', 'flex-1', 'min-h-0', 'h-[calc(100dvh-69px)]');
+	});
+
+	it('passes user scrollMode setting into TypingEngine', () => {
+		const { container } = render(Page, {
+			data: {
+				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					scrollMode: 'step',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
+		});
+
+		expect(container.querySelector('[data-scroll-mode="step"]')).toBeInTheDocument();
 	});
 });

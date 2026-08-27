@@ -35,6 +35,7 @@
 				initialMode={settings.mode}
 				initialDuration={settings.duration}
 				initialZenMode={settings.zenMode}
+				initialScrollMode={settings.scrollMode}
 				onSave={(result) => {
 					return localStore.saveTestRun(result) as any;
 				}}

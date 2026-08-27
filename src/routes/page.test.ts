@@ -58,6 +58,15 @@ describe('Guest Root Route (+page.svelte)', () => {
 		expect(durationElements.length).toBeGreaterThanOrEqual(1);
 	});
 
+	it('loads saved scrollMode from guest settings into TypingEngine', () => {
+		saveGuestSettings({
+			scrollMode: 'step'
+		});
+
+		const { container } = render(GuestPage);
+		expect(container.querySelector('[data-scroll-mode="step"]')).toBeInTheDocument();
+	});
+
 	it('loads custom passage if stored in localStore', () => {
 		localStorage.clear();
 		saveCustomPassage({

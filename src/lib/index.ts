@@ -6,6 +6,7 @@ export { default as TimelineChart } from './components/TimelineChart.svelte';
 export { default as GuestHeader } from './components/GuestHeader.svelte';
 
 export * from './localStore';
+export * from './scroll-utils';
 
 export type { CompletedTestResult } from './components/TypingEngine.svelte';
 export type { HistoryRunItem } from './components/HistoryTable.svelte';

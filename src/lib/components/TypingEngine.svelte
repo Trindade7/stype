@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import type { TestRun, TimelineSnapshot } from '$lib/server/db/schema';
+	import { calculateTargetScrollTop, applyScroll, type ScrollMode } from '$lib/scroll-utils';
 	import ResultSummary from './ResultSummary.svelte';
 
 	export interface CompletedTestResult {
@@ -23,6 +24,8 @@
 		initialMode = 'passage',
 		initialDuration = 30,
 		initialZenMode = false,
+		initialScrollMode = 'center',
+		scrollMode: propScrollMode,
 		onSave,
 		onNextPassage,
 		onRestart
@@ -31,12 +34,15 @@
 		initialMode?: 'passage' | 'timed';
 		initialDuration?: number;
 		initialZenMode?: boolean;
+		initialScrollMode?: ScrollMode;
+		scrollMode?: ScrollMode;
 		onSave?: (result: CompletedTestResult) => Promise<TestRun | null | void> | TestRun | null | void;
 		onNextPassage?: () => void | Promise<void>;
 		onRestart?: () => void;
 	}>();
 
 	let inputEl: HTMLInputElement | undefined = $state();
+	let scrollContainerEl: HTMLDivElement | undefined = $state();
 	let isFocused = $state(true);
 
 	let text = $derived(passage.text);
@@ -50,11 +56,13 @@
 	let mode = $state<'passage' | 'timed'>('passage');
 	let timeLimit = $state<number>(30);
 	let zenMode = $state<boolean>(false);
+	let scrollMode = $state<ScrollMode>('center');
 
 	$effect.pre(() => {
 		mode = initialMode;
 		timeLimit = initialDuration;
 		zenMode = initialZenMode;
+		scrollMode = propScrollMode ?? initialScrollMode ?? 'center';
 	});
 	
 	let timelineSnapshots = $state<TimelineSnapshot[]>([]);
@@ -200,7 +208,14 @@
 		isFocused = true;
 	}
 	
+	function resetScroll() {
+		if (scrollContainerEl) {
+			applyScroll(scrollContainerEl, 0, false);
+		}
+	}
+
 	function reset() {
+		resetScroll();
 		typedText = '';
 		startTime = null;
 		currentTime = null;
@@ -284,6 +299,51 @@
 			}
 		}
 	}
+
+	function performAutoScroll() {
+		if (!scrollContainerEl || isFinished || scrollMode === 'manual') return;
+
+		const activeCharIndex = Math.min(typedText.length, chars.length - 1);
+		const activeEl = scrollContainerEl.querySelector(`[data-char-index="${activeCharIndex}"]`) as HTMLElement | null;
+		if (!activeEl) return;
+
+		const containerRect = scrollContainerEl.getBoundingClientRect();
+		const activeRect = activeEl.getBoundingClientRect();
+		const containerHeight = scrollContainerEl.clientHeight || containerRect.height;
+		if (containerHeight <= 0) return;
+
+		const activeTop = activeRect.top - containerRect.top;
+		const activeBottom = activeRect.bottom - containerRect.top;
+		const lineHeight = activeRect.height || 30;
+		const maxScrollTop = scrollContainerEl.scrollHeight > containerHeight
+			? scrollContainerEl.scrollHeight - containerHeight
+			: undefined;
+
+		const targetScrollTop = calculateTargetScrollTop({
+			scrollMode,
+			containerHeight,
+			currentScrollTop: scrollContainerEl.scrollTop,
+			activeTop,
+			activeBottom,
+			lineHeight,
+			maxScrollTop
+		});
+
+		if (Math.abs(targetScrollTop - scrollContainerEl.scrollTop) >= 1) {
+			applyScroll(scrollContainerEl, targetScrollTop, true);
+		}
+	}
+
+	$effect(() => {
+		const _len = typedText.length;
+		const _mode = scrollMode;
+		performAutoScroll();
+	});
+
+	$effect(() => {
+		const _id = passage.id;
+		resetScroll();
+	});
 
 	$effect(() => {
 		if (inputEl && !isFinished) {
@@ -414,14 +474,17 @@
 				value={typedText}
 			/>
 
-			<div class="flex-1 min-h-0 overflow-y-auto pr-1">
+			<div bind:this={scrollContainerEl} data-scroll-mode={scrollMode} class="flex-1 min-h-0 overflow-y-auto pr-1">
 				<div class="font-mono text-2xl leading-relaxed tracking-wide text-zinc-500 pointer-events-none select-none break-words whitespace-pre-wrap">
 					{#each chars as char, i}
 						{@const typedChar = typedText[i]}
 						{@const isCorrect = typedChar === char}
 						{@const isIncorrect = typedChar !== undefined && !isCorrect}
 						{@const isCurrent = i === typedText.length}
-						<span class="relative transition-colors duration-75 {isCorrect ? 'text-zinc-100' : isIncorrect ? 'text-red-400 bg-red-400/10 rounded-sm' : ''} {isCurrent ? (isFocused ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-emerald-400 after:animate-pulse' : 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-zinc-600') : ''}"
+						<span
+							data-char-index={i}
+							data-current={isCurrent ? 'true' : undefined}
+							class="relative transition-colors duration-75 {isCorrect ? 'text-zinc-100' : isIncorrect ? 'text-red-400 bg-red-400/10 rounded-sm' : ''} {isCurrent ? (isFocused ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-emerald-400 after:animate-pulse' : 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-zinc-600') : ''}"
 						>{char}</span>
 					{/each}
 				</div>

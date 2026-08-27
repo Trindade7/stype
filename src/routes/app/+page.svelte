@@ -16,6 +16,7 @@
 			initialMode={data.settings?.mode}
 			initialDuration={data.settings?.duration}
 			initialZenMode={data.settings?.zenMode}
+			initialScrollMode={data.settings?.scrollMode}
 		/>
 	{:else}
 		<div class="w-full max-w-2xl text-center space-y-4 pt-12">
