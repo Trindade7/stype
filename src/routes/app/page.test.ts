@@ -1,7 +1,12 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/svelte';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
 import Page from './+page.svelte';
+import { invalidateAll } from '$app/navigation';
+
+vi.mock('$app/navigation', () => ({
+	invalidateAll: vi.fn()
+}));
 
 describe('Main Page Content', () => {
 	afterEach(() => {
@@ -99,5 +104,34 @@ describe('Main Page Content', () => {
 		});
 
 		expect(container.querySelector('[data-scroll-mode="step"]')).toBeInTheDocument();
+	});
+
+	it('triggers invalidateAll to load fresh passage when Tab is pressed on Result Summary in authenticated app', async () => {
+		render(Page, {
+			data: {
+				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					scrollMode: 'center',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
+		});
+
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		await fireEvent.keyDown(window, { key: 'Tab' });
+		expect(invalidateAll).toHaveBeenCalledTimes(1);
 	});
 });

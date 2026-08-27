@@ -270,13 +270,14 @@
 			reset();
 			return;
 		}
+
+		if (isFinished) return;
+
 		if (e.key === 'Tab') {
 			e.preventDefault();
 			loadNewPassage();
 			return;
 		}
-
-		if (isFinished) return;
 
 		const active = document.activeElement;
 		if (active && active !== inputEl && isEditableElement(active)) {
@@ -505,7 +506,8 @@
 					timeElapsed={savedRun?.timeElapsed ?? (mode === 'timed' && timeElapsed >= timeLimit ? timeLimit : Math.round(timeElapsed))}
 					timelineSnapshots={savedRun?.timelineSnapshots && savedRun.timelineSnapshots.length > 0 ? savedRun.timelineSnapshots : timelineSnapshots}
 					{isSaving}
-					onRestart={loadNewPassage}
+					onNextPassage={loadNewPassage}
+					onRetry={reset}
 				/>
 			</div>
 		{/if}

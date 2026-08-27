@@ -88,4 +88,87 @@ describe('ResultSummary Component', () => {
 		const speedValue = screen.getByText('120').closest('span');
 		expect(speedValue).toHaveClass('whitespace-nowrap');
 	});
+
+	it('renders both a primary "Next Passage" button and a secondary outline "Retry" button side by side', () => {
+		const onNextPassage = vi.fn();
+		const onRetry = vi.fn();
+		render(ResultSummary, {
+			wpm: 75,
+			accuracy: 95,
+			timeElapsed: 20,
+			onNextPassage,
+			onRetry
+		});
+
+		const nextBtn = screen.getByRole('button', { name: /next passage/i });
+		const retryBtn = screen.getByRole('button', { name: /retry/i });
+
+		expect(nextBtn).toBeInTheDocument();
+		expect(retryBtn).toBeInTheDocument();
+
+		// Next Passage is primary
+		expect(nextBtn).toHaveClass('bg-zinc-100', 'text-zinc-900');
+
+		// Retry is secondary outline
+		expect(retryBtn).toHaveClass('border', 'border-zinc-700', 'bg-transparent');
+
+		// Shortcut hints
+		expect(nextBtn.textContent).toContain('Tab');
+		expect(retryBtn.textContent).toContain('Space');
+	});
+
+	it('triggers onNextPassage and onRetry callbacks when respective buttons are clicked', async () => {
+		const onNextPassage = vi.fn();
+		const onRetry = vi.fn();
+		render(ResultSummary, {
+			wpm: 75,
+			accuracy: 95,
+			timeElapsed: 20,
+			onNextPassage,
+			onRetry
+		});
+
+		const nextBtn = screen.getByRole('button', { name: /next passage/i });
+		const retryBtn = screen.getByRole('button', { name: /retry/i });
+
+		await fireEvent.click(nextBtn);
+		expect(onNextPassage).toHaveBeenCalledTimes(1);
+
+		await fireEvent.click(retryBtn);
+		expect(onRetry).toHaveBeenCalledTimes(1);
+	});
+
+	it('triggers onNextPassage and prevents default when Tab key is pressed', async () => {
+		const onNextPassage = vi.fn();
+		render(ResultSummary, {
+			wpm: 75,
+			accuracy: 95,
+			timeElapsed: 20,
+			onNextPassage
+		});
+
+		const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+		const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+		window.dispatchEvent(event);
+
+		expect(onNextPassage).toHaveBeenCalledTimes(1);
+		expect(preventDefaultSpy).toHaveBeenCalled();
+	});
+
+	it('triggers onRetry and prevents default browser page scroll when Space key is pressed', async () => {
+		const onRetry = vi.fn();
+		render(ResultSummary, {
+			wpm: 75,
+			accuracy: 95,
+			timeElapsed: 20,
+			onRetry
+		});
+
+		const event = new KeyboardEvent('keydown', { key: ' ', cancelable: true });
+		const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+		window.dispatchEvent(event);
+
+		expect(onRetry).toHaveBeenCalledTimes(1);
+		expect(preventDefaultSpy).toHaveBeenCalled();
+	});
 });

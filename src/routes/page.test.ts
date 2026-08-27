@@ -155,4 +155,40 @@ describe('Guest Root Route (+page.svelte)', () => {
 		const mainElement = container.querySelector('main') as HTMLElement;
 		expect(mainElement).toHaveClass('flex-1', 'min-h-0', 'overflow-hidden');
 	});
+
+	it('allows guest to advance to next passage or retry same passage after completing test run', async () => {
+		const passageA = { id: 201, text: 'Hi', source: 'Source A' };
+		const passageB = { id: 202, text: 'Next passage text.', source: 'Source B' };
+
+		let callCount = 0;
+		vi.spyOn(localStore, 'getRandomPassage').mockImplementation(() => {
+			callCount++;
+			return callCount === 1 ? passageA : passageB;
+		});
+
+		render(GuestPage);
+
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		// Retry with Space: stays on passageA
+		await fireEvent.keyDown(window, { key: ' ' });
+		expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+		expect(screen.getByText('— Source A')).toBeInTheDocument();
+		expect(callCount).toBe(1);
+
+		// Complete again
+		const freshInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+		await fireEvent.input(freshInput, { target: { value: 'H' } });
+		await fireEvent.input(freshInput, { target: { value: 'Hi' } });
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		// Next with Tab: loads passageB
+		await fireEvent.keyDown(window, { key: 'Tab' });
+		expect(await screen.findByText('— Source B')).toBeInTheDocument();
+		expect(callCount).toBe(2);
+	});
 });

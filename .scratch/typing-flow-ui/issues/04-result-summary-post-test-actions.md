@@ -4,11 +4,11 @@
 
 **Blocked by:** 03 — Typing Layout Stability and Result Summary Mobile Polish
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] The Result Summary renders both a primary "Next Passage" button and a secondary outline "Retry" button side by side.
-- [ ] Pressing the Tab key while viewing the Result Summary triggers the action to load a new passage.
-- [ ] Pressing the Space key while viewing the Result Summary resets and starts the same passage again.
-- [ ] Pressing Space on the Result Summary prevents the default browser page scroll behavior.
-- [ ] Retrying resets the typed characters, timer, and snapshots to zero on the exact same passage without network refetching or passage rotation.
-- [ ] Advancing to the next passage properly loads a fresh passage in both guest mode and authenticated mode.
+- [x] The Result Summary renders both a primary "Next Passage" button and a secondary outline "Retry" button side by side.
+- [x] Pressing the Tab key while viewing the Result Summary triggers the action to load a new passage.
+- [x] Pressing the Space key while viewing the Result Summary resets and starts the same passage again.
+- [x] Pressing Space on the Result Summary prevents the default browser page scroll behavior.
+- [x] Retrying resets the typed characters, timer, and snapshots to zero on the exact same passage without network refetching or passage rotation.
+- [x] Advancing to the next passage properly loads a fresh passage in both guest mode and authenticated mode.

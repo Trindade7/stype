@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import type { TimelineSnapshot } from "$lib/server/db/schema";
   import TimelineChart from "./TimelineChart.svelte";
 
@@ -8,7 +9,11 @@
     timeElapsed = 0,
     timelineSnapshots = [],
     isSaving = false,
-    restartButtonText = "Type Again (Tab)",
+    nextPassageButtonText = "Next Passage (Tab)",
+    retryButtonText = "Retry (Space)",
+    restartButtonText,
+    onNextPassage,
+    onRetry,
     onRestart,
   }: {
     wpm?: number;
@@ -16,9 +21,46 @@
     timeElapsed?: number;
     timelineSnapshots?: TimelineSnapshot[];
     isSaving?: boolean;
+    nextPassageButtonText?: string;
+    retryButtonText?: string;
     restartButtonText?: string;
+    onNextPassage?: () => void;
+    onRetry?: () => void;
     onRestart?: () => void;
   } = $props();
+
+  function handleNext() {
+    if (onNextPassage) {
+      onNextPassage();
+    } else if (onRestart) {
+      onRestart();
+    }
+  }
+
+  function handleRetry() {
+    if (onRetry) {
+      onRetry();
+    } else if (onRestart) {
+      onRestart();
+    }
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      handleRetry();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      handleNext();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", handleKeydown);
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  });
 </script>
 
 <div
@@ -80,13 +122,26 @@
     {/if}
   {/if}
 
-  {#if onRestart}
-    <button
-      onclick={onRestart}
-      class="mt-4 flex items-center gap-2 rounded-lg bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
-    >
-      <i class="bi bi-arrow-counterclockwise"></i>
-      {restartButtonText}
-    </button>
+  {#if onNextPassage || onRetry || onRestart}
+    <div class="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+      {#if onNextPassage || onRestart}
+        <button
+          onclick={handleNext}
+          class="flex items-center gap-2 rounded-lg bg-zinc-100 px-5 py-2.5 sm:px-6 sm:py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
+        >
+          <i class="bi bi-skip-forward-fill"></i>
+          {restartButtonText ?? nextPassageButtonText}
+        </button>
+      {/if}
+      {#if onRetry}
+        <button
+          onclick={handleRetry}
+          class="flex items-center gap-2 rounded-lg border border-zinc-700 bg-transparent px-5 py-2.5 sm:px-6 sm:py-3 text-sm font-semibold text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+        >
+          <i class="bi bi-arrow-counterclockwise"></i>
+          {retryButtonText}
+        </button>
+      {/if}
+    </div>
   {/if}
 </div>

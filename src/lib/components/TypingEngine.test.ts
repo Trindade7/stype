@@ -498,6 +498,110 @@ describe('TypingEngine', () => {
 		expect(resultSummaryWrapper).toHaveClass('overflow-y-auto', 'max-h-full');
 	});
 
+	it('renders both Next Passage and Retry buttons on Result Summary upon test completion', async () => {
+		const passage = { id: 1, text: 'Hi', source: 'Test' };
+		const { container } = render(TypingEngine, { passage });
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /next passage/i })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+	});
+
+	it('retries the exact same passage when pressing Space on Result Summary', async () => {
+		const onNextPassageMock = vi.fn();
+		const passage = { id: 42, text: 'Hi', source: 'Drill Source' };
+		const { container } = render(TypingEngine, {
+			passage,
+			onNextPassage: onNextPassageMock
+		});
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		// Press Space on window using fireEvent to flush Svelte reactivity
+		const preventDefaultSpy = vi.fn();
+		await fireEvent.keyDown(window, { key: ' ', preventDefault: preventDefaultSpy });
+
+		// Result summary closes and typing input resets on the SAME passage
+		expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+		expect(screen.getByText('— Drill Source')).toBeInTheDocument();
+		const freshInput = container.querySelector('input') as HTMLInputElement;
+		expect(freshInput.value).toBe('');
+		// onNextPassage was NOT called (no passage rotation)
+		expect(onNextPassageMock).not.toHaveBeenCalled();
+	});
+
+	it('advances to next passage when pressing Tab on Result Summary', async () => {
+		const onNextPassageMock = vi.fn();
+		const passage = { id: 42, text: 'Hi', source: 'First Passage' };
+		const { container } = render(TypingEngine, {
+			passage,
+			onNextPassage: onNextPassageMock
+		});
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		// Press Tab on window
+		await fireEvent.keyDown(window, { key: 'Tab' });
+
+		// onNextPassage was called to load a fresh passage
+		expect(onNextPassageMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('retries the exact same passage when clicking Retry button on Result Summary', async () => {
+		const onNextPassageMock = vi.fn();
+		const passage = { id: 42, text: 'Hi', source: 'Drill Source' };
+		const { container } = render(TypingEngine, {
+			passage,
+			onNextPassage: onNextPassageMock
+		});
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		const retryBtn = screen.getByRole('button', { name: /retry/i });
+		await fireEvent.click(retryBtn);
+
+		expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+		const freshInput = container.querySelector('input') as HTMLInputElement;
+		expect(freshInput.value).toBe('');
+		expect(onNextPassageMock).not.toHaveBeenCalled();
+	});
+
+	it('advances to next passage when clicking Next Passage button on Result Summary', async () => {
+		const onNextPassageMock = vi.fn();
+		const passage = { id: 42, text: 'Hi', source: 'First Passage' };
+		const { container } = render(TypingEngine, {
+			passage,
+			onNextPassage: onNextPassageMock
+		});
+
+		const input = container.querySelector('input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'H' } });
+		await fireEvent.input(input, { target: { value: 'Hi' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		const nextBtn = screen.getByRole('button', { name: /next passage/i });
+		await fireEvent.click(nextBtn);
+
+		expect(onNextPassageMock).toHaveBeenCalledTimes(1);
+	});
+
 	describe('auto-scrolling behavior across scroll modes', () => {
 		function setupContainerLayout(containerEl: HTMLElement, height = 200, top = 50) {
 			Object.defineProperty(containerEl, 'clientHeight', { value: height, configurable: true });
