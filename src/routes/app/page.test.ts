@@ -8,6 +8,14 @@ vi.mock('$app/navigation', () => ({
 	invalidateAll: vi.fn()
 }));
 
+const mockUser = {
+	id: 'test-id',
+	username: 'john_doe',
+	email: 'john@example.com',
+	name: 'John Doe',
+	createdAt: new Date()
+};
+
 describe('Main Page Content', () => {
 	afterEach(() => {
 		cleanup();
@@ -16,7 +24,7 @@ describe('Main Page Content', () => {
 	it('renders main page content with user greeting', () => {
 		render(Page, {
 			data: {
-				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				user: mockUser,
 				passage: null as any,
 				settings: {
 					userId: 'test-id',
@@ -40,7 +48,7 @@ describe('Main Page Content', () => {
 	it('automatically focuses typing input when passage is loaded on user dashboard', () => {
 		render(Page, {
 			data: {
-				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				user: mockUser,
 				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
 				settings: {
 					userId: 'test-id',
@@ -64,7 +72,7 @@ describe('Main Page Content', () => {
 	it('constrains authenticated app typing page within viewport with overflow-hidden and flex layout', () => {
 		const { container } = render(Page, {
 			data: {
-				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				user: mockUser,
 				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
 				settings: {
 					userId: 'test-id',
@@ -87,7 +95,7 @@ describe('Main Page Content', () => {
 	it('passes user scrollMode setting into TypingEngine', () => {
 		const { container } = render(Page, {
 			data: {
-				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				user: mockUser,
 				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
 				settings: {
 					userId: 'test-id',
@@ -109,7 +117,7 @@ describe('Main Page Content', () => {
 	it('triggers invalidateAll to load fresh passage when Tab is pressed on Result Summary in authenticated app', async () => {
 		render(Page, {
 			data: {
-				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				user: mockUser,
 				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
 				settings: {
 					userId: 'test-id',
@@ -140,7 +148,7 @@ describe('Main Page Content', () => {
 
 		render(Page, {
 			data: {
-				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				user: mockUser,
 				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
 				settings: {
 					userId: 'test-id',
@@ -174,7 +182,7 @@ describe('Main Page Content', () => {
 
 		render(Page, {
 			data: {
-				user: { id: 'test-id', username: 'john_doe', createdAt: new Date() },
+				user: mockUser,
 				passage: { id: 10, text: 'Hi', source: 'Unique Source Name', userId: null, createdAt: new Date() },
 				settings: {
 					userId: 'test-id',

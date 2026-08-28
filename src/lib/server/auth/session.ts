@@ -65,6 +65,8 @@ export async function validateSession(
 		.select({
 			id: schema.users.id,
 			username: schema.users.username,
+			email: schema.users.email,
+			name: schema.users.name,
 			createdAt: schema.users.createdAt
 		})
 		.from(schema.users)

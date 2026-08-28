@@ -19,9 +19,19 @@ export async function seedAdminUser(
 			.values({
 				id: randomUUID(),
 				username: 'admin',
+				email: 'admin@stype.local',
+				name: 'Admin',
 				passwordHash,
 				createdAt: new Date()
 			})
+			.run();
+	} else if (!existingAdmin.email || !existingAdmin.name) {
+		db.update(schema.users)
+			.set({
+				email: existingAdmin.email ?? 'admin@stype.local',
+				name: existingAdmin.name ?? 'Admin'
+			})
+			.where(eq(schema.users.id, existingAdmin.id))
 			.run();
 	}
 }

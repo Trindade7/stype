@@ -69,6 +69,82 @@ describe('login and logout form actions', () => {
 		expect(sessionsInDb[0].id).toBe(cookie?.value);
 	});
 
+	it('authenticates user with valid email address and password and sets session cookie', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const loginAction = createLoginAction(db);
+		const { event, getSetCookie } = createActionMockEvent({
+			username: 'admin@stype.local',
+			password: 'admin123'
+		});
+
+		await expect(loginAction(event)).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+
+		const cookie = getSetCookie();
+		expect(cookie).toBeDefined();
+		expect(cookie?.name).toBe(SESSION_COOKIE_NAME);
+		expect(cookie?.value).toBeTruthy();
+
+		// Verify session in database
+		const sessionsInDb = db.select().from(schema.sessions).all();
+		expect(sessionsInDb.length).toBe(1);
+		expect(sessionsInDb[0].id).toBe(cookie?.value);
+	});
+
+	it('authenticates user when field name is identifier instead of username', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const loginAction = createLoginAction(db);
+		const { event, getSetCookie } = createActionMockEvent({
+			identifier: 'admin@stype.local',
+			password: 'admin123'
+		});
+
+		await expect(loginAction(event)).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+
+		expect(getSetCookie()?.value).toBeTruthy();
+	});
+
+	it('fails with 400 when email does not exist', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const loginAction = createLoginAction(db);
+		const { event, getSetCookie } = createActionMockEvent({
+			username: 'nonexistent@stype.local',
+			password: 'admin123'
+		});
+
+		const result: any = await loginAction(event);
+		expect(result?.status).toBe(400);
+		expect(result?.data?.message).toMatch(/invalid.*(username|email|password|credential)/i);
+		expect(getSetCookie()).toBeNull();
+	});
+
+	it('fails with 400 when password is incorrect for email login', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const loginAction = createLoginAction(db);
+		const { event, getSetCookie } = createActionMockEvent({
+			username: 'admin@stype.local',
+			password: 'wrongpassword'
+		});
+
+		const result: any = await loginAction(event);
+		expect(result?.status).toBe(400);
+		expect(result?.data?.message).toMatch(/invalid.*(username|email|password|credential)/i);
+		expect(getSetCookie()).toBeNull();
+	});
+
 	it('fails with 400 when credentials are incorrect', async () => {
 		const { db } = initializeDatabase(':memory:');
 		await seedAdminUser(db);
@@ -81,7 +157,7 @@ describe('login and logout form actions', () => {
 
 		const result: any = await loginAction(event);
 		expect(result?.status).toBe(400);
-		expect(result?.data?.message).toContain('Invalid username or password');
+		expect(result?.data?.message).toContain('Invalid username/email or password');
 		expect(getSetCookie()).toBeNull();
 	});
 

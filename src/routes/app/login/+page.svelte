@@ -82,7 +82,7 @@
 			<form method="POST" class="space-y-5" use:enhance={handleLogin}>
 				<div class="space-y-2">
 					<Label for="username" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-						Username
+						Username or Email
 					</Label>
 					<div class="relative">
 						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
@@ -95,7 +95,7 @@
 							bind:value={username}
 							required
 							autocomplete="username"
-							placeholder="admin"
+							placeholder="Username or email"
 							class="h-10 pl-10"
 						/>
 					</div>

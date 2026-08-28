@@ -17,6 +17,8 @@ describe('database schema and admin seeding', () => {
 				id TEXT PRIMARY KEY,
 				username TEXT UNIQUE NOT NULL,
 				password_hash TEXT NOT NULL,
+				email TEXT UNIQUE,
+				name TEXT,
 				created_at INTEGER NOT NULL
 			);
 			CREATE TABLE IF NOT EXISTS sessions (
@@ -37,6 +39,8 @@ describe('database schema and admin seeding', () => {
 
 		const admin = adminUsers[0];
 		expect(admin.username).toBe('admin');
+		expect(admin.email).toBe('admin@stype.local');
+		expect(admin.name).toBe('Admin');
 		expect(admin.passwordHash).toBeDefined();
 
 		const passwordMatches = await verifyPassword('admin123', admin.passwordHash);
@@ -46,6 +50,39 @@ describe('database schema and admin seeding', () => {
 		await seedAdminUser(db);
 		const countAfter = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).all().length;
 		expect(countAfter).toBe(1);
+
+		sqlite.close();
+	});
+
+	it('updates an existing admin user lacking email and name', async () => {
+		const sqlite = new Database(':memory:');
+		sqlite.pragma('foreign_keys = ON');
+
+		sqlite.exec(`
+			CREATE TABLE IF NOT EXISTS users (
+				id TEXT PRIMARY KEY,
+				username TEXT UNIQUE NOT NULL,
+				password_hash TEXT NOT NULL,
+				email TEXT UNIQUE,
+				name TEXT,
+				created_at INTEGER NOT NULL
+			);
+		`);
+
+		const db = drizzle(sqlite, { schema });
+
+		// Insert existing legacy admin without email or name
+		sqlite.exec(`
+			INSERT INTO users (id, username, password_hash, created_at)
+			VALUES ('legacy-admin-id', 'admin', 'hash', 123456789);
+		`);
+
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get();
+		expect(admin).toBeDefined();
+		expect(admin?.email).toBe('admin@stype.local');
+		expect(admin?.name).toBe('Admin');
 
 		sqlite.close();
 	});

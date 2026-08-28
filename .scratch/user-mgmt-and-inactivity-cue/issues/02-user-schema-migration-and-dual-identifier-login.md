@@ -4,13 +4,13 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Database schema includes unique `email` and optional `name` columns on the users table.
-- [ ] Database initialization applies safe, idempotent column additions for existing databases without data loss.
-- [ ] Seeded admin user is created or updated with email `admin@stype.local` and display name `Admin`.
-- [ ] Typists can successfully log in using their username and password.
-- [ ] Typists can successfully log in using their email address and password.
-- [ ] Invalid username/email or password credentials return a clean error message.
-- [ ] The login form input label and placeholder indicate that either username or email is accepted.
-- [ ] Quick-fill credential buttons for the default admin user continue to work seamlessly.
+- [x] Database schema includes unique `email` and optional `name` columns on the users table.
+- [x] Database initialization applies safe, idempotent column additions for existing databases without data loss.
+- [x] Seeded admin user is created or updated with email `admin@stype.local` and display name `Admin`.
+- [x] Typists can successfully log in using their username and password.
+- [x] Typists can successfully log in using their email address and password.
+- [x] Invalid username/email or password credentials return a clean error message.
+- [x] The login form input label and placeholder indicate that either username or email is accepted.
+- [x] Quick-fill credential buttons for the default admin user continue to work seamlessly.

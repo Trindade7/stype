@@ -30,7 +30,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-1', username: 'testuser', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-1', username: 'testuser', email: 'test@stype.local', name: 'Test User', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -51,7 +51,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-2', username: 'dropdown-user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-2', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -77,7 +77,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-3', username: 'dropdown-user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-3', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -102,7 +102,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-4', username: 'layout-user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-4', username: 'layout-user', email: 'layout@stype.local', name: 'Layout User', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 

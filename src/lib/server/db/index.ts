@@ -27,6 +27,8 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			id TEXT PRIMARY KEY,
 			username TEXT UNIQUE NOT NULL,
 			password_hash TEXT NOT NULL,
+			email TEXT UNIQUE,
+			name TEXT,
 			created_at INTEGER NOT NULL
 		);
 		CREATE TABLE IF NOT EXISTS sessions (
@@ -76,6 +78,24 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 		sqlite.exec('ALTER TABLE passages ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE');
 	} catch {
 		// Column already exists or table was just created
+	}
+
+	try {
+		sqlite.exec('ALTER TABLE users ADD COLUMN email TEXT');
+	} catch {
+		// Column already exists or table was just created
+	}
+
+	try {
+		sqlite.exec('ALTER TABLE users ADD COLUMN name TEXT');
+	} catch {
+		// Column already exists or table was just created
+	}
+
+	try {
+		sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users(email)');
+	} catch {
+		// Index already exists
 	}
 
 	try {

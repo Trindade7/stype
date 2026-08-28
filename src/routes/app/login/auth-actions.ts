@@ -1,5 +1,5 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import { verifyPassword } from '$lib/server/auth/password';
@@ -13,34 +13,34 @@ import {
 export function createLoginAction(db: BetterSQLite3Database<typeof schema>) {
 	return async ({ request, cookies }: RequestEvent) => {
 		const data = await request.formData();
-		const username = data.get('username')?.toString().trim();
+		const identifier = (data.get('username') || data.get('identifier'))?.toString().trim();
 		const password = data.get('password')?.toString();
 
-		if (!username || !password) {
+		if (!identifier || !password) {
 			return fail(400, {
-				message: 'Username and password are required',
-				username: username || ''
+				message: 'Username or email and password are required',
+				username: identifier || ''
 			});
 		}
 
 		const user = db
 			.select()
 			.from(schema.users)
-			.where(eq(schema.users.username, username))
+			.where(or(eq(schema.users.username, identifier), eq(schema.users.email, identifier)))
 			.get();
 
 		if (!user) {
 			return fail(400, {
-				message: 'Invalid username or password',
-				username
+				message: 'Invalid username/email or password',
+				username: identifier
 			});
 		}
 
 		const isValidPassword = await verifyPassword(password, user.passwordHash);
 		if (!isValidPassword) {
 			return fail(400, {
-				message: 'Invalid username or password',
-				username
+				message: 'Invalid username/email or password',
+				username: identifier
 			});
 		}
 

@@ -27,6 +27,8 @@ describe('session management', () => {
 		expect(result.user).toBeDefined();
 		expect(result.user?.id).toBe(admin.id);
 		expect(result.user?.username).toBe('admin');
+		expect(result.user?.email).toBe('admin@stype.local');
+		expect(result.user?.name).toBe('Admin');
 
 		sqlite.close();
 	});

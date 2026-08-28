@@ -36,6 +36,17 @@ describe('Login View Contract', () => {
 		expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument();
 	});
 
+	it('indicates that either username or email is accepted in input label and placeholder', () => {
+		render(LoginPage, { form: null });
+
+		const inputByLabel = screen.getByLabelText(/username or email/i);
+		expect(inputByLabel).toBeInTheDocument();
+
+		const inputByPlaceholder = screen.getByPlaceholderText(/username or email/i);
+		expect(inputByPlaceholder).toBeInTheDocument();
+		expect(inputByLabel).toBe(inputByPlaceholder);
+	});
+
 	it('shows error banner when form has message', () => {
 		const errorMessage = 'Invalid credentials provided';
 		render(LoginPage, { form: { message: errorMessage, username: '' } });
