@@ -67,6 +67,7 @@ export async function validateSession(
 			username: schema.users.username,
 			email: schema.users.email,
 			name: schema.users.name,
+			role: schema.users.role,
 			createdAt: schema.users.createdAt
 		})
 		.from(schema.users)

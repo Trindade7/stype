@@ -30,6 +30,30 @@ describe('session management', () => {
 		expect(result.user?.username).toBe('admin');
 		expect(result.user?.email).toBe('admin@stype.local');
 		expect(result.user?.name).toBe('Admin');
+		expect(result.user?.role).toBe('admin');
+
+		sqlite.close();
+	});
+
+	it('exposes default user role when validating regular user session', async () => {
+		const { sqlite, db } = initializeDatabase(':memory:');
+
+		db.insert(schema.users)
+			.values({
+				id: 'regular-user-id',
+				username: 'regularuser',
+				email: 'user@stype.local',
+				name: 'Regular User',
+				passwordHash: 'hash',
+				createdAt: new Date()
+			})
+			.run();
+
+		const session = await createSession(db, 'regular-user-id');
+		const result = await validateSession(db, session.id);
+
+		expect(result.user).toBeDefined();
+		expect(result.user?.role).toBe('user');
 
 		sqlite.close();
 	});

@@ -1,4 +1,4 @@
-import { redirect, type Handle } from '@sveltejs/kit';
+import { error, redirect, type Handle } from '@sveltejs/kit';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { db as defaultDb } from '../server/db';
 import * as schema from '../server/db/schema';
@@ -46,6 +46,11 @@ export function createAuthHandle(
 			}
 			if (event.locals.user && isAuthPage) {
 				redirect(303, '/app');
+			}
+
+			const isAdminRoute = event.url.pathname === '/app/admin' || event.url.pathname.startsWith('/app/admin/');
+			if (isAdminRoute && event.locals.user?.role !== 'admin') {
+				error(403, 'Forbidden');
 			}
 		} else {
 			// Redirect authenticated users away from Guest routes to /app

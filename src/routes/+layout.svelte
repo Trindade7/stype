@@ -15,7 +15,8 @@
 		Book01Icon,
 		Settings02Icon,
 		Time02Icon,
-		Chart01Icon
+		Chart01Icon,
+		ShieldUserIcon
 	} from '@hugeicons/core-free-icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { buttonVariants } from '$lib/components/ui/button';
@@ -146,6 +147,14 @@
 									Settings
 								</a>
 							</DropdownMenu.Item>
+							{#if data.user.role === 'admin'}
+								<DropdownMenu.Item class="w-full cursor-pointer p-0">
+									<a href="/app/admin/users" class="w-full flex items-center px-2 py-1.5">
+										<HugeiconsIcon icon={ShieldUserIcon} size={16} class="mr-2" />
+										Administration
+									</a>
+								</DropdownMenu.Item>
+							{/if}
 							<DropdownMenu.Separator />
 							<form method="POST" action="/app/logout">
 								<DropdownMenu.Item class="text-destructive w-full cursor-pointer p-0">

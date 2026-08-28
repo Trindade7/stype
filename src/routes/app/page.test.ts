@@ -13,6 +13,7 @@ const mockUser = {
 	username: 'john_doe',
 	email: 'john@example.com',
 	name: 'John Doe',
+	role: 'user' as const,
 	createdAt: new Date()
 };
 

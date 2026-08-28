@@ -21,15 +21,17 @@ export async function seedAdminUser(
 				username: 'admin',
 				email: 'admin@stype.local',
 				name: 'Admin',
+				role: 'admin',
 				passwordHash,
 				createdAt: new Date()
 			})
 			.run();
-	} else if (!existingAdmin.email || !existingAdmin.name) {
+	} else if (!existingAdmin.email || !existingAdmin.name || existingAdmin.role !== 'admin') {
 		db.update(schema.users)
 			.set({
 				email: existingAdmin.email ?? 'admin@stype.local',
-				name: existingAdmin.name ?? 'Admin'
+				name: existingAdmin.name ?? 'Admin',
+				role: 'admin'
 			})
 			.where(eq(schema.users.id, existingAdmin.id))
 			.run();

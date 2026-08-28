@@ -19,6 +19,7 @@ describe('database schema and admin seeding', () => {
 				password_hash TEXT NOT NULL,
 				email TEXT UNIQUE,
 				name TEXT,
+				role TEXT NOT NULL DEFAULT 'user',
 				created_at INTEGER NOT NULL
 			);
 			CREATE TABLE IF NOT EXISTS sessions (
@@ -41,6 +42,7 @@ describe('database schema and admin seeding', () => {
 		expect(admin.username).toBe('admin');
 		expect(admin.email).toBe('admin@stype.local');
 		expect(admin.name).toBe('Admin');
+		expect(admin.role).toBe('admin');
 		expect(admin.passwordHash).toBeDefined();
 
 		const passwordMatches = await verifyPassword('admin123', admin.passwordHash);
@@ -65,6 +67,7 @@ describe('database schema and admin seeding', () => {
 				password_hash TEXT NOT NULL,
 				email TEXT UNIQUE,
 				name TEXT,
+				role TEXT NOT NULL DEFAULT 'user',
 				created_at INTEGER NOT NULL
 			);
 		`);
@@ -83,6 +86,40 @@ describe('database schema and admin seeding', () => {
 		expect(admin).toBeDefined();
 		expect(admin?.email).toBe('admin@stype.local');
 		expect(admin?.name).toBe('Admin');
+		expect(admin?.role).toBe('admin');
+
+		sqlite.close();
+	});
+
+	it('elevates existing admin user with user role to admin role on startup', async () => {
+		const sqlite = new Database(':memory:');
+		sqlite.pragma('foreign_keys = ON');
+
+		sqlite.exec(`
+			CREATE TABLE IF NOT EXISTS users (
+				id TEXT PRIMARY KEY,
+				username TEXT UNIQUE NOT NULL,
+				password_hash TEXT NOT NULL,
+				email TEXT UNIQUE,
+				name TEXT,
+				role TEXT NOT NULL DEFAULT 'user',
+				created_at INTEGER NOT NULL
+			);
+		`);
+
+		const db = drizzle(sqlite, { schema });
+
+		// Insert existing admin with 'user' role
+		sqlite.exec(`
+			INSERT INTO users (id, username, password_hash, email, name, role, created_at)
+			VALUES ('admin-id-1', 'admin', 'hash', 'admin@stype.local', 'Admin', 'user', 123456789);
+		`);
+
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get();
+		expect(admin).toBeDefined();
+		expect(admin?.role).toBe('admin');
 
 		sqlite.close();
 	});

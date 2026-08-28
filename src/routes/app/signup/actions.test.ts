@@ -236,6 +236,7 @@ describe('signup form action', () => {
 		expect(userInDb?.name).toBe('Jane Doe');
 		expect(userInDb?.username).toBe('janedoe');
 		expect(userInDb?.email).toBe('jane@example.com');
+		expect(userInDb?.role).toBe('user');
 		expect(userInDb?.passwordHash).not.toBe('securepassword123');
 
 		const isValidPassword = await verifyPassword('securepassword123', userInDb!.passwordHash);

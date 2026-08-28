@@ -4,14 +4,14 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] The user entity includes a role attribute supporting `admin` and `user`, defaulting to `user`.
-- [ ] Database initialization applies the role column idempotently for existing SQLite databases.
-- [ ] Database startup elevates the default seeded `admin` account to the `admin` role.
-- [ ] Authenticated sessions expose the user role on the request locals context.
-- [ ] Requests to `/app/admin/*` by non-administrators are denied with a 403 Forbidden status.
-- [ ] Requests to `/app/admin/*` by unauthenticated guests redirect to the login screen.
-- [ ] The authenticated user dropdown menu renders an "Administration" link targeting the admin area only when the logged-in user is an Administrator.
-- [ ] An administration page shell at `/app/admin/users` renders with proper layout constraints.
-- [ ] Automated tests verify role column migration, seeded account role elevation, server route authorization guards, and dropdown navigation link visibility.
+- [x] The user entity includes a role attribute supporting `admin` and `user`, defaulting to `user`.
+- [x] Database initialization applies the role column idempotently for existing SQLite databases.
+- [x] Database startup elevates the default seeded `admin` account to the `admin` role.
+- [x] Authenticated sessions expose the user role on the request locals context.
+- [x] Requests to `/app/admin/*` by non-administrators are denied with a 403 Forbidden status.
+- [x] Requests to `/app/admin/*` by unauthenticated guests redirect to the login screen.
+- [x] The authenticated user dropdown menu renders an "Administration" link targeting the admin area only when the logged-in user is an Administrator.
+- [x] An administration page shell at `/app/admin/users` renders with proper layout constraints.
+- [x] Automated tests verify role column migration, seeded account role elevation, server route authorization guards, and dropdown navigation link visibility.

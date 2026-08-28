@@ -1,10 +1,13 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
+export type UserRole = 'admin' | 'user';
+
 export const users = sqliteTable('users', {
 	id: text('id').primaryKey(),
 	username: text('username').notNull().unique(),
 	email: text('email').unique(),
 	name: text('name'),
+	role: text('role').$type<UserRole>().notNull().default('user'),
 	passwordHash: text('password_hash').notNull(),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });

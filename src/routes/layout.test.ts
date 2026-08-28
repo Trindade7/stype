@@ -30,7 +30,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-1', username: 'testuser', email: 'test@stype.local', name: 'Test User', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-1', username: 'testuser', email: 'test@stype.local', name: 'Test User', role: 'user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -51,7 +51,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-2', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-2', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', role: 'user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -65,13 +65,69 @@ describe('App Layout Shell', () => {
 		expect(screen.getAllByRole('link', { name: /settings/i }).length).toBeGreaterThanOrEqual(1);
 	});
 
+	it('renders Administration link in dropdown menu when user is an administrator', async () => {
+		const childSnippet = createRawSnippet(() => ({
+			render: () => '<div>Content</div>'
+		}));
+
+		render(Layout, {
+			data: {
+				user: {
+					id: 'admin-user-1',
+					username: 'admin',
+					email: 'admin@stype.local',
+					name: 'Admin User',
+					role: 'admin',
+					createdAt: new Date()
+				},
+				settings: null
+			},
+			children: childSnippet
+		});
+
+		const userTrigger = screen.getByText('admin').closest('button');
+		expect(userTrigger).not.toBeNull();
+		await fireEvent.click(userTrigger!);
+
+		const adminLink = await screen.findByRole('link', { name: /administration/i });
+		expect(adminLink).toBeInTheDocument();
+		expect(adminLink).toHaveAttribute('href', '/app/admin/users');
+	});
+
+	it('does not render Administration link in dropdown menu when user is a regular user', async () => {
+		const childSnippet = createRawSnippet(() => ({
+			render: () => '<div>Content</div>'
+		}));
+
+		render(Layout, {
+			data: {
+				user: {
+					id: 'regular-user-1',
+					username: 'regularuser',
+					email: 'user@stype.local',
+					name: 'Regular User',
+					role: 'user',
+					createdAt: new Date()
+				},
+				settings: null
+			},
+			children: childSnippet
+		});
+
+		const userTrigger = screen.getByText('regularuser').closest('button');
+		expect(userTrigger).not.toBeNull();
+		await fireEvent.click(userTrigger!);
+
+		expect(screen.queryByRole('link', { name: /administration/i })).not.toBeInTheDocument();
+	});
+
 	it('displays "Logged in as [username]" as an interactive link to /app/user and removes redundant User Details entry', async () => {
 		const childSnippet = createRawSnippet(() => ({
 			render: () => '<div>Content</div>'
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-5', username: 'details-user', email: 'details@stype.local', name: 'Details User', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-5', username: 'details-user', email: 'details@stype.local', name: 'Details User', role: 'user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -93,7 +149,7 @@ describe('App Layout Shell', () => {
 
 		const longUsername = 'supercalifragilisticexpialidocious_typist_with_an_exceptionally_long_name';
 		render(Layout, {
-			data: { user: { id: 'user-6', username: longUsername, email: 'long@stype.local', name: 'Long User', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-6', username: longUsername, email: 'long@stype.local', name: 'Long User', role: 'user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -119,7 +175,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-3', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-3', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', role: 'user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -144,7 +200,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-4', username: 'layout-user', email: 'layout@stype.local', name: 'Layout User', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-4', username: 'layout-user', email: 'layout@stype.local', name: 'Layout User', role: 'user', createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 

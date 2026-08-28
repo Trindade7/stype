@@ -18,6 +18,7 @@ describe('database initialization', () => {
 		expect(admin?.username).toBe('admin');
 		expect(admin?.email).toBe('admin@stype.local');
 		expect(admin?.name).toBe('Admin');
+		expect(admin?.role).toBe('admin');
 
 		sqlite.close();
 	});
@@ -181,6 +182,72 @@ describe('database initialization', () => {
 			expect(insertedToken?.userId).toBe('u-legacy');
 
 			// Running initializeDatabase again must be completely idempotent
+			const reinit = initializeDatabase(dbPath);
+			reinit.sqlite.close();
+
+			sqlite.close();
+		} finally {
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it('applies role column idempotently to existing users table and defaults to user', () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stype-role-migration-'));
+		const dbPath = path.join(tmpDir, 'legacy-role.db');
+
+		try {
+			// Simulate existing SQLite database without role column
+			const rawDb = new Database(dbPath);
+			rawDb.exec(`
+				CREATE TABLE users (
+					id TEXT PRIMARY KEY,
+					username TEXT UNIQUE NOT NULL,
+					password_hash TEXT NOT NULL,
+					email TEXT UNIQUE,
+					name TEXT,
+					created_at INTEGER NOT NULL
+				);
+				INSERT INTO users (id, username, password_hash, email, name, created_at)
+				VALUES ('u-role-test', 'regularuser', 'hash888', 'reg@stype.local', 'Reg User', 1700000000000);
+			`);
+			rawDb.close();
+
+			// Run initializeDatabase on existing db
+			const { sqlite, db } = initializeDatabase(dbPath);
+
+			// Existing user should have defaulted to 'user' role
+			const existingUser = db.select().from(schema.users).where(eq(schema.users.id, 'u-role-test')).get();
+			expect(existingUser).toBeDefined();
+			expect(existingUser?.role).toBe('user');
+
+			// New users default to 'user' role when omitted
+			db.insert(schema.users)
+				.values({
+					id: 'u-role-new',
+					username: 'newdefaultuser',
+					passwordHash: 'hash777',
+					createdAt: new Date()
+				})
+				.run();
+
+			const newUser = db.select().from(schema.users).where(eq(schema.users.id, 'u-role-new')).get();
+			expect(newUser?.role).toBe('user');
+
+			// Users can have 'admin' role
+			db.insert(schema.users)
+				.values({
+					id: 'u-role-admin',
+					username: 'adminuser',
+					passwordHash: 'hash666',
+					role: 'admin',
+					createdAt: new Date()
+				})
+				.run();
+
+			const adminUser = db.select().from(schema.users).where(eq(schema.users.id, 'u-role-admin')).get();
+			expect(adminUser?.role).toBe('admin');
+
+			// Re-running initialization is idempotent
 			const reinit = initializeDatabase(dbPath);
 			reinit.sqlite.close();
 

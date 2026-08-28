@@ -163,6 +163,7 @@ describe('auth server hook', () => {
 		expect(await response.text()).toBe('PROTECTED_PAGE');
 		expect(event.locals.user).toBeDefined();
 		expect(event.locals.user?.username).toBe('admin');
+		expect(event.locals.user?.role).toBe('admin');
 		expect(event.locals.session?.id).toBe(session.id);
 	});
 
@@ -322,5 +323,72 @@ describe('auth server hook', () => {
 		expect(deletedCookies).toContain(SESSION_COOKIE_NAME);
 		expect(event.locals.user).toBeNull();
 		expect(event.locals.session).toBeNull();
+	});
+
+	describe('admin route authorization', () => {
+		it('redirects unauthenticated user accessing /app/admin routes to /app/login', async () => {
+			const { db } = initializeDatabase(':memory:');
+			const handle = createAuthHandle(db);
+
+			for (const path of ['/app/admin', '/app/admin/users', '/app/admin/settings']) {
+				const { event } = createMockEvent(path);
+				const resolve = async () => new Response('ADMIN_PAGE');
+
+				await expect(handle({ event, resolve })).rejects.toMatchObject({
+					status: 303,
+					location: '/app/login'
+				});
+			}
+		});
+
+		it('denies non-administrator authenticated user accessing /app/admin routes with 403 Forbidden', async () => {
+			const { db } = initializeDatabase(':memory:');
+			db.insert(schema.users)
+				.values({
+					id: 'regular-user-id',
+					username: 'reguser',
+					email: 'reg@example.com',
+					role: 'user',
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const session = await createSession(db, 'regular-user-id');
+			const handle = createAuthHandle(db);
+
+			for (const path of ['/app/admin', '/app/admin/users', '/app/admin/audit']) {
+				const { event } = createMockEvent(path, session.id);
+				const resolve = async () => new Response('ADMIN_PAGE');
+
+				await expect(handle({ event, resolve })).rejects.toMatchObject({
+					status: 403
+				});
+			}
+		});
+
+		it('allows administrator access to /app/admin routes', async () => {
+			const { db } = initializeDatabase(':memory:');
+			await seedAdminUser(db);
+
+			const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+			const session = await createSession(db, admin.id);
+
+			const handle = createAuthHandle(db);
+
+			for (const path of ['/app/admin', '/app/admin/users']) {
+				const { event } = createMockEvent(path, session.id);
+				let resolveCalled = false;
+				const resolve = async () => {
+					resolveCalled = true;
+					return new Response('ADMIN_PAGE');
+				};
+
+				const response = await handle({ event, resolve });
+				expect(resolveCalled).toBe(true);
+				expect(await response.text()).toBe('ADMIN_PAGE');
+				expect(event.locals.user?.role).toBe('admin');
+			}
+		});
 	});
 });

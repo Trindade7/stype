@@ -29,6 +29,7 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			password_hash TEXT NOT NULL,
 			email TEXT UNIQUE,
 			name TEXT,
+			role TEXT NOT NULL DEFAULT 'user',
 			created_at INTEGER NOT NULL
 		);
 		CREATE TABLE IF NOT EXISTS sessions (
@@ -95,6 +96,12 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 
 	try {
 		sqlite.exec('ALTER TABLE users ADD COLUMN name TEXT');
+	} catch {
+		// Column already exists or table was just created
+	}
+
+	try {
+		sqlite.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
 	} catch {
 		// Column already exists or table was just created
 	}
