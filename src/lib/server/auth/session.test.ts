@@ -6,7 +6,8 @@ import { eq } from 'drizzle-orm';
 import {
 	createSession,
 	validateSession,
-	invalidateSession
+	invalidateSession,
+	invalidateUserSessions
 } from './session';
 
 describe('session management', () => {
@@ -69,6 +70,44 @@ describe('session management', () => {
 		const result = await validateSession(db, session.id);
 		expect(result.session).toBeNull();
 		expect(result.user).toBeNull();
+
+		sqlite.close();
+	});
+
+	it('invalidates all sessions for a specific user without affecting other users', async () => {
+		const { sqlite, db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+
+		// Insert another user
+		db.insert(schema.users)
+			.values({
+				id: 'other-user-id',
+				username: 'otheruser',
+				email: 'other@example.com',
+				passwordHash: 'hash',
+				createdAt: new Date()
+			})
+			.run();
+
+		// Create two sessions for admin
+		const adminSession1 = await createSession(db, admin.id);
+		const adminSession2 = await createSession(db, admin.id);
+
+		// Create one session for other user
+		const otherSession = await createSession(db, 'other-user-id');
+
+		await invalidateUserSessions(db, admin.id);
+
+		// Admin sessions should be gone
+		expect(await validateSession(db, adminSession1.id)).toEqual({ session: null, user: null });
+		expect(await validateSession(db, adminSession2.id)).toEqual({ session: null, user: null });
+
+		// Other user's session should remain active
+		const otherResult = await validateSession(db, otherSession.id);
+		expect(otherResult.session).toBeDefined();
+		expect(otherResult.user?.id).toBe('other-user-id');
 
 		sqlite.close();
 	});

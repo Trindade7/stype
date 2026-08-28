@@ -91,3 +91,12 @@ export async function invalidateSession(
 		.where(eq(schema.sessions.id, sessionId))
 		.run();
 }
+
+export async function invalidateUserSessions(
+	db: BetterSQLite3Database<typeof schema>,
+	userId: string
+): Promise<void> {
+	db.delete(schema.sessions)
+		.where(eq(schema.sessions.userId, userId))
+		.run();
+}
