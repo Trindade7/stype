@@ -153,7 +153,7 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title role="heading" aria-level={2}>Change Password</Card.Title>
-				<Card.Description>Update your password to keep your account secure.</Card.Description>
+				<Card.Description>Rotate your password securely to keep credentials safe.</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				{#if form?.action === 'updatePassword'}
