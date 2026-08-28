@@ -934,6 +934,8 @@ describe('TypingEngine', () => {
 			expect(notice).toHaveClass('absolute');
 			expect(notice).toHaveClass('pointer-events-none');
 			expect(notice).toHaveClass('bg-primary');
+			expect(notice).toHaveClass('border');
+			expect(notice).toHaveClass('border-primary-foreground/30');
 			expect(notice).toHaveAttribute('role', 'status');
 
 			// Notice is inside the typing container

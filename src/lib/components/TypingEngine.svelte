@@ -525,7 +525,7 @@
 					data-testid="inactivity-notice"
 					role="status"
 					aria-live="polite"
-					class="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 pointer-events-none flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-primary text-primary-foreground border border-primary/20 rounded-full shadow-lg transition-opacity"
+					class="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 pointer-events-none flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-primary text-primary-foreground border border-primary-foreground/30 rounded-full shadow-lg transition-opacity"
 				>
 					<i class="bi bi-arrow-counterclockwise text-primary-foreground/80"></i>
 					<span>Reset due to inactivity</span>
