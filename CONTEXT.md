@@ -86,3 +86,13 @@ _Avoid_: Offline cache, local database
 
 **Component Props Strategy**:
 Shared UI components (like HUD and History tables) receive their data entirely via props. They do not know whether they are rendering Guest data (from Local Store) or User data (from the database).
+
+**Password Reset Token**:
+A cryptographically secure, time-limited single-use token associated with a user, used to authenticate password reset requests.
+_Avoid_: Reset code, recovery key, temporary password
+
+**Password Reset Request**:
+An unauthenticated action by a user to initiate credential recovery using their username or registered email.
+_Avoid_: Recovery ticket, reset claim
+
+
