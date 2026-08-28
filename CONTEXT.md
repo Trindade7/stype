@@ -5,7 +5,7 @@ A lightweight browser-based typing test application for practicing and tracking 
 ## Language
 
 **User**:
-An authenticated account that owns test history, custom passages, and settings.
+An authenticated typist identified by a unique username and email, with a display name, who owns test history, custom passages, and settings.
 _Avoid_: Account, member, profile
 
 **Session**:
