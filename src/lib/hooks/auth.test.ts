@@ -88,6 +88,24 @@ describe('auth server hook', () => {
 		expect(event.locals.session).toBeNull();
 	});
 
+	it('allows unauthenticated user to access /app/signup', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/app/signup');
+
+		let resolveCalled = false;
+		const resolve = async () => {
+			resolveCalled = true;
+			return new Response('SIGNUP_PAGE');
+		};
+
+		const response = await handle({ event, resolve });
+		expect(resolveCalled).toBe(true);
+		expect(await response.text()).toBe('SIGNUP_PAGE');
+		expect(event.locals.user).toBeNull();
+		expect(event.locals.session).toBeNull();
+	});
+
 	it('authenticates valid session and attaches user and session to locals', async () => {
 		const { db } = initializeDatabase(':memory:');
 		await seedAdminUser(db);
@@ -123,6 +141,24 @@ describe('auth server hook', () => {
 		const { event } = createMockEvent('/app/login', session.id);
 
 		const resolve = async () => new Response('LOGIN_PAGE');
+
+		await expect(handle({ event, resolve })).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+	});
+
+	it('redirects authenticated user accessing /app/signup to /app', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+		const session = await createSession(db, admin.id);
+
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/app/signup', session.id);
+
+		const resolve = async () => new Response('SIGNUP_PAGE');
 
 		await expect(handle({ event, resolve })).rejects.toMatchObject({
 			status: 303,

@@ -81,6 +81,14 @@ describe('Login View Contract', () => {
 		expect(passwordInput).toHaveAttribute('autocomplete', 'current-password');
 	});
 
+	it('renders a link to navigate to /app/signup', () => {
+		render(LoginPage, { form: null });
+
+		const signupLink = screen.getByRole('link', { name: /sign up/i });
+		expect(signupLink).toBeInTheDocument();
+		expect(signupLink).toHaveAttribute('href', '/app/signup');
+	});
+
 	it('renders submit button with submit type inside POST form', () => {
 		render(LoginPage, { form: null });
 

@@ -34,13 +34,13 @@ export function createAuthHandle(
 		}
 
 		const isAppRoute = event.url.pathname.startsWith('/app');
-		const isLoginPage = event.url.pathname === '/app/login';
+		const isAuthPage = event.url.pathname === '/app/login' || event.url.pathname === '/app/signup';
 
 		if (isAppRoute) {
-			if (!event.locals.user && !isLoginPage) {
+			if (!event.locals.user && !isAuthPage) {
 				redirect(303, '/app/login');
 			}
-			if (event.locals.user && isLoginPage) {
+			if (event.locals.user && isAuthPage) {
 				redirect(303, '/app');
 			}
 		} else {

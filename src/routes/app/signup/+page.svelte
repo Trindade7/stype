@@ -1,9 +1,16 @@
 <script lang="ts">
 	import type { ActionData } from './$types';
 	import { enhance } from '$app/forms';
-	import { localStore } from '$lib/localStore';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { KeyboardIcon, UserIcon, Key01Icon, Alert01Icon, LogInIcon, UserCircleIcon } from '@hugeicons/core-free-icons';
+	import {
+		KeyboardIcon,
+		UserIcon,
+		Mail01Icon,
+		Key01Icon,
+		Alert01Icon,
+		UserAdd01Icon,
+		UserCircleIcon
+	} from '@hugeicons/core-free-icons';
 
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -12,53 +19,30 @@
 	import * as Card from '$lib/components/ui/card';
 
 	let { form }: { form: ActionData } = $props();
-	
+
+	let name = $state('');
 	let username = $state('');
+	let email = $state('');
 	let password = $state('');
-	let isSyncing = $state(false);
 
 	$effect.pre(() => {
+		if (form?.name !== undefined) {
+			name = form.name;
+		}
 		if (form?.username !== undefined) {
 			username = form.username;
 		}
+		if (form?.email !== undefined) {
+			email = form.email;
+		}
+		if (form) {
+			password = '';
+		}
 	});
-
-	function fillCredentials() {
-		username = 'admin';
-		password = 'admin123';
-	}
-
-	function handleLogin() {
-		return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
-			if (result.type === 'redirect' || result.type === 'success') {
-				const guestData = localStore.getGuestData();
-				const hasMeaningfulData = guestData.testRuns.length > 0 || guestData.customPassages.length > 0;
-				
-				if (hasMeaningfulData) {
-					isSyncing = true;
-					try {
-						const res = await fetch('/app/api/sync', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify(guestData)
-						});
-						if (res.ok) {
-							localStore.clearGuestData();
-						}
-					} catch (err) {
-						console.error('Failed to sync guest data:', err);
-					} finally {
-						isSyncing = false;
-					}
-				}
-			}
-			await update();
-		};
-	}
 </script>
 
 <svelte:head>
-	<title>Login - Stype</title>
+	<title>Sign up - Stype</title>
 </svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-background px-4 py-12 text-foreground selection:bg-primary selection:text-primary-foreground">
@@ -68,7 +52,7 @@
 				<HugeiconsIcon icon={KeyboardIcon} size={28} />
 			</div>
 			<Card.Title class="mt-4 text-2xl font-bold tracking-tight">stype</Card.Title>
-			<Card.Description class="mt-1 text-sm text-muted-foreground">Distraction-free typing speed test</Card.Description>
+			<Card.Description class="mt-1 text-sm text-muted-foreground">Create your typist account</Card.Description>
 		</Card.Header>
 
 		<Card.Content class="pt-8">
@@ -79,10 +63,32 @@
 				</div>
 			{/if}
 
-			<form method="POST" class="space-y-5" use:enhance={handleLogin}>
+			<form method="POST" class="space-y-4" use:enhance>
+				<div class="space-y-2">
+					<Label for="name" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						Name
+					</Label>
+					<div class="relative">
+						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+							<HugeiconsIcon icon={UserIcon} size={18} />
+						</div>
+						<Input
+							type="text"
+							id="name"
+							name="name"
+							bind:value={name}
+							required
+							autocomplete="name"
+							placeholder="Display name"
+							maxlength={50}
+							class="h-10 pl-10"
+						/>
+					</div>
+				</div>
+
 				<div class="space-y-2">
 					<Label for="username" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-						Username or Email
+						Username
 					</Label>
 					<div class="relative">
 						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
@@ -95,7 +101,30 @@
 							bind:value={username}
 							required
 							autocomplete="username"
-							placeholder="Username or email"
+							placeholder="Username (3-20 characters)"
+							minlength={3}
+							maxlength={20}
+							class="h-10 pl-10"
+						/>
+					</div>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="email" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						Email
+					</Label>
+					<div class="relative">
+						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+							<HugeiconsIcon icon={Mail01Icon} size={18} />
+						</div>
+						<Input
+							type="email"
+							id="email"
+							name="email"
+							bind:value={email}
+							required
+							autocomplete="email"
+							placeholder="typist@example.com"
 							class="h-10 pl-10"
 						/>
 					</div>
@@ -115,8 +144,9 @@
 							name="password"
 							bind:value={password}
 							required
-							autocomplete="current-password"
-							placeholder="••••••••"
+							autocomplete="new-password"
+							placeholder="At least 8 characters"
+							minlength={8}
 							class="h-10 pl-10"
 						/>
 					</div>
@@ -125,17 +155,16 @@
 				<Button
 					type="submit"
 					class="h-10 w-full"
-					disabled={isSyncing}
 				>
-					<HugeiconsIcon icon={LogInIcon} size={20} />
-					<span class="ml-2">{isSyncing ? 'Syncing...' : 'Log in'}</span>
+					<HugeiconsIcon icon={UserAdd01Icon} size={20} />
+					<span class="ml-2">Sign up</span>
 				</Button>
 			</form>
 
 			<div class="mt-6 text-center text-sm text-muted-foreground">
-				Don't have an account?{' '}
-				<a href="/app/signup" class="font-medium text-primary underline-offset-4 hover:underline">
-					Sign up
+				Already have an account?{' '}
+				<a href="/app/login" class="font-medium text-primary underline-offset-4 hover:underline">
+					Log in
 				</a>
 			</div>
 
@@ -156,33 +185,6 @@
 				<HugeiconsIcon icon={UserCircleIcon} size={20} />
 				<span class="ml-2">Continue as Guest</span>
 			</Button>
-
-			<p class="mt-2 text-center text-xs text-muted-foreground">
-				Test runs and settings are saved locally in the browser.
-			</p>
 		</Card.Content>
-
-		<Card.Footer class="pb-8">
-			<div class="w-full rounded-lg border border-border/80 bg-muted/40 p-4 text-center text-xs text-muted-foreground">
-				<div class="flex flex-wrap items-center justify-center gap-1.5">
-					<span>Default seeded account:</span>
-					<button
-						type="button"
-						class="inline-flex cursor-pointer items-center rounded-md border border-border/60 bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-						onclick={fillCredentials}
-					>
-						admin
-					</button>
-					<span class="text-muted-foreground">/</span>
-					<button
-						type="button"
-						class="inline-flex cursor-pointer items-center rounded-md border border-border/60 bg-secondary px-2 py-0.5 font-mono text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-						onclick={fillCredentials}
-					>
-						admin123
-					</button>
-				</div>
-			</div>
-		</Card.Footer>
 	</Card.Root>
 </div>
