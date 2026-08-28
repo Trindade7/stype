@@ -1,19 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 import { initializeDatabase } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { verifyPassword } from '$lib/server/auth/password';
+import { hashPassword, verifyPassword } from '$lib/server/auth/password';
+import { createSession, SESSION_COOKIE_NAME } from '$lib/server/auth/session';
+import { validateResetToken } from '$lib/server/auth/reset-token';
 import {
 	createAdminUsersPageLoad,
 	createAdminCreateUserAction,
-	createAdminUpdateUserAction
+	createAdminUpdateUserAction,
+	createAdminResetPasswordAction,
+	createAdminSendResetLinkAction
 } from './admin-users-actions';
 
 function createMockEvent(
 	options: {
 		user?: any;
 		formData?: Record<string, string>;
+		url?: string;
 	} = {}
 ) {
 	const formData = new FormData();
@@ -27,12 +32,20 @@ function createMockEvent(
 		formData: async () => formData
 	} as unknown as Request;
 
+	const cookies = {
+		get: vi.fn(),
+		set: vi.fn(),
+		delete: vi.fn()
+	};
+
 	const event = {
 		request,
+		url: new URL(options.url ?? 'http://localhost:5173/app/admin/users'),
 		locals: {
 			user: options.user ?? null,
 			session: null
-		}
+		},
+		cookies
 	} as unknown as RequestEvent;
 
 	return event;
@@ -137,6 +150,26 @@ describe('Admin Users Page Server Load and Actions', () => {
 
 			// passwordHash should NOT be leaked to client
 			expect(bob).not.toHaveProperty('passwordHash');
+
+			expect(data).toHaveProperty('smtpConfigured');
+
+			sqlite.close();
+		});
+
+		it('returns smtpConfigured accurately based on SMTP configuration', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadWithSmtp = createAdminUsersPageLoad(db, { isSmtpConfigured: () => true });
+			const loadWithoutSmtp = createAdminUsersPageLoad(db, { isSmtpConfigured: () => false });
+
+			const event = createMockEvent({
+				user: { id: 'u-1', username: 'admin', role: 'admin' }
+			});
+
+			const dataWith = await loadWithSmtp(event as any);
+			expect(dataWith.smtpConfigured).toBe(true);
+
+			const dataWithout = await loadWithoutSmtp(event as any);
+			expect(dataWithout.smtpConfigured).toBe(false);
 
 			sqlite.close();
 		});
@@ -987,6 +1020,447 @@ describe('Admin Users Page Server Load and Actions', () => {
 			// Account is now user
 			inDb = db.select().from(schema.users).where(eq(schema.users.id, 'admin-1')).get();
 			expect(inDb?.role).toBe('user');
+
+			sqlite.close();
+		});
+	});
+
+	describe('resetPassword action', () => {
+		it('fails with 401 when unauthenticated', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+			const event = createMockEvent({
+				user: null,
+				formData: { id: 'u-1', password: 'newpassword123' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(401);
+
+			sqlite.close();
+		});
+
+		it('fails with 403 when caller is not an admin', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+			const event = createMockEvent({
+				user: { id: 'u-1', username: 'regular', role: 'user' },
+				formData: { id: 'u-2', password: 'newpassword123' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(403);
+
+			sqlite.close();
+		});
+
+		it('fails with 400 when user ID is missing', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: '', password: 'newpassword123' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.message).toMatch(/user id is required/i);
+
+			sqlite.close();
+		});
+
+		it('fails with 404 when target user is not found', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'nonexistent-id', password: 'newpassword123' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(404);
+			expect(result?.data?.message).toMatch(/user not found/i);
+
+			sqlite.close();
+		});
+
+		it('strictly enforces the minimum 8-character password length and rejects short passwords', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+
+			db.insert(schema.users)
+				.values({
+					id: 'target-1',
+					username: 'targetuser',
+					email: 'target@example.com',
+					name: 'Target User',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: await hashPassword('initialpassword1'),
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'target-1', password: 'short' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.errors?.password).toBe('Password must be at least 8 characters');
+
+			// Password hash should not be changed
+			const userInDb = db.select().from(schema.users).where(eq(schema.users.id, 'target-1')).get();
+			const matchesOld = await verifyPassword('initialpassword1', userInDb!.passwordHash);
+			expect(matchesOld).toBe(true);
+
+			sqlite.close();
+		});
+
+		it('updates user password hash and enables login with new password while invalidating old password', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+
+			db.insert(schema.users)
+				.values({
+					id: 'target-1',
+					username: 'targetuser',
+					email: 'target@example.com',
+					name: 'Target User',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: await hashPassword('oldpassword123'),
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'target-1', password: 'brandNewPassword456' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.action).toBe('resetPassword');
+			expect(result?.message).toMatch(/password reset successfully/i);
+
+			const userInDb = db.select().from(schema.users).where(eq(schema.users.id, 'target-1')).get();
+			expect(userInDb).toBeDefined();
+
+			// Old password must fail
+			const oldValid = await verifyPassword('oldpassword123', userInDb!.passwordHash);
+			expect(oldValid).toBe(false);
+
+			// New password must verify successfully
+			const newValid = await verifyPassword('brandNewPassword456', userInDb!.passwordHash);
+			expect(newValid).toBe(true);
+
+			sqlite.close();
+		});
+
+		it('immediately terminates all active sessions for targeted user while preserving other users sessions', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-1',
+						username: 'admin',
+						email: 'admin@example.com',
+						name: 'Admin',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: await hashPassword('adminpassword1'),
+						createdAt: new Date()
+					},
+					{
+						id: 'target-1',
+						username: 'targetuser',
+						email: 'target@example.com',
+						name: 'Target',
+						role: 'user',
+						emailConfirmed: true,
+						passwordHash: await hashPassword('targetpass1'),
+						createdAt: new Date()
+					},
+					{
+						id: 'other-1',
+						username: 'otheruser',
+						email: 'other@example.com',
+						name: 'Other',
+						role: 'user',
+						emailConfirmed: true,
+						passwordHash: await hashPassword('otherpass1'),
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Create 2 active sessions for target user, 1 for other user, 1 for admin
+			const targetSession1 = await createSession(db, 'target-1');
+			const targetSession2 = await createSession(db, 'target-1');
+			const otherSession = await createSession(db, 'other-1');
+			const adminSession = await createSession(db, 'admin-1');
+
+			const allSessionsBefore = db.select().from(schema.sessions).all();
+			expect(allSessionsBefore.length).toBe(4);
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'target-1', password: 'newTargetPassword88' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+
+			// Target user's sessions must be gone
+			const targetSessionsAfter = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.userId, 'target-1'))
+				.all();
+			expect(targetSessionsAfter.length).toBe(0);
+
+			// Other user and admin sessions must remain intact
+			const otherSessionInDb = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.id, otherSession.id))
+				.get();
+			expect(otherSessionInDb).toBeDefined();
+
+			const adminSessionInDb = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.id, adminSession.id))
+				.get();
+			expect(adminSessionInDb).toBeDefined();
+
+			sqlite.close();
+		});
+
+		it('flags resetSelf when administrator directly resets their own password and terminates their session', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminResetPasswordAction(db);
+
+			db.insert(schema.users)
+				.values({
+					id: 'admin-1',
+					username: 'admin',
+					email: 'admin@example.com',
+					name: 'Admin',
+					role: 'admin',
+					emailConfirmed: true,
+					passwordHash: await hashPassword('adminoldpassword1'),
+					createdAt: new Date()
+				})
+				.run();
+
+			const session = await createSession(db, 'admin-1');
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'admin-1', password: 'newAdminPassword99' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.resetSelf).toBe(true);
+			expect(event.cookies.delete).toHaveBeenCalledWith(SESSION_COOKIE_NAME, { path: '/' });
+
+			// Active session must be deleted
+			const sessionInDb = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.id, session.id))
+				.get();
+			expect(sessionInDb).toBeUndefined();
+
+			sqlite.close();
+		});
+	});
+
+	describe('sendResetLink action', () => {
+		it('fails with 401 when unauthenticated', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminSendResetLinkAction(db, { isSmtpConfigured: () => true });
+			const event = createMockEvent({
+				user: null,
+				formData: { id: 'u-1' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(401);
+
+			sqlite.close();
+		});
+
+		it('fails with 403 when caller is not an admin', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminSendResetLinkAction(db, { isSmtpConfigured: () => true });
+			const event = createMockEvent({
+				user: { id: 'u-1', username: 'regular', role: 'user' },
+				formData: { id: 'u-2' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(403);
+
+			sqlite.close();
+		});
+
+		it('fails with 400 when user ID is missing', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminSendResetLinkAction(db, { isSmtpConfigured: () => true });
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: '' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.message).toMatch(/user id is required/i);
+
+			sqlite.close();
+		});
+
+		it('fails with 404 when target user is not found', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminSendResetLinkAction(db, { isSmtpConfigured: () => true });
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'nonexistent-user' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(404);
+			expect(result?.data?.message).toMatch(/user not found/i);
+
+			sqlite.close();
+		});
+
+		it('fails with 400 when SMTP is not configured', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminSendResetLinkAction(db, { isSmtpConfigured: () => false });
+
+			db.insert(schema.users)
+				.values({
+					id: 'target-1',
+					username: 'targetuser',
+					email: 'target@example.com',
+					name: 'Target User',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'target-1' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.message).toMatch(/smtp is not configured/i);
+
+			sqlite.close();
+		});
+
+		it('fails with 400 when target user has an unverified email', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminSendResetLinkAction(db, { isSmtpConfigured: () => true });
+
+			db.insert(schema.users)
+				.values({
+					id: 'target-unverified',
+					username: 'unverified',
+					email: 'unverified@example.com',
+					name: 'Unverified User',
+					role: 'user',
+					emailConfirmed: false,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'target-unverified' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.message).toMatch(/unverified/i);
+
+			sqlite.close();
+		});
+
+		it('creates time-limited reset token, delivers email with reset link, and preserves active sessions intact', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			let sentEmailOptions: any = null;
+
+			const mockSendEmail = async (opts: any) => {
+				sentEmailOptions = opts;
+				return { delivered: true, mode: 'smtp' as const };
+			};
+
+			const action = createAdminSendResetLinkAction(db, {
+				isSmtpConfigured: () => true,
+				sendEmail: mockSendEmail as any
+			});
+
+			db.insert(schema.users)
+				.values({
+					id: 'target-1',
+					username: 'targetuser',
+					email: 'target@example.com',
+					name: 'Target User',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			// Target user has an active session before sending reset link
+			const targetSession = await createSession(db, 'target-1');
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				formData: { id: 'target-1' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.action).toBe('sendResetLink');
+			expect(result?.message).toMatch(/password reset link sent successfully/i);
+
+			// Check email delivery was dispatched
+			expect(sentEmailOptions).toBeDefined();
+			expect(sentEmailOptions.to).toBe('target@example.com');
+			expect(sentEmailOptions.username).toBe('targetuser');
+			expect(sentEmailOptions.resetUrl).toMatch(/http:\/\/localhost:5173\/app\/reset-password\?token=[a-f0-9]{64}/);
+
+			// Extract token from URL and verify it exists and is valid in DB
+			const tokenMatch = sentEmailOptions.resetUrl.match(/token=([a-f0-9]+)/);
+			expect(tokenMatch).not.toBeNull();
+			const token = tokenMatch[1];
+
+			const validation = await validateResetToken(db, token);
+			expect(validation.tokenRecord).toBeDefined();
+			expect(validation.user?.id).toBe('target-1');
+
+			// Sessions must remain intact! (Tokens are unredeemed)
+			const sessionInDb = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.id, targetSession.id))
+				.get();
+			expect(sessionInDb).toBeDefined();
 
 			sqlite.close();
 		});

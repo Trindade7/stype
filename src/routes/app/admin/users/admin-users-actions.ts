@@ -4,8 +4,20 @@ import { and, desc, eq, ne } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import { hashPassword } from '$lib/server/auth/password';
+import { invalidateUserSessions, SESSION_COOKIE_NAME } from '$lib/server/auth/session';
+import { createPasswordResetToken } from '$lib/server/auth/reset-token';
+import { isSmtpConfigured, sendPasswordResetEmail } from '$lib/server/email/delivery';
 
-export function createAdminUsersPageLoad(db: BetterSQLite3Database<typeof schema>) {
+export interface AdminUsersPageLoadOptions {
+	isSmtpConfigured?: () => boolean;
+}
+
+export function createAdminUsersPageLoad(
+	db: BetterSQLite3Database<typeof schema>,
+	options?: AdminUsersPageLoadOptions
+) {
+	const checkSmtp = options?.isSmtpConfigured || isSmtpConfigured;
+
 	return async ({ locals }: RequestEvent) => {
 		if (!locals.user) {
 			redirect(303, '/app/login');
@@ -29,7 +41,8 @@ export function createAdminUsersPageLoad(db: BetterSQLite3Database<typeof schema
 			.all();
 
 		return {
-			users: usersList
+			users: usersList,
+			smtpConfigured: checkSmtp()
 		};
 	};
 }
@@ -334,4 +347,180 @@ export function createAdminUpdateUserAction(db: BetterSQLite3Database<typeof sch
 		};
 	};
 }
+
+export function createAdminResetPasswordAction(db: BetterSQLite3Database<typeof schema>) {
+	return async ({ request, locals, cookies }: RequestEvent) => {
+		if (!locals.user) {
+			return fail(401, {
+				success: false as const,
+				action: 'resetPassword' as const,
+				message: 'Unauthorized'
+			});
+		}
+		if (locals.user.role !== 'admin') {
+			return fail(403, {
+				success: false as const,
+				action: 'resetPassword' as const,
+				message: 'Forbidden'
+			});
+		}
+
+		const data = await request.formData();
+		const id = data.get('id')?.toString().trim() ?? '';
+		const password = data.get('password')?.toString() ?? '';
+
+		if (!id) {
+			return fail(400, {
+				success: false as const,
+				action: 'resetPassword' as const,
+				message: 'User ID is required'
+			});
+		}
+
+		const targetUser = db
+			.select()
+			.from(schema.users)
+			.where(eq(schema.users.id, id))
+			.get();
+
+		if (!targetUser) {
+			return fail(404, {
+				success: false as const,
+				action: 'resetPassword' as const,
+				message: 'User not found'
+			});
+		}
+
+		const errors: Record<string, string> = {};
+		if (password.length < 8) {
+			errors.password = 'Password must be at least 8 characters';
+		}
+
+		if (Object.keys(errors).length > 0) {
+			return fail(400, {
+				success: false as const,
+				action: 'resetPassword' as const,
+				message: 'Password must be at least 8 characters',
+				errors,
+				values: { id }
+			});
+		}
+
+		const passwordHash = await hashPassword(password);
+		db.update(schema.users)
+			.set({ passwordHash })
+			.where(eq(schema.users.id, id))
+			.run();
+
+		await invalidateUserSessions(db, id);
+
+		const isSelfReset = targetUser.id === locals.user.id;
+		if (isSelfReset && cookies) {
+			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		}
+
+		return {
+			success: true,
+			action: 'resetPassword',
+			message: 'Password reset successfully',
+			resetSelf: isSelfReset
+		};
+	};
+}
+
+export interface AdminSendResetLinkActionOptions {
+	sendEmail?: typeof sendPasswordResetEmail;
+	isSmtpConfigured?: () => boolean;
+}
+
+export function createAdminSendResetLinkAction(
+	db: BetterSQLite3Database<typeof schema>,
+	options?: AdminSendResetLinkActionOptions
+) {
+	const sendEmail = options?.sendEmail || sendPasswordResetEmail;
+	const checkSmtp = options?.isSmtpConfigured || isSmtpConfigured;
+
+	return async ({ request, locals, url }: RequestEvent) => {
+		if (!locals.user) {
+			return fail(401, {
+				success: false as const,
+				action: 'sendResetLink' as const,
+				message: 'Unauthorized'
+			});
+		}
+		if (locals.user.role !== 'admin') {
+			return fail(403, {
+				success: false as const,
+				action: 'sendResetLink' as const,
+				message: 'Forbidden'
+			});
+		}
+
+		const data = await request.formData();
+		const id = data.get('id')?.toString().trim() ?? '';
+
+		if (!id) {
+			return fail(400, {
+				success: false as const,
+				action: 'sendResetLink' as const,
+				message: 'User ID is required'
+			});
+		}
+
+		const targetUser = db
+			.select()
+			.from(schema.users)
+			.where(eq(schema.users.id, id))
+			.get();
+
+		if (!targetUser) {
+			return fail(404, {
+				success: false as const,
+				action: 'sendResetLink' as const,
+				message: 'User not found'
+			});
+		}
+
+		if (!targetUser.email) {
+			return fail(400, {
+				success: false as const,
+				action: 'sendResetLink' as const,
+				message: 'User does not have an email address'
+			});
+		}
+
+		if (!checkSmtp()) {
+			return fail(400, {
+				success: false as const,
+				action: 'sendResetLink' as const,
+				message: 'SMTP is not configured on this server'
+			});
+		}
+
+		if (!targetUser.emailConfirmed) {
+			return fail(400, {
+				success: false as const,
+				action: 'sendResetLink' as const,
+				message: 'Cannot send password reset link to an unverified email'
+			});
+		}
+
+		const { token } = await createPasswordResetToken(db, targetUser.id);
+		const resetUrl = `${url.origin}/app/reset-password?token=${token}`;
+
+		await sendEmail({
+			to: targetUser.email,
+			username: targetUser.username,
+			resetUrl
+		});
+
+		return {
+			success: true,
+			action: 'sendResetLink',
+			message: 'Password reset link sent successfully'
+		};
+	};
+}
+
+
 

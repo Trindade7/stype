@@ -508,4 +508,232 @@ describe('Admin Users Page', () => {
 			screen.queryByText(/administrative privileges will be revoked immediately/i)
 		).not.toBeInTheDocument();
 	});
+
+	it('renders an action menu for each user row with a Reset Password option', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		expect(resetOption).toBeInTheDocument();
+	});
+
+	it('opens Reset Password dialog when Reset Password is clicked', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		await fireEvent.click(resetOption);
+
+		expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+		expect(screen.getByLabelText(/new password/i)).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: /generate random password/i })
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(/immediately sign this user out of all active sessions/i)
+		).toBeInTheDocument();
+	});
+
+	it('generates random secure password and populates field in Reset Password dialog', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		await fireEvent.click(resetOption);
+
+		const passwordInput = screen.getByLabelText(/new password/i) as HTMLInputElement;
+		expect(passwordInput.value).toBe('');
+
+		const generateBtn = screen.getByRole('button', { name: /generate random password/i });
+		await fireEvent.click(generateBtn);
+
+		expect(passwordInput.value.length).toBeGreaterThanOrEqual(8);
+	});
+
+	it('enables Send Reset Link action when SMTP is configured and user email is confirmed', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		// janedoe has confirmed email
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		await fireEvent.click(resetOption);
+
+		const sendLinkButton = screen.getByRole('button', { name: /send reset link/i });
+		expect(sendLinkButton).toBeInTheDocument();
+		expect(sendLinkButton).toBeEnabled();
+	});
+
+	it('disables Send Reset Link action when SMTP is unconfigured', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: false
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		await fireEvent.click(resetOption);
+
+		const sendLinkButton = screen.getByRole('button', { name: /send reset link/i });
+		expect(sendLinkButton).toBeInTheDocument();
+		expect(sendLinkButton).toBeDisabled();
+		expect(
+			screen.getByText(/email delivery is not configured on this server/i)
+		).toBeInTheDocument();
+	});
+
+	it('disables Send Reset Link action when user email is unverified', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		// bobsmith has emailConfirmed: false
+		const actionBtn = screen.getByRole('button', { name: /actions for bobsmith/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		await fireEvent.click(resetOption);
+
+		const sendLinkButton = screen.getByRole('button', { name: /send reset link/i });
+		expect(sendLinkButton).toBeInTheDocument();
+		expect(sendLinkButton).toBeDisabled();
+		expect(screen.getByText(/user email is unverified/i)).toBeInTheDocument();
+	});
+
+	it('submits resetPassword form via enhance and closes dialog on success', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		await fireEvent.click(resetOption);
+
+		const passwordInput = screen.getByLabelText(/new password/i) as HTMLInputElement;
+		await fireEvent.input(passwordInput, { target: { value: 'ValidPassword123' } });
+
+		const submitBtn = screen.getByRole('button', { name: /^reset password$/i });
+		await fireEvent.click(submitBtn);
+
+		// Dialog should close on success
+		expect(screen.queryByLabelText(/new password/i)).not.toBeInTheDocument();
+	});
+
+	it('submits sendResetLink form via enhance and closes dialog on success', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const resetOption = screen.getByRole('menuitem', { name: /reset password/i });
+		await fireEvent.click(resetOption);
+
+		const sendLinkBtn = screen.getByRole('button', { name: /send reset link/i });
+		await fireEvent.click(sendLinkBtn);
+
+		// Dialog should close on success
+		expect(screen.queryByLabelText(/new password/i)).not.toBeInTheDocument();
+	});
+
+	it('displays validation errors in Reset Password dialog when resetPassword returns error', () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: {
+				action: 'resetPassword',
+				success: false,
+				message: 'Password must be at least 8 characters',
+				errors: {
+					password: 'Password must be at least 8 characters'
+				},
+				values: { id: 'user-2' }
+			} as any
+		});
+
+		expect(
+			screen.getAllByText(/password must be at least 8 characters/i).length
+		).toBeGreaterThan(0);
+	});
+
+	it('displays error in Reset Password dialog when sendResetLink returns error', () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: {
+				action: 'sendResetLink',
+				success: false,
+				message: 'SMTP is not configured on this server'
+			} as any
+		});
+
+		expect(
+			screen.getByText(/smtp is not configured on this server/i)
+		).toBeInTheDocument();
+	});
 });

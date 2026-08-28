@@ -8,7 +8,9 @@
 		Search01Icon,
 		Alert01Icon,
 		MoreVerticalIcon,
-		Edit01Icon
+		Edit01Icon,
+		Key01Icon,
+		MailSend01Icon
 	} from '@hugeicons/core-free-icons';
 
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -42,6 +44,11 @@
 	let isConfirmedSelfDemotion = $state(false);
 	let editFormElement: HTMLFormElement | undefined = $state();
 
+	let isResetPasswordDialogOpen = $state(false);
+	let resetUser = $state<any>(null);
+	let resetUserId = $state('');
+	let resetPasswordValue = $state('');
+
 	$effect.pre(() => {
 		if (form?.action === 'createUser' && !form.success) {
 			isCreateDialogOpen = true;
@@ -65,10 +72,37 @@
 				}
 			}
 		}
+		if (form?.action === 'resetPassword' && !form.success) {
+			isResetPasswordDialogOpen = true;
+			const resetForm = form as any;
+			if (resetForm.values?.id) {
+				resetUserId = resetForm.values.id;
+				resetUser = (data.users ?? []).find((u: any) => u.id === resetForm.values.id) ?? null;
+			}
+		}
+		if (form?.action === 'sendResetLink' && !form.success) {
+			isResetPasswordDialogOpen = true;
+			const sendForm = form as any;
+			if (sendForm.values?.id) {
+				resetUserId = sendForm.values.id;
+				resetUser = (data.users ?? []).find((u: any) => u.id === sendForm.values.id) ?? null;
+			}
+		}
 	});
 
 	function handleGenerateRandomPassword() {
 		formPassword = generateRandomPassword(16);
+	}
+
+	function openResetPasswordModal(user: any) {
+		resetUser = user;
+		resetUserId = user.id;
+		resetPasswordValue = '';
+		isResetPasswordDialogOpen = true;
+	}
+
+	function handleGenerateResetPassword() {
+		resetPasswordValue = generateRandomPassword(16);
 	}
 
 	function openEditModal(user: any) {
@@ -133,6 +167,8 @@
 
 	let formErrors = $derived(form?.action === 'createUser' && !form.success ? form.errors : undefined);
 	let editErrors = $derived(form?.action === 'updateUser' && !form.success ? form.errors : undefined);
+	let resetPasswordErrors = $derived(form?.action === 'resetPassword' && !form.success ? (form as any).errors : undefined);
+	let canSendResetLink = $derived(Boolean(data.smtpConfigured && resetUser?.emailConfirmed && resetUser?.email));
 
 	let users = $derived(data.users ?? []);
 	let filteredUsers = $derived(
@@ -468,6 +504,160 @@
 				</Dialog.Footer>
 			</Dialog.Content>
 		</Dialog.Root>
+
+		<!-- Reset Password Dialog -->
+		<Dialog.Root bind:open={isResetPasswordDialogOpen}>
+			<Dialog.Content class="sm:max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>Reset Password</Dialog.Title>
+					<Dialog.Description>
+						Set a new password for {resetUser?.name || resetUser?.username || 'the user'} directly or send an email reset link.
+					</Dialog.Description>
+				</Dialog.Header>
+
+				{#if form?.action === 'resetPassword' && !form.success && form.message}
+					<div
+						role="alert"
+						class="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive"
+					>
+						<HugeiconsIcon icon={Alert01Icon} size={16} class="shrink-0" />
+						<span>{form.message}</span>
+					</div>
+				{/if}
+
+				{#if form?.action === 'sendResetLink' && !form.success && form.message}
+					<div
+						role="alert"
+						class="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive"
+					>
+						<HugeiconsIcon icon={Alert01Icon} size={16} class="shrink-0" />
+						<span>{form.message}</span>
+					</div>
+				{/if}
+
+				<!-- Direct Password Reset Form -->
+				<form
+					method="POST"
+					action="?/resetPassword"
+					class="space-y-4"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								if ((result.data as any)?.resetSelf) {
+									window.location.href = '/app/login';
+									return;
+								}
+								isResetPasswordDialogOpen = false;
+								resetPasswordValue = '';
+								resetUser = null;
+							}
+							await update();
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={resetUserId} />
+
+					<div class="space-y-1.5">
+						<div class="flex items-center justify-between">
+							<Label for="reset-password-input">New Password</Label>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class="h-auto p-0 text-xs text-primary hover:underline hover:bg-transparent"
+								onclick={handleGenerateResetPassword}
+							>
+								Generate random password
+							</Button>
+						</div>
+						<Input
+							id="reset-password-input"
+							type="text"
+							name="password"
+							bind:value={resetPasswordValue}
+							placeholder="Minimum 8 characters"
+							required
+							minlength={8}
+							aria-invalid={resetPasswordErrors?.password ? 'true' : undefined}
+						/>
+						{#if resetPasswordErrors?.password}
+							<p role="alert" class="text-xs text-destructive">{resetPasswordErrors.password}</p>
+						{/if}
+					</div>
+
+					<p class="text-xs text-muted-foreground">
+						Resetting the password will immediately sign this user out of all active sessions.
+					</p>
+
+					<div class="flex justify-end gap-2 pt-1">
+						<Button type="submit">Reset Password</Button>
+					</div>
+				</form>
+
+				<!-- Secondary Action Divider -->
+				<div class="relative my-2">
+					<div class="absolute inset-0 flex items-center">
+						<span class="w-full border-t border-border"></span>
+					</div>
+					<div class="relative flex justify-center text-xs uppercase">
+						<span class="bg-card px-2 text-muted-foreground">Or</span>
+					</div>
+				</div>
+
+				<!-- Send Reset Link Form -->
+				<form
+					method="POST"
+					action="?/sendResetLink"
+					class="space-y-2"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								isResetPasswordDialogOpen = false;
+								resetPasswordValue = '';
+								resetUser = null;
+							}
+							await update();
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={resetUserId} />
+
+					<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border border-border p-3">
+						<div class="space-y-0.5">
+							<p class="text-sm font-medium">Send Password Reset Link</p>
+							<p class="text-xs text-muted-foreground">
+								Deliver a single-use 15-minute reset link to {resetUser?.email || 'the user'}. Active sessions will remain intact until redeemed.
+							</p>
+							{#if !data.smtpConfigured}
+								<p class="text-xs text-amber-500 font-medium">
+									Email delivery is not configured on this server.
+								</p>
+							{:else if !resetUser?.emailConfirmed}
+								<p class="text-xs text-amber-500 font-medium">
+									User email is unverified.
+								</p>
+							{/if}
+						</div>
+						<Button
+							type="submit"
+							variant="outline"
+							size="sm"
+							class="shrink-0"
+							disabled={!canSendResetLink}
+						>
+							<HugeiconsIcon icon={MailSend01Icon} size={14} class="mr-2" />
+							Send Reset Link
+						</Button>
+					</div>
+				</form>
+
+				<Dialog.Footer class="pt-2">
+					<Button type="button" variant="outline" onclick={() => (isResetPasswordDialogOpen = false)}>
+						Cancel
+					</Button>
+				</Dialog.Footer>
+			</Dialog.Content>
+		</Dialog.Root>
 	</div>
 
 	<!-- Registered Users Table -->
@@ -527,6 +717,10 @@
 										<DropdownMenu.Item onclick={() => openEditModal(user)}>
 											<HugeiconsIcon icon={Edit01Icon} size={14} class="mr-2" />
 											Edit Details
+										</DropdownMenu.Item>
+										<DropdownMenu.Item onclick={() => openResetPasswordModal(user)}>
+											<HugeiconsIcon icon={Key01Icon} size={14} class="mr-2" />
+											Reset Password
 										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>

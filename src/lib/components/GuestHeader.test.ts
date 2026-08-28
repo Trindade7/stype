@@ -10,8 +10,9 @@ describe('GuestHeader Component', () => {
 		vi.restoreAllMocks();
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		cleanup();
+		await new Promise((resolve) => setTimeout(resolve, 50));
 	});
 
 	it('renders header with brand link to home page', () => {
