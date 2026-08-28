@@ -11,7 +11,8 @@ import {
 	createAdminCreateUserAction,
 	createAdminUpdateUserAction,
 	createAdminResetPasswordAction,
-	createAdminSendResetLinkAction
+	createAdminSendResetLinkAction,
+	createAdminDeleteUserAction
 } from './admin-users-actions';
 
 function createMockEvent(
@@ -1461,6 +1462,657 @@ describe('Admin Users Page Server Load and Actions', () => {
 				.where(eq(schema.sessions.id, targetSession.id))
 				.get();
 			expect(sessionInDb).toBeDefined();
+
+			sqlite.close();
+		});
+	});
+
+	describe('deleteUser action', () => {
+		it('rejects unauthenticated requests with 401 Unauthorized', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const event = createMockEvent({ user: null, formData: { id: 'some-id' } });
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(401);
+			expect(result?.data?.action).toBe('deleteUser');
+			expect(result?.data?.message).toMatch(/unauthorized/i);
+
+			sqlite.close();
+		});
+
+		it('rejects non-admin users with 403 Forbidden', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const event = createMockEvent({
+				user: { id: 'u-1', username: 'regular', role: 'user' },
+				formData: { id: 'some-id' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(403);
+			expect(result?.data?.action).toBe('deleteUser');
+			expect(result?.data?.message).toMatch(/forbidden/i);
+
+			sqlite.close();
+		});
+
+		it('rejects with 400 Bad Request when user ID is missing', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: {}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.action).toBe('deleteUser');
+			expect(result?.data?.message).toMatch(/user id is required/i);
+
+			sqlite.close();
+		});
+
+		it('returns 404 when target user does not exist', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: { id: 'non-existent-user' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(404);
+			expect(result?.data?.action).toBe('deleteUser');
+			expect(result?.data?.message).toMatch(/user not found/i);
+
+			sqlite.close();
+		});
+
+		it('deletes a user and cleanly cascades deletion to sessions, custom passages, test runs, settings, and tokens', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			// Insert admin user
+			db.insert(schema.users)
+				.values({
+					id: 'admin-1',
+					username: 'admin',
+					email: 'admin@example.com',
+					role: 'admin',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			// Insert deletee user
+			db.insert(schema.users)
+				.values({
+					id: 'u-deletee',
+					username: 'deletee',
+					email: 'deletee@example.com',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			// Insert other user
+			db.insert(schema.users)
+				.values({
+					id: 'u-other',
+					username: 'other',
+					email: 'other@example.com',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			// Sessions
+			await createSession(db, 'u-deletee');
+			const otherSession = await createSession(db, 'u-other');
+
+			// Custom passages
+			const [deleteePassage] = db
+				.insert(schema.passages)
+				.values({
+					text: 'Deletee passage text',
+					userId: 'u-deletee',
+					createdAt: new Date()
+				})
+				.returning()
+				.all();
+
+			const [otherPassage] = db
+				.insert(schema.passages)
+				.values({
+					text: 'Other passage text',
+					userId: 'u-other',
+					createdAt: new Date()
+				})
+				.returning()
+				.all();
+
+			// Test runs
+			db.insert(schema.testRuns)
+				.values([
+					{
+						userId: 'u-deletee',
+						passageId: deleteePassage.id,
+						wpm: 80,
+						accuracy: 95,
+						timeElapsed: 20,
+						correctChars: 100,
+						incorrectChars: 5,
+						extraChars: 0,
+						missedChars: 0,
+						createdAt: new Date()
+					},
+					{
+						userId: 'u-other',
+						passageId: otherPassage.id,
+						wpm: 90,
+						accuracy: 98,
+						timeElapsed: 15,
+						correctChars: 120,
+						incorrectChars: 2,
+						extraChars: 0,
+						missedChars: 0,
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Settings
+			db.insert(schema.userSettings)
+				.values([
+					{
+						userId: 'u-deletee',
+						mode: 'passage',
+						duration: 30,
+						theme: 'dark',
+						createdAt: new Date(),
+						updatedAt: new Date()
+					},
+					{
+						userId: 'u-other',
+						mode: 'timed',
+						duration: 60,
+						theme: 'light',
+						createdAt: new Date(),
+						updatedAt: new Date()
+					}
+				])
+				.run();
+
+			// Password reset tokens
+			db.insert(schema.passwordResetTokens)
+				.values([
+					{
+						id: 'reset-deletee',
+						userId: 'u-deletee',
+						tokenHash: 'hash-deletee',
+						expiresAt: new Date(Date.now() + 3600000),
+						createdAt: new Date()
+					},
+					{
+						id: 'reset-other',
+						userId: 'u-other',
+						tokenHash: 'hash-other',
+						expiresAt: new Date(Date.now() + 3600000),
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Email confirmation tokens
+			db.insert(schema.emailConfirmationTokens)
+				.values([
+					{
+						id: 'email-deletee',
+						userId: 'u-deletee',
+						tokenHash: 'email-hash-deletee',
+						expiresAt: new Date(Date.now() + 3600000),
+						createdAt: new Date()
+					},
+					{
+						id: 'email-other',
+						userId: 'u-other',
+						tokenHash: 'email-hash-other',
+						expiresAt: new Date(Date.now() + 3600000),
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Execute deleteUser action for u-deletee
+			const event = createMockEvent({
+				user: adminUser,
+				formData: { id: 'u-deletee' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.action).toBe('deleteUser');
+			expect(result?.message).toMatch(/user deleted successfully/i);
+
+			// Verify u-deletee is gone from users table
+			const deletedUserInDb = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.id, 'u-deletee'))
+				.get();
+			expect(deletedUserInDb).toBeUndefined();
+
+			// Verify sessions cascaded
+			const deleteeSessions = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.userId, 'u-deletee'))
+				.all();
+			expect(deleteeSessions).toHaveLength(0);
+
+			// Verify passages cascaded
+			const deleteePassages = db
+				.select()
+				.from(schema.passages)
+				.where(eq(schema.passages.userId, 'u-deletee'))
+				.all();
+			expect(deleteePassages).toHaveLength(0);
+
+			// Verify test runs cascaded
+			const deleteeTestRuns = db
+				.select()
+				.from(schema.testRuns)
+				.where(eq(schema.testRuns.userId, 'u-deletee'))
+				.all();
+			expect(deleteeTestRuns).toHaveLength(0);
+
+			// Verify user settings cascaded
+			const deleteeSettings = db
+				.select()
+				.from(schema.userSettings)
+				.where(eq(schema.userSettings.userId, 'u-deletee'))
+				.get();
+			expect(deleteeSettings).toBeUndefined();
+
+			// Verify password reset tokens cascaded
+			const deleteeResetTokens = db
+				.select()
+				.from(schema.passwordResetTokens)
+				.where(eq(schema.passwordResetTokens.userId, 'u-deletee'))
+				.all();
+			expect(deleteeResetTokens).toHaveLength(0);
+
+			// Verify email confirmation tokens cascaded
+			const deleteeEmailTokens = db
+				.select()
+				.from(schema.emailConfirmationTokens)
+				.where(eq(schema.emailConfirmationTokens.userId, 'u-deletee'))
+				.all();
+			expect(deleteeEmailTokens).toHaveLength(0);
+
+			// Verify other user and their records remain intact
+			const otherUserInDb = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.id, 'u-other'))
+				.get();
+			expect(otherUserInDb).toBeDefined();
+
+			const otherSessions = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.userId, 'u-other'))
+				.all();
+			expect(otherSessions).toHaveLength(1);
+
+			const otherPassages = db
+				.select()
+				.from(schema.passages)
+				.where(eq(schema.passages.userId, 'u-other'))
+				.all();
+			expect(otherPassages).toHaveLength(1);
+
+			const otherTestRuns = db
+				.select()
+				.from(schema.testRuns)
+				.where(eq(schema.testRuns.userId, 'u-other'))
+				.all();
+			expect(otherTestRuns).toHaveLength(1);
+
+			const otherSettings = db
+				.select()
+				.from(schema.userSettings)
+				.where(eq(schema.userSettings.userId, 'u-other'))
+				.get();
+			expect(otherSettings).toBeDefined();
+
+			const otherResetTokens = db
+				.select()
+				.from(schema.passwordResetTokens)
+				.where(eq(schema.passwordResetTokens.userId, 'u-other'))
+				.all();
+			expect(otherResetTokens).toHaveLength(1);
+
+			const otherEmailTokens = db
+				.select()
+				.from(schema.emailConfirmationTokens)
+				.where(eq(schema.emailConfirmationTokens.userId, 'u-other'))
+				.all();
+			expect(otherEmailTokens).toHaveLength(1);
+
+			sqlite.close();
+		});
+
+		it('allows deleting an administrator when another administrator remains', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const admin1 = { id: 'admin-1', username: 'admin1', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-1',
+						username: 'admin1',
+						email: 'admin1@example.com',
+						name: 'Admin One',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'admin-2',
+						username: 'admin2',
+						email: 'admin2@example.com',
+						name: 'Admin Two',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			const event = createMockEvent({
+				user: admin1,
+				formData: { id: 'admin-2' }
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.action).toBe('deleteUser');
+
+			const inDb = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.id, 'admin-2'))
+				.get();
+			expect(inDb).toBeUndefined();
+
+			const remainingAdmins = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.role, 'admin'))
+				.all();
+			expect(remainingAdmins).toHaveLength(1);
+			expect(remainingAdmins[0].id).toBe('admin-1');
+
+			sqlite.close();
+		});
+
+		it('enforces single administrator invariant: rejects deletion of sole administrator in transaction', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const admin1 = { id: 'admin-sole', username: 'soleadmin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-sole',
+						username: 'soleadmin',
+						email: 'soleadmin@example.com',
+						name: 'Sole Administrator',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'user-regular',
+						username: 'regular',
+						email: 'regular@example.com',
+						name: 'Regular User',
+						role: 'user',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			const event = createMockEvent({
+				user: admin1,
+				formData: {
+					id: 'admin-sole',
+					confirmSelfDelete: 'true'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.action).toBe('deleteUser');
+			expect(result?.data?.message).toMatch(/sole administrator|at least one administrator/i);
+
+			// Sole administrator must remain in the database intact
+			const inDb = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.id, 'admin-sole'))
+				.get();
+			expect(inDb).toBeDefined();
+			expect(inDb?.role).toBe('admin');
+
+			sqlite.close();
+		});
+
+		it('resilient against race conditions: concurrent deletion of administrators guarantees at least one administrator remains', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-1',
+						username: 'admin1',
+						email: 'admin1@example.com',
+						name: 'Admin One',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'admin-2',
+						username: 'admin2',
+						email: 'admin2@example.com',
+						name: 'Admin Two',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Admin 1 attempts to delete Admin 2, while Admin 2 attempts to delete Admin 1
+			const event1 = createMockEvent({
+				user: { id: 'admin-1', username: 'admin1', role: 'admin' },
+				formData: { id: 'admin-2' }
+			});
+			const event2 = createMockEvent({
+				user: { id: 'admin-2', username: 'admin2', role: 'admin' },
+				formData: { id: 'admin-1' }
+			});
+
+			// Execute both actions concurrently
+			const [result1, result2] = await Promise.all([
+				action(event1 as any) as any,
+				action(event2 as any) as any
+			]);
+
+			const results = [result1, result2];
+			const successCount = results.filter((r) => r?.success === true).length;
+			const failedCount = results.filter((r) => r?.status === 400).length;
+
+			// Exactly one must succeed and one must fail due to sole-admin invariant
+			expect(successCount).toBe(1);
+			expect(failedCount).toBe(1);
+
+			// Check database state: exactly one administrator must remain
+			const remainingAdmins = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.role, 'admin'))
+				.all();
+			expect(remainingAdmins).toHaveLength(1);
+
+			sqlite.close();
+		});
+
+		it('requires explicit confirmation when an administrator deletes their own account', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const admin1 = { id: 'admin-1', username: 'admin1', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-1',
+						username: 'admin1',
+						email: 'admin1@example.com',
+						name: 'Admin One',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'admin-2',
+						username: 'admin2',
+						email: 'admin2@example.com',
+						name: 'Admin Two',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Attempting self-deletion without confirmSelfDelete: 'true'
+			const eventUnconfirmed = createMockEvent({
+				user: admin1,
+				formData: {
+					id: 'admin-1'
+				}
+			});
+
+			const resultUnconfirmed: any = await action(eventUnconfirmed as any);
+			expect(resultUnconfirmed?.status).toBe(400);
+			expect(resultUnconfirmed?.data?.action).toBe('deleteUser');
+			expect(resultUnconfirmed?.data?.requiresConfirmation).toBe(true);
+			expect(resultUnconfirmed?.data?.message).toMatch(/session will terminate immediately/i);
+
+			// Account must remain intact in DB
+			const inDb = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.id, 'admin-1'))
+				.get();
+			expect(inDb).toBeDefined();
+
+			sqlite.close();
+		});
+
+		it('deletes user record, terminates session, clears session cookie, and redirects to /app/login on confirmed self-deletion', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminDeleteUserAction(db);
+			const admin1 = { id: 'admin-1', username: 'admin1', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-1',
+						username: 'admin1',
+						email: 'admin1@example.com',
+						name: 'Admin One',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'admin-2',
+						username: 'admin2',
+						email: 'admin2@example.com',
+						name: 'Admin Two',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			const activeSession = await createSession(db, 'admin-1');
+
+			const event = createMockEvent({
+				user: admin1,
+				formData: {
+					id: 'admin-1',
+					confirmSelfDelete: 'true'
+				}
+			});
+			(event.locals as any).session = activeSession;
+
+			await expect(action(event as any)).rejects.toMatchObject({
+				status: 303,
+				location: '/app/login'
+			});
+
+			// Account must be deleted from DB
+			const inDb = db
+				.select()
+				.from(schema.users)
+				.where(eq(schema.users.id, 'admin-1'))
+				.get();
+			expect(inDb).toBeUndefined();
+
+			// Session must be removed
+			const sessionsInDb = db
+				.select()
+				.from(schema.sessions)
+				.where(eq(schema.sessions.userId, 'admin-1'))
+				.all();
+			expect(sessionsInDb).toHaveLength(0);
+
+			// Session cookie must be deleted
+			expect(event.cookies.delete).toHaveBeenCalledWith(SESSION_COOKIE_NAME, { path: '/' });
+
+			// Locals must be cleared
+			expect(event.locals.user).toBeNull();
+			expect(event.locals.session).toBeNull();
 
 			sqlite.close();
 		});

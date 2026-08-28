@@ -736,4 +736,125 @@ describe('Admin Users Page', () => {
 			screen.getByText(/smtp is not configured on this server/i)
 		).toBeInTheDocument();
 	});
+
+	it('includes a "Delete User" option in each user row action menu', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const deleteOption = screen.getByRole('menuitem', { name: /delete user/i });
+		expect(deleteOption).toBeInTheDocument();
+	});
+
+	it('opens Delete User confirmation modal dialog with permanent removal warning when deleting another user', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const deleteOption = screen.getByRole('menuitem', { name: /delete user/i });
+		await fireEvent.click(deleteOption);
+
+		expect(screen.getByRole('heading', { level: 2, name: /delete user/i })).toBeInTheDocument();
+		expect(
+			screen.getByText(/are you sure you want to delete/i)
+		).toBeInTheDocument();
+		expect(
+			screen.getAllByText(/Jane Doe/i).length
+		).toBeGreaterThan(1);
+
+		// Cancel button closes modal
+		const cancelButton = screen.getByRole('button', { name: /cancel/i });
+		await fireEvent.click(cancelButton);
+
+		expect(screen.queryByRole('heading', { level: 2, name: /delete user/i })).not.toBeInTheDocument();
+	});
+
+	it('displays specific confirmation warning about immediate session termination when deleting own account', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0], // admin-1
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for admin/i });
+		await fireEvent.click(actionBtn);
+
+		const deleteOption = screen.getByRole('menuitem', { name: /delete user/i });
+		await fireEvent.click(deleteOption);
+
+		// Modal should display the specific confirmation warning
+		expect(screen.getByRole('heading', { level: 2, name: /delete user|delete account/i })).toBeInTheDocument();
+		expect(
+			screen.getAllByText(/current session will terminate immediately/i).length
+		).toBeGreaterThan(0);
+	});
+
+	it('redirects to /app/login when confirming self-deletion', async () => {
+		const originalLocation = window.location;
+		delete (window as any).location;
+		window.location = { href: '' } as any;
+
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for admin/i });
+		await fireEvent.click(actionBtn);
+
+		const deleteOption = screen.getByRole('menuitem', { name: /delete user/i });
+		await fireEvent.click(deleteOption);
+
+		const form = document.querySelector('form[action="?/deleteUser"]') as HTMLFormElement;
+		expect(form).not.toBeNull();
+
+		await fireEvent.submit(form);
+
+		expect(window.location.href).toBe('/app/login');
+
+		(window as any).location = originalLocation;
+	});
+
+	it('displays error in Delete User dialog when deleteUser action fails', () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers,
+				smtpConfigured: true
+			} as any,
+			form: {
+				action: 'deleteUser',
+				success: false,
+				message: 'Cannot delete the sole administrator. At least one administrator must remain.',
+				values: { id: 'admin-1' }
+			} as any
+		});
+
+		expect(
+			screen.getByText(/cannot delete the sole administrator/i)
+		).toBeInTheDocument();
+	});
 });

@@ -522,5 +522,124 @@ export function createAdminSendResetLinkAction(
 	};
 }
 
+export function createAdminDeleteUserAction(db: BetterSQLite3Database<typeof schema>) {
+	return async ({ request, locals, cookies }: RequestEvent) => {
+		if (!locals.user) {
+			return fail(401, {
+				success: false as const,
+				action: 'deleteUser' as const,
+				message: 'Unauthorized'
+			});
+		}
+		if (locals.user.role !== 'admin') {
+			return fail(403, {
+				success: false as const,
+				action: 'deleteUser' as const,
+				message: 'Forbidden'
+			});
+		}
+
+		const data = await request.formData();
+		const id = data.get('id')?.toString().trim() ?? '';
+
+		if (!id) {
+			return fail(400, {
+				success: false as const,
+				action: 'deleteUser' as const,
+				message: 'User ID is required'
+			});
+		}
+
+		const targetUser = db
+			.select()
+			.from(schema.users)
+			.where(eq(schema.users.id, id))
+			.get();
+
+		if (!targetUser) {
+			return fail(404, {
+				success: false as const,
+				action: 'deleteUser' as const,
+				message: 'User not found'
+			});
+		}
+
+		const isSelfDelete = targetUser.id === locals.user.id;
+		const confirmSelfDelete = data.get('confirmSelfDelete')?.toString() === 'true';
+
+		if (isSelfDelete && !confirmSelfDelete) {
+			return fail(400, {
+				success: false as const,
+				action: 'deleteUser' as const,
+				requiresConfirmation: true,
+				message: 'Your current session will terminate immediately. Please confirm self-deletion.',
+				values: { id }
+			});
+		}
+
+		try {
+			db.transaction((tx) => {
+				const currentTarget = tx
+					.select()
+					.from(schema.users)
+					.where(eq(schema.users.id, id))
+					.get();
+
+				if (!currentTarget) {
+					throw new Error('USER_NOT_FOUND');
+				}
+
+				if (currentTarget.role === 'admin') {
+					const admins = tx
+						.select({ id: schema.users.id })
+						.from(schema.users)
+						.where(eq(schema.users.role, 'admin'))
+						.all();
+
+					if (admins.length <= 1) {
+						throw new Error('SOLE_ADMIN_DELETION');
+					}
+				}
+
+				tx.delete(schema.users).where(eq(schema.users.id, id)).run();
+			});
+		} catch (err: any) {
+			if (err?.message === 'USER_NOT_FOUND') {
+				return fail(404, {
+					success: false as const,
+					action: 'deleteUser' as const,
+					message: 'User not found'
+				});
+			}
+			if (err?.message === 'SOLE_ADMIN_DELETION') {
+				return fail(400, {
+					success: false as const,
+					action: 'deleteUser' as const,
+					message: 'Cannot delete the sole administrator. At least one administrator must remain.',
+					values: { id }
+				});
+			}
+			throw err;
+		}
+
+		if (isSelfDelete) {
+			if (cookies) {
+				cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+			}
+			locals.user = null;
+			locals.session = null;
+			redirect(303, '/app/login');
+		}
+
+		return {
+			success: true,
+			action: 'deleteUser' as const,
+			message: 'User deleted successfully',
+			deletedUserId: id
+		};
+	};
+}
+
+
 
 

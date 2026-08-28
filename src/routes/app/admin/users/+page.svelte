@@ -10,7 +10,8 @@
 		MoreVerticalIcon,
 		Edit01Icon,
 		Key01Icon,
-		MailSend01Icon
+		MailSend01Icon,
+		Delete01Icon
 	} from '@hugeicons/core-free-icons';
 
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -48,6 +49,10 @@
 	let resetUser = $state<any>(null);
 	let resetUserId = $state('');
 	let resetPasswordValue = $state('');
+
+	let isDeleteDialogOpen = $state(false);
+	let deletingUser = $state<any>(null);
+	let deleteUserId = $state('');
 
 	$effect.pre(() => {
 		if (form?.action === 'createUser' && !form.success) {
@@ -88,6 +93,14 @@
 				resetUser = (data.users ?? []).find((u: any) => u.id === sendForm.values.id) ?? null;
 			}
 		}
+		if (form?.action === 'deleteUser' && !form.success) {
+			isDeleteDialogOpen = true;
+			const deleteForm = form as any;
+			if (deleteForm.values?.id) {
+				deleteUserId = deleteForm.values.id;
+				deletingUser = (data.users ?? []).find((u: any) => u.id === deleteForm.values.id) ?? null;
+			}
+		}
 	});
 
 	function handleGenerateRandomPassword() {
@@ -103,6 +116,12 @@
 
 	function handleGenerateResetPassword() {
 		resetPasswordValue = generateRandomPassword(16);
+	}
+
+	function openDeleteModal(user: any) {
+		deletingUser = user;
+		deleteUserId = user.id;
+		isDeleteDialogOpen = true;
 	}
 
 	function openEditModal(user: any) {
@@ -658,6 +677,99 @@
 				</Dialog.Footer>
 			</Dialog.Content>
 		</Dialog.Root>
+
+		<!-- Delete User Dialog -->
+		<Dialog.Root bind:open={isDeleteDialogOpen}>
+			<Dialog.Content class="sm:max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>
+						{deletingUser?.id === data.user?.id ? 'Delete Account' : 'Delete User'}
+					</Dialog.Title>
+					<Dialog.Description>
+						{#if deletingUser?.id === data.user?.id}
+							<span class="text-destructive font-medium">
+								Warning: Your current session will terminate immediately.
+							</span>
+						{:else}
+							Permanently remove this user account and all associated data.
+						{/if}
+					</Dialog.Description>
+				</Dialog.Header>
+
+				{#if form?.action === 'deleteUser' && !form.success && form.message}
+					<div
+						role="alert"
+						class="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive"
+					>
+						<HugeiconsIcon icon={Alert01Icon} size={16} class="shrink-0" />
+						<span>{form.message}</span>
+					</div>
+				{/if}
+
+				{#if deletingUser?.id === data.user?.id}
+					<div class="space-y-2 text-sm text-muted-foreground">
+						<p>
+							Warning: Your current session will terminate immediately. You are deleting your own account (<span class="font-medium text-foreground">{deletingUser?.name || deletingUser?.username}</span>). You will be logged out and redirected to the login screen.
+						</p>
+						<p>
+							All associated sessions, passages, test runs, settings, and tokens will be permanently removed. This action cannot be undone.
+						</p>
+					</div>
+				{:else}
+					<p class="text-sm text-muted-foreground">
+						Are you sure you want to delete <span class="font-medium text-foreground">{deletingUser?.name || deletingUser?.username}</span>? All associated sessions, passages, test runs, settings, and tokens will be permanently removed. This action cannot be undone.
+					</p>
+				{/if}
+
+				<form
+					method="POST"
+					action="?/deleteUser"
+					use:enhance={() => {
+						const isSelf = deletingUser?.id === data.user?.id;
+						return async ({ result, update }) => {
+							if (result.type === 'redirect') {
+								window.location.href = result.location;
+								return;
+							}
+							if (result.type === 'success') {
+								if (isSelf) {
+									window.location.href = '/app/login';
+									return;
+								}
+								isDeleteDialogOpen = false;
+								deletingUser = null;
+								deleteUserId = '';
+							}
+							await update();
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={deleteUserId} />
+					<input
+						type="hidden"
+						name="confirmSelfDelete"
+						value={deletingUser?.id === data.user?.id ? 'true' : 'false'}
+					/>
+
+					<Dialog.Footer class="pt-4 gap-2 sm:gap-0">
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => {
+								isDeleteDialogOpen = false;
+								deletingUser = null;
+								deleteUserId = '';
+							}}
+						>
+							Cancel
+						</Button>
+						<Button type="submit" variant="destructive">
+							{deletingUser?.id === data.user?.id ? 'Delete Account' : 'Delete User'}
+						</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
 	</div>
 
 	<!-- Registered Users Table -->
@@ -721,6 +833,13 @@
 										<DropdownMenu.Item onclick={() => openResetPasswordModal(user)}>
 											<HugeiconsIcon icon={Key01Icon} size={14} class="mr-2" />
 											Reset Password
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											class="text-destructive focus:text-destructive"
+											onclick={() => openDeleteModal(user)}
+										>
+											<HugeiconsIcon icon={Delete01Icon} size={14} class="mr-2" />
+											Delete User
 										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>

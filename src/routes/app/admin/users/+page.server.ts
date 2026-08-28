@@ -4,7 +4,8 @@ import {
 	createAdminCreateUserAction,
 	createAdminUpdateUserAction,
 	createAdminResetPasswordAction,
-	createAdminSendResetLinkAction
+	createAdminSendResetLinkAction,
+	createAdminDeleteUserAction
 } from './admin-users-actions';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -14,5 +15,6 @@ export const actions: Actions = {
 	createUser: createAdminCreateUserAction(db),
 	updateUser: createAdminUpdateUserAction(db),
 	resetPassword: createAdminResetPasswordAction(db),
-	sendResetLink: createAdminSendResetLinkAction(db)
+	sendResetLink: createAdminSendResetLinkAction(db),
+	deleteUser: createAdminDeleteUserAction(db)
 };
