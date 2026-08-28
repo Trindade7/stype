@@ -97,4 +97,44 @@ describe('PerformanceChart', () => {
 		expect(tooltip).toHaveTextContent('90 WPM');
 		expect(tooltip).toHaveTextContent(/Jan 20, 2025/i);
 	});
+
+	it('uses semantic theme tokens for trend lines, points, and tooltips rather than raw palette colors', () => {
+		const runs: PerformanceRun[] = [
+			{ id: 1, wpm: 75, accuracy: 97, mode: 'passage', createdAt: '2025-01-05T08:00:00Z' }
+		];
+
+		const { container } = render(PerformanceChart, { runs });
+
+		// Legend dots
+		const speedDot = container.querySelector('.bg-success');
+		const accDot = container.querySelector('.bg-chart-2');
+		expect(speedDot).toBeInTheDocument();
+		expect(accDot).toBeInTheDocument();
+		expect(container.querySelector('.bg-emerald-500')).not.toBeInTheDocument();
+		expect(container.querySelector('.bg-sky-500')).not.toBeInTheDocument();
+
+		// Lines
+		const wpmLine = container.querySelector('path[data-testid="wpm-line"]');
+		const accLine = container.querySelector('path[data-testid="accuracy-line"]');
+		expect(wpmLine).toHaveClass('text-success', 'stroke-success');
+		expect(wpmLine?.getAttribute('stroke')).toBe('currentColor');
+		expect(wpmLine?.getAttribute('stroke')).not.toBe('#10b981');
+
+		expect(accLine).toHaveClass('text-chart-2', 'stroke-chart-2');
+		expect(accLine?.getAttribute('stroke')).toBe('currentColor');
+		expect(accLine?.getAttribute('stroke')).not.toBe('#38bdf8');
+
+		// Points
+		const wpmPoint = container.querySelector('circle.text-success.fill-success');
+		const accPoint = container.querySelector('circle.text-chart-2.fill-chart-2');
+		expect(wpmPoint).toBeInTheDocument();
+		expect(accPoint).toBeInTheDocument();
+
+		// Gradient
+		const stops = container.querySelectorAll('linearGradient stop');
+		expect(stops.length).toBeGreaterThan(0);
+		stops.forEach((stop) => {
+			expect(stop.getAttribute('stop-color')).toBe('var(--color-success)');
+		});
+	});
 });

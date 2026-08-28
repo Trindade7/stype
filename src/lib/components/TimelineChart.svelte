@@ -73,39 +73,39 @@
 	<div class="flex items-center justify-between px-1 text-xs font-semibold">
 		<div class="flex items-center gap-5">
 			<div class="flex items-center gap-2">
-				<span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-				<span class="text-zinc-300">Speed (WPM)</span>
+				<span class="inline-block h-2.5 w-2.5 rounded-full bg-success"></span>
+				<span class="text-foreground">Speed (WPM)</span>
 			</div>
 			<div class="flex items-center gap-2">
-				<span class="inline-block h-2.5 w-2.5 rounded-full bg-sky-400"></span>
-				<span class="text-zinc-400">Accuracy (%)</span>
+				<span class="inline-block h-2.5 w-2.5 rounded-full bg-chart-2"></span>
+				<span class="text-muted-foreground">Accuracy (%)</span>
 			</div>
 		</div>
 
 		{#if activeSnapshot}
-			<div class="flex items-center gap-4 font-mono text-xs bg-zinc-800/80 px-2.5 py-1 rounded border border-zinc-700/60 animate-in fade-in duration-150">
-				<span class="text-zinc-400">{activeSnapshot.second}s</span>
-				<span class="text-emerald-400 font-bold">{activeSnapshot.wpm} WPM</span>
-				<span class="text-sky-400 font-bold">{activeSnapshot.accuracy}%</span>
+			<div class="flex items-center gap-4 font-mono text-xs bg-muted px-2.5 py-1 rounded border border-border animate-in fade-in duration-150">
+				<span class="text-muted-foreground">{activeSnapshot.second}s</span>
+				<span class="text-success font-bold">{activeSnapshot.wpm} WPM</span>
+				<span class="text-chart-2 font-bold">{activeSnapshot.accuracy}%</span>
 			</div>
 		{/if}
 	</div>
 
 	{#if snapshots.length === 0}
-		<div class="flex h-48 w-full items-center justify-center rounded-lg border border-dashed border-zinc-800 bg-zinc-900/30 text-xs text-zinc-500 font-mono">
+		<div class="flex h-48 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-xs text-muted-foreground font-mono">
 			No timeline data available
 		</div>
 	{:else}
 		<!-- Chart Container -->
-		<div class="relative w-full rounded-lg bg-zinc-900/40 p-2 border border-zinc-800/60 overflow-hidden">
+		<div class="relative w-full rounded-lg bg-card p-2 border border-border overflow-hidden">
 			<svg
 				viewBox="0 0 {width} {height}"
 				class="w-full h-auto overflow-visible select-none"
 			>
 				<defs>
 					<linearGradient id="wpm-area-gradient" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="0%" stop-color="#34d399" stop-opacity="0.25" />
-						<stop offset="100%" stop-color="#34d399" stop-opacity="0.0" />
+						<stop offset="0%" stop-color="var(--color-success)" stop-opacity="0.25" />
+						<stop offset="100%" stop-color="var(--color-success)" stop-opacity="0.0" />
 					</linearGradient>
 				</defs>
 
@@ -120,7 +120,7 @@
 						x2={width - padding.right}
 						y2={y}
 						stroke="currentColor"
-						class="text-zinc-800/80 stroke-1 stroke-dasharray-2"
+						class="text-border stroke-1"
 						stroke-dasharray={level === 0 ? undefined : '3,3'}
 					/>
 					<!-- Left Label: WPM -->
@@ -128,7 +128,7 @@
 						x={padding.left - 8}
 						y={y + 3}
 						text-anchor="end"
-						class="fill-zinc-500 font-mono text-[10px]"
+						class="fill-muted-foreground font-mono text-[10px]"
 					>
 						{wpmVal}
 					</text>
@@ -137,7 +137,7 @@
 						x={width - padding.right + 8}
 						y={y + 3}
 						text-anchor="start"
-						class="fill-zinc-500 font-mono text-[10px]"
+						class="fill-muted-foreground font-mono text-[10px]"
 					>
 						{accVal}%
 					</text>
@@ -154,8 +154,8 @@
 						data-testid="accuracy-line"
 						d={accPath}
 						fill="none"
-						stroke="#38bdf8"
-						stroke-width="2"
+						stroke="currentColor"
+						class="text-chart-2 stroke-chart-2 stroke-2"
 						stroke-linejoin="round"
 						stroke-linecap="round"
 						opacity="0.75"
@@ -168,8 +168,8 @@
 						data-testid="wpm-line"
 						d={wpmPath}
 						fill="none"
-						stroke="#34d399"
-						stroke-width="2.5"
+						stroke="currentColor"
+						class="text-success stroke-success stroke-[2.5]"
 						stroke-linejoin="round"
 						stroke-linecap="round"
 					/>
@@ -182,7 +182,8 @@
 						y1={padding.top}
 						x2={wpmPoints[hoveredIndex].x}
 						y2={padding.top + plotHeight}
-						stroke="#a1a1aa"
+						stroke="currentColor"
+						class="text-muted-foreground"
 						stroke-width="1"
 						stroke-dasharray="2,2"
 						opacity="0.6"
@@ -195,8 +196,8 @@
 						cx={pt.x}
 						cy={pt.y}
 						r={hoveredIndex === i ? 4 : 2.5}
-						fill="#38bdf8"
-						class="transition-all duration-150"
+						fill="currentColor"
+						class="text-chart-2 fill-chart-2 transition-all duration-150"
 					/>
 				{/each}
 
@@ -205,8 +206,8 @@
 						cx={pt.x}
 						cy={pt.y}
 						r={hoveredIndex === i ? 5 : 3}
-						fill="#34d399"
-						class="transition-all duration-150"
+						fill="currentColor"
+						class="text-success fill-success transition-all duration-150"
 					/>
 				{/each}
 
@@ -223,7 +224,7 @@
 							x={getX(i)}
 							y={height - 8}
 							text-anchor="middle"
-							class="fill-zinc-500 font-mono text-[10px]"
+							class="fill-muted-foreground font-mono text-[10px]"
 						>
 							{snap.second}s
 						</text>

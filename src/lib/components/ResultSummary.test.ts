@@ -107,10 +107,10 @@ describe('ResultSummary Component', () => {
 		expect(retryBtn).toBeInTheDocument();
 
 		// Next Passage is primary
-		expect(nextBtn).toHaveClass('bg-zinc-100', 'text-zinc-900');
+		expect(nextBtn).toHaveClass('bg-primary', 'text-primary-foreground');
 
 		// Retry is secondary outline
-		expect(retryBtn).toHaveClass('border', 'border-zinc-700', 'bg-transparent');
+		expect(retryBtn).toHaveClass('border', 'border-border', 'bg-transparent');
 
 		// Shortcut hints
 		expect(nextBtn.textContent).toContain('Tab');
@@ -170,5 +170,75 @@ describe('ResultSummary Component', () => {
 
 		expect(onRetry).toHaveBeenCalledTimes(1);
 		expect(preventDefaultSpy).toHaveBeenCalled();
+	});
+
+	it('renders semantic theme tokens for cards, metrics, and actions without raw palette classes', () => {
+		const { container } = render(ResultSummary, {
+			wpm: 85,
+			accuracy: 98,
+			timeElapsed: 25,
+			onNextPassage: vi.fn(),
+			onRetry: vi.fn()
+		});
+
+		// Header icon and title
+		const checkIcon = container.querySelector('i.bi-check-circle-fill');
+		expect(checkIcon?.parentElement).toHaveClass('text-success');
+		expect(checkIcon?.parentElement).not.toHaveClass('text-emerald-400');
+
+		const title = screen.getByText('Passage Complete');
+		expect(title).toHaveClass('text-foreground');
+		expect(title).not.toHaveClass('text-zinc-100');
+
+		// Metric cards
+		const cards = container.querySelectorAll('.grid > div');
+		expect(cards.length).toBe(3);
+		cards.forEach((card) => {
+			expect(card).toHaveClass('bg-muted/50', 'border', 'border-border');
+			expect(card).not.toHaveClass('bg-zinc-800/50', 'border-zinc-700/50');
+		});
+
+		// Labels
+		const speedLabel = screen.getByText('Speed');
+		expect(speedLabel).toHaveClass('text-muted-foreground');
+		expect(speedLabel).not.toHaveClass('text-zinc-500');
+
+		// Speed value & unit
+		const speedSpan = screen.getByText('85').closest('span');
+		expect(speedSpan).toHaveClass('text-success');
+		expect(speedSpan).not.toHaveClass('text-emerald-400');
+		const wpmUnit = screen.getByText('WPM');
+		expect(wpmUnit).toHaveClass('text-success/70');
+		expect(wpmUnit).not.toHaveClass('text-emerald-500/50');
+
+		// Accuracy & Time values
+		const accSpan = screen.getByText('98').closest('span');
+		expect(accSpan).toHaveClass('text-foreground');
+		expect(accSpan).not.toHaveClass('text-zinc-100');
+
+		const timeSpan = screen.getByText('25').closest('span');
+		expect(timeSpan).toHaveClass('text-foreground');
+		expect(timeSpan).not.toHaveClass('text-zinc-100');
+
+		// Buttons
+		const nextBtn = screen.getByRole('button', { name: /next passage/i });
+		const retryBtn = screen.getByRole('button', { name: /retry/i });
+		expect(nextBtn).toHaveClass('bg-primary', 'text-primary-foreground');
+		expect(nextBtn).not.toHaveClass('bg-zinc-100', 'text-zinc-900');
+		expect(retryBtn).toHaveClass('border-border', 'hover:bg-secondary');
+		expect(retryBtn).not.toHaveClass('border-zinc-700', 'hover:bg-zinc-800');
+	});
+
+	it('renders saving indicator using semantic muted-foreground class', () => {
+		const { container } = render(ResultSummary, {
+			wpm: 60,
+			accuracy: 100,
+			timeElapsed: 15,
+			isSaving: true
+		});
+
+		const savingEl = screen.getByText('Saving results...');
+		expect(savingEl).toHaveClass('text-muted-foreground');
+		expect(savingEl).not.toHaveClass('text-zinc-400');
 	});
 });

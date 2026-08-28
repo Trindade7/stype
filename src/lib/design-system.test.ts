@@ -151,4 +151,40 @@ describe('Design System and Theme Configuration', () => {
 			/(?:button:disabled|\[role=['"]?button['"]?\]:disabled|\[role=['"]?button['"]?\]\[aria-disabled=['"]?true['"]?\]|a\[aria-disabled=['"]?true['"]?\])[^;{}]*\{\s*cursor:\s*not-allowed;/s
 		);
 	});
+
+	it('configures chart tokens in app.css with high-contrast legibility in light mode and registers them in theme inline', () => {
+		const cssPath = path.resolve(process.cwd(), 'src/app.css');
+		const css = fs.readFileSync(cssPath, 'utf8');
+
+		const rootMatch = css.match(/:root\s*\{([^}]+)\}/);
+		expect(rootMatch).not.toBeNull();
+		const rootBlock = rootMatch![1];
+
+		const darkMatch = css.match(/\.dark\s*\{([^}]+)\}/);
+		expect(darkMatch).not.toBeNull();
+		const darkBlock = darkMatch![1];
+
+		const themeMatch = css.match(/@theme inline\s*\{([^}]+)\}/);
+		expect(themeMatch).not.toBeNull();
+		const themeBlock = themeMatch![1];
+
+		// In light mode, chart lines must have sufficient darkness (lightness <= 0.65) for contrast on white
+		const chart1Match = rootBlock.match(/--chart-1:\s*oklch\(\s*([\d.]+)/);
+		expect(chart1Match).not.toBeNull();
+		const chart1Lightness = parseFloat(chart1Match![1]);
+		expect(chart1Lightness).toBeLessThanOrEqual(0.65);
+
+		const chart2Match = rootBlock.match(/--chart-2:\s*oklch\(\s*([\d.]+)/);
+		expect(chart2Match).not.toBeNull();
+		const chart2Lightness = parseFloat(chart2Match![1]);
+		expect(chart2Lightness).toBeLessThanOrEqual(0.65);
+
+		// Dark mode has chart tokens defined
+		expect(darkBlock).toContain('--chart-1:');
+		expect(darkBlock).toContain('--chart-2:');
+
+		// @theme inline registers chart colors
+		expect(themeBlock).toContain('--color-chart-1: var(--chart-1);');
+		expect(themeBlock).toContain('--color-chart-2: var(--chart-2);');
+	});
 });

@@ -140,11 +140,11 @@
 	<div class="flex items-center justify-between px-1 text-xs font-semibold">
 		<div class="flex items-center gap-5">
 			<div class="flex items-center gap-2">
-				<span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+				<span class="inline-block h-2.5 w-2.5 rounded-full bg-success"></span>
 				<span class="text-foreground">Speed (WPM)</span>
 			</div>
 			<div class="flex items-center gap-2">
-				<span class="inline-block h-2.5 w-2.5 rounded-full bg-sky-500"></span>
+				<span class="inline-block h-2.5 w-2.5 rounded-full bg-chart-2"></span>
 				<span class="text-muted-foreground">Accuracy (%)</span>
 			</div>
 		</div>
@@ -158,8 +158,8 @@
 				<span class="text-xs font-medium px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase">
 					{formatMode(activeRun.mode)}
 				</span>
-				<span class="text-emerald-500 dark:text-emerald-400 font-bold">{activeRun.wpm} WPM</span>
-				<span class="text-sky-500 dark:text-sky-400 font-bold">{activeRun.accuracy}%</span>
+				<span class="text-success font-bold">{activeRun.wpm} WPM</span>
+				<span class="text-chart-2 font-bold">{activeRun.accuracy}%</span>
 			</div>
 		{/if}
 	</div>
@@ -180,8 +180,8 @@
 			>
 				<defs>
 					<linearGradient id="perf-wpm-gradient" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="0%" stop-color="#10b981" stop-opacity="0.25" />
-						<stop offset="100%" stop-color="#10b981" stop-opacity="0.0" />
+						<stop offset="0%" stop-color="var(--color-success)" stop-opacity="0.25" />
+						<stop offset="100%" stop-color="var(--color-success)" stop-opacity="0.0" />
 					</linearGradient>
 				</defs>
 
@@ -230,8 +230,8 @@
 						data-testid="accuracy-line"
 						d={accPath}
 						fill="none"
-						stroke="#38bdf8"
-						stroke-width="2"
+						stroke="currentColor"
+						class="text-chart-2 stroke-chart-2 stroke-2"
 						stroke-linejoin="round"
 						stroke-linecap="round"
 						opacity="0.8"
@@ -244,8 +244,8 @@
 						data-testid="wpm-line"
 						d={wpmPath}
 						fill="none"
-						stroke="#10b981"
-						stroke-width="2.5"
+						stroke="currentColor"
+						class="text-success stroke-success stroke-[2.5]"
 						stroke-linejoin="round"
 						stroke-linecap="round"
 					/>
@@ -272,8 +272,8 @@
 						cx={pt.x}
 						cy={pt.y}
 						r={hoveredIndex === i ? 4 : 2.5}
-						fill="#38bdf8"
-						class="transition-all duration-150"
+						fill="currentColor"
+						class="text-chart-2 fill-chart-2 transition-all duration-150"
 					/>
 				{/each}
 
@@ -283,8 +283,8 @@
 						cx={pt.x}
 						cy={pt.y}
 						r={hoveredIndex === i ? 5 : 3}
-						fill="#10b981"
-						class="transition-all duration-150"
+						fill="currentColor"
+						class="text-success fill-success transition-all duration-150"
 					/>
 				{/each}
 

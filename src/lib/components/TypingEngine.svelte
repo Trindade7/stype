@@ -440,28 +440,28 @@
 	<!-- Toolbar -->
 	<div 
 		data-testid="toolbar"
-		class="shrink-0 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-zinc-500 mb-[-0.5rem] transition-opacity duration-200 {startTime || isFinished ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
+		class="shrink-0 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm font-semibold text-muted-foreground mb-[-0.5rem] transition-opacity duration-200 {startTime || isFinished ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
 	>
-		<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
+		<div class="flex items-center gap-2 bg-muted/50 rounded-lg p-1 border border-border">
 			<button 
-				class="px-3 py-1 rounded-md transition-colors {mode === 'passage' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+				class="px-3 py-1 rounded-md transition-colors {mode === 'passage' ? 'bg-secondary text-secondary-foreground shadow-xs' : 'hover:text-foreground'}"
 				onclick={() => { mode = 'passage'; focusInput(); }}
 			>
 				Passage
 			</button>
 			<button 
-				class="px-3 py-1 rounded-md transition-colors {mode === 'timed' ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+				class="px-3 py-1 rounded-md transition-colors {mode === 'timed' ? 'bg-secondary text-secondary-foreground shadow-xs' : 'hover:text-foreground'}"
 				onclick={() => { mode = 'timed'; focusInput(); }}
 			>
 				Timed
 			</button>
 		</div>
 		
-		<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50 transition-opacity {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}">
+		<div class="flex items-center gap-2 bg-muted/50 rounded-lg p-1 border border-border transition-opacity {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}">
 			{#each [15, 30, 60] as limit}
 				<button 
 					disabled={mode === 'passage'}
-					class="px-3 py-1 rounded-md transition-colors {timeLimit === limit ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'} {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}"
+					class="px-3 py-1 rounded-md transition-colors {timeLimit === limit ? 'bg-secondary text-secondary-foreground shadow-xs' : 'hover:text-foreground'} {mode === 'passage' ? 'opacity-50 pointer-events-none' : ''}"
 					onclick={() => { 
 						if (mode === 'passage') return;
 						timeLimit = limit; 
@@ -473,9 +473,9 @@
 			{/each}
 		</div>
 
-		<div class="flex items-center gap-2 bg-zinc-900/50 rounded-lg p-1 border border-zinc-800/50">
+		<div class="flex items-center gap-2 bg-muted/50 rounded-lg p-1 border border-border">
 			<button 
-				class="flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors {zenMode ? 'bg-zinc-800 text-zinc-100' : 'hover:text-zinc-300'}"
+				class="flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors {zenMode ? 'bg-secondary text-secondary-foreground shadow-xs' : 'hover:text-foreground'}"
 				onclick={() => { zenMode = !zenMode; focusInput(); }}
 				title="Zen Mode: Hide live HUD metrics during active typing"
 			>
@@ -488,21 +488,21 @@
 	<!-- HUD -->
 	<div 
 		data-testid="hud"
-		class="shrink-0 flex items-center justify-between text-zinc-400 font-mono text-sm px-2 transition-opacity duration-200 {isFinished || (zenMode && startTime) ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
+		class="shrink-0 flex items-center justify-between text-muted-foreground font-mono text-sm px-2 transition-opacity duration-200 {isFinished || (zenMode && startTime) ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
 	>
 		<div class="flex gap-6">
 			<div class="flex flex-col">
-				<span class="uppercase text-xs font-semibold text-zinc-500">WPM</span>
-				<span class="text-2xl font-bold text-zinc-100">{wpm}</span>
+				<span class="uppercase text-xs font-semibold text-muted-foreground">WPM</span>
+				<span class="text-2xl font-bold text-foreground">{wpm}</span>
 			</div>
 			<div class="flex flex-col">
-				<span class="uppercase text-xs font-semibold text-zinc-500">ACC</span>
-				<span class="text-2xl font-bold text-zinc-100">{accuracy}%</span>
+				<span class="uppercase text-xs font-semibold text-muted-foreground">ACC</span>
+				<span class="text-2xl font-bold text-foreground">{accuracy}%</span>
 			</div>
 		</div>
 		<div class="flex flex-col items-end">
-			<span class="uppercase text-xs font-semibold text-zinc-500">Time</span>
-			<span class="text-2xl font-bold text-zinc-100">
+			<span class="uppercase text-xs font-semibold text-muted-foreground">Time</span>
+			<span class="text-2xl font-bold text-foreground">
 				{#if mode === 'timed'}
 					{Math.max(0, timeLimit - Math.floor(timeElapsed))}s
 				{:else}
@@ -516,7 +516,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div 
-		class="relative rounded-xl bg-zinc-900/50 p-6 sm:p-8 shadow-inner border transition-colors duration-200 flex flex-col min-h-0 max-h-full overflow-hidden shrink {isFocused ? 'border-zinc-700' : 'border-zinc-800/40'}"
+		class="relative rounded-xl bg-card p-6 sm:p-8 shadow-inner border transition-colors duration-200 flex flex-col min-h-0 max-h-full overflow-hidden shrink {isFocused ? 'border-border' : 'border-border/40'}"
 		onclick={focusInput}
 	>
 		{#if !isFinished}
@@ -550,7 +550,7 @@
 			/>
 
 			<div bind:this={scrollContainerEl} data-scroll-mode={scrollMode} class="flex-1 min-h-0 overflow-y-auto pr-1">
-				<div class="font-mono text-2xl leading-relaxed tracking-wide text-zinc-500 pointer-events-none select-none break-words whitespace-pre-wrap">
+				<div class="font-mono text-2xl leading-relaxed tracking-wide text-typing-untyped pointer-events-none select-none break-words whitespace-pre-wrap">
 					{#each chars as char, i}
 						{@const typedChar = typedText[i]}
 						{@const isCorrect = typedChar === char}
@@ -559,13 +559,13 @@
 						<span
 							data-char-index={i}
 							data-current={isCurrent ? 'true' : undefined}
-							class="relative transition-colors duration-75 {isCorrect ? 'text-zinc-100' : isIncorrect ? 'text-red-400 bg-red-400/10 rounded-sm' : ''} {isCurrent ? (isFocused ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-emerald-400 after:animate-pulse' : 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-zinc-600') : ''}"
+							class="relative transition-colors duration-75 {isCorrect ? 'text-typing-correct' : isIncorrect ? 'text-typing-error bg-typing-error/10 rounded-sm' : ''} {isCurrent ? (isFocused ? 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-typing-caret after:animate-pulse' : 'after:content-[\'\'] after:absolute after:left-0 after:-bottom-1 after:w-full after:h-0.5 after:bg-muted-foreground') : ''}"
 						>{char}</span>
 					{/each}
 				</div>
 				
 				{#if passage.source}
-					<div class="mt-4 text-right text-sm text-zinc-500 italic">
+					<div class="mt-4 text-right text-sm text-muted-foreground italic">
 						— {passage.source}
 					</div>
 				{/if}
@@ -588,10 +588,10 @@
 	<!-- Controls -->
 	<div 
 		data-testid="bottom-controls"
-		class="shrink-0 flex justify-center gap-4 text-zinc-500 transition-opacity duration-200 {startTime || isFinished ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
+		class="shrink-0 flex justify-center gap-4 text-muted-foreground transition-opacity duration-200 {startTime || isFinished ? 'opacity-0 pointer-events-none' : 'opacity-100'}"
 	>
 		<button 
-			class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
+			class="flex items-center gap-2 hover:text-foreground transition-colors px-3 py-2 rounded-md hover:bg-secondary"
 			onclick={reset}
 			title="Restart Test (Esc)"
 		>
@@ -599,7 +599,7 @@
 			<span class="text-sm font-semibold">Restart (Esc)</span>
 		</button>
 		<button 
-			class="flex items-center gap-2 hover:text-zinc-300 transition-colors px-3 py-2 rounded-md hover:bg-zinc-800/50"
+			class="flex items-center gap-2 hover:text-foreground transition-colors px-3 py-2 rounded-md hover:bg-secondary"
 			onclick={loadNewPassage}
 			title="Next Passage (Tab)"
 		>

@@ -73,7 +73,7 @@ describe('TypingEngine', () => {
 
 		// Clicking a disabled duration button should not update duration or cause state change
 		await fireEvent.click(btn60);
-		expect(btn60).not.toHaveClass('bg-zinc-800 text-zinc-100');
+		expect(btn60).not.toHaveClass('bg-secondary', 'text-secondary-foreground');
 	});
 
 	it('enables duration buttons when switching from passage to timed mode', async () => {
@@ -92,7 +92,7 @@ describe('TypingEngine', () => {
 		expect(btn60).not.toHaveClass('opacity-50', 'pointer-events-none');
 
 		await fireEvent.click(btn60);
-		expect(btn60).toHaveClass('bg-zinc-800 text-zinc-100');
+		expect(btn60).toHaveClass('bg-secondary', 'text-secondary-foreground');
 	});
 
 	it('keeps top toolbar mounted with zero opacity and disabled pointer events during active typing, restoring on reset', async () => {
@@ -315,7 +315,7 @@ describe('TypingEngine', () => {
 		expect(document.activeElement).toBe(input);
 
 		const typingArea = input.closest('div[class*="rounded-xl"]');
-		expect(typingArea).toHaveClass('border-zinc-700');
+		expect(typingArea).toHaveClass('border-border');
 	});
 
 	it('refocuses input when window receives focus event', async () => {
@@ -339,16 +339,16 @@ describe('TypingEngine', () => {
 		const typingArea = input.closest('div[class*="rounded-xl"]')!;
 
 		// Initially focused on mount (undimmed)
-		expect(typingArea).toHaveClass('border-zinc-700');
+		expect(typingArea).toHaveClass('border-border');
 
 		// Blur input (dimmed)
 		await fireEvent.blur(input);
-		expect(typingArea).not.toHaveClass('border-zinc-700');
-		expect(typingArea).toHaveClass('border-zinc-800/40');
+		expect(typingArea).not.toHaveClass('border-border');
+		expect(typingArea).toHaveClass('border-border/40');
 
 		// Refocus input (undimmed)
 		await fireEvent.focus(input);
-		expect(typingArea).toHaveClass('border-zinc-700');
+		expect(typingArea).toHaveClass('border-border');
 	});
 
 	it('retains default non-pointer cursor on the invisible character capture input', () => {
@@ -391,7 +391,7 @@ describe('TypingEngine', () => {
 
 		// Explicitly blur the input
 		await fireEvent.blur(input);
-		expect(typingArea).not.toHaveClass('border-zinc-700');
+		expect(typingArea).not.toHaveClass('border-border');
 
 		// Press 'H' globally while blurred
 		await fireEvent.keyDown(window, { key: 'H' });
@@ -399,7 +399,7 @@ describe('TypingEngine', () => {
 		// Input should refocus and capture 'H'
 		expect(document.activeElement).toBe(input);
 		expect(input.value).toBe('H');
-		expect(typingArea).toHaveClass('border-zinc-700');
+		expect(typingArea).toHaveClass('border-border');
 	});
 
 	it('refocuses typing engine and handles backspace when blurred', async () => {
@@ -414,7 +414,7 @@ describe('TypingEngine', () => {
 
 		// Blur input
 		await fireEvent.blur(input);
-		expect(typingArea).not.toHaveClass('border-zinc-700');
+		expect(typingArea).not.toHaveClass('border-border');
 
 		// Press Backspace on window
 		await fireEvent.keyDown(window, { key: 'Backspace' });
@@ -422,7 +422,7 @@ describe('TypingEngine', () => {
 		// Input should refocus and value should be 'H'
 		expect(document.activeElement).toBe(input);
 		expect(input.value).toBe('H');
-		expect(typingArea).toHaveClass('border-zinc-700');
+		expect(typingArea).toHaveClass('border-border');
 	});
 
 	it('does not steal keystrokes when focus is inside another editable element', async () => {
@@ -1150,6 +1150,125 @@ describe('TypingEngine', () => {
 			// The snapshots should only reflect the new run, not the abandoned run
 			expect(savedResult.timelineSnapshots.length).toBeGreaterThanOrEqual(1);
 			expect(savedResult.timelineSnapshots[0].second).toBe(1);
+		});
+	});
+
+	describe('Semantic Theme Tokens and Contrast', () => {
+		it('renders untyped passage text with text-typing-untyped rather than raw palette classes', () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test Book' };
+			const { container } = render(TypingEngine, { passage });
+
+			const passageContainer = container.querySelector('[data-scroll-mode] > div');
+			expect(passageContainer).toHaveClass('text-typing-untyped');
+			expect(passageContainer).not.toHaveClass('text-zinc-500');
+
+			const sourceEl = screen.getByText('— Test Book');
+			expect(sourceEl).toHaveClass('text-muted-foreground');
+			expect(sourceEl).not.toHaveClass('text-zinc-500');
+		});
+
+		it('renders correctly typed characters with text-typing-correct rather than text-zinc-100', async () => {
+			const passage = { id: 1, text: 'Hello', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			const firstChar = container.querySelector('[data-char-index="0"]') as HTMLElement;
+			expect(firstChar).toHaveClass('text-typing-correct');
+			expect(firstChar).not.toHaveClass('text-zinc-100');
+		});
+
+		it('renders incorrectly typed characters with text-typing-error and bg-typing-error/10 rather than raw red classes', async () => {
+			const passage = { id: 1, text: 'Hello', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'X' } });
+
+			const firstChar = container.querySelector('[data-char-index="0"]') as HTMLElement;
+			expect(firstChar).toHaveClass('text-typing-error', 'bg-typing-error/10');
+			expect(firstChar).not.toHaveClass('text-red-400', 'bg-red-400/10');
+		});
+
+		it('renders the active typing caret with after:bg-typing-caret when focused and after:bg-muted-foreground when blurred', async () => {
+			const passage = { id: 1, text: 'Hello', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			const firstChar = container.querySelector('[data-char-index="0"]') as HTMLElement;
+
+			// Focused state
+			expect(firstChar.className).toContain('after:bg-typing-caret');
+			expect(firstChar.className).not.toContain('after:bg-emerald-400');
+
+			// Blurred state
+			await fireEvent.blur(input);
+			expect(firstChar.className).toContain('after:bg-muted-foreground');
+			expect(firstChar.className).not.toContain('after:bg-zinc-600');
+		});
+
+		it('renders the typing container with theme surface bg-card and border-border rather than dark palette classes', () => {
+			const passage = { id: 1, text: 'Hello', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			const typingArea = input.closest('div[class*="rounded-xl"]')!;
+
+			expect(typingArea).toHaveClass('bg-card', 'border-border');
+			expect(typingArea).not.toHaveClass('bg-zinc-900/50', 'border-zinc-700');
+		});
+
+		it('renders toolbar, HUD metrics, and bottom control buttons with semantic theme tokens rather than raw palette classes', () => {
+			const passage = { id: 1, text: 'Hello', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			// Toolbar
+			const toolbar = screen.getByTestId('toolbar');
+			expect(toolbar).toHaveClass('text-muted-foreground');
+			expect(toolbar).not.toHaveClass('text-zinc-500');
+
+			const segmentedWrappers = toolbar.querySelectorAll('.rounded-lg.p-1');
+			segmentedWrappers.forEach((wrap) => {
+				expect(wrap).toHaveClass('bg-muted/50', 'border-border');
+				expect(wrap).not.toHaveClass('bg-zinc-900/50', 'border-zinc-800/50');
+			});
+
+			const activePassageBtn = screen.getByRole('button', { name: 'Passage' });
+			expect(activePassageBtn).toHaveClass('bg-secondary', 'text-secondary-foreground');
+			expect(activePassageBtn).not.toHaveClass('bg-zinc-800', 'text-zinc-100');
+
+			const inactiveTimedBtn = screen.getByRole('button', { name: 'Timed' });
+			expect(inactiveTimedBtn).toHaveClass('hover:text-foreground');
+			expect(inactiveTimedBtn).not.toHaveClass('hover:text-zinc-300');
+
+			// HUD
+			const hud = screen.getByTestId('hud');
+			expect(hud).toHaveClass('text-muted-foreground');
+			expect(hud).not.toHaveClass('text-zinc-400');
+
+			const hudLabels = hud.querySelectorAll('span.uppercase');
+			hudLabels.forEach((label) => {
+				expect(label).toHaveClass('text-muted-foreground');
+				expect(label).not.toHaveClass('text-zinc-500');
+			});
+
+			const hudValues = hud.querySelectorAll('span.text-2xl');
+			hudValues.forEach((val) => {
+				expect(val).toHaveClass('text-foreground');
+				expect(val).not.toHaveClass('text-zinc-100');
+			});
+
+			// Bottom controls
+			const bottomControls = screen.getByTestId('bottom-controls');
+			expect(bottomControls).toHaveClass('text-muted-foreground');
+			expect(bottomControls).not.toHaveClass('text-zinc-500');
+
+			const controlButtons = bottomControls.querySelectorAll('button');
+			controlButtons.forEach((btn) => {
+				expect(btn).toHaveClass('hover:text-foreground', 'hover:bg-secondary');
+				expect(btn).not.toHaveClass('hover:text-zinc-300', 'hover:bg-zinc-800/50');
+			});
 		});
 	});
 });
