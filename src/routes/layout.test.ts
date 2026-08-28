@@ -30,7 +30,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-1', username: 'testuser', email: 'test@stype.local', name: 'Test User', role: 'user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-1', username: 'testuser', email: 'test@stype.local', name: 'Test User', role: 'user', emailConfirmed: true, createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -51,7 +51,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-2', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', role: 'user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-2', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', role: 'user', emailConfirmed: true, createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -78,6 +78,7 @@ describe('App Layout Shell', () => {
 					email: 'admin@stype.local',
 					name: 'Admin User',
 					role: 'admin',
+					emailConfirmed: true,
 					createdAt: new Date()
 				},
 				settings: null
@@ -107,6 +108,7 @@ describe('App Layout Shell', () => {
 					email: 'user@stype.local',
 					name: 'Regular User',
 					role: 'user',
+					emailConfirmed: true,
 					createdAt: new Date()
 				},
 				settings: null
@@ -127,7 +129,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-5', username: 'details-user', email: 'details@stype.local', name: 'Details User', role: 'user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-5', username: 'details-user', email: 'details@stype.local', name: 'Details User', role: 'user', emailConfirmed: true, createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -149,7 +151,7 @@ describe('App Layout Shell', () => {
 
 		const longUsername = 'supercalifragilisticexpialidocious_typist_with_an_exceptionally_long_name';
 		render(Layout, {
-			data: { user: { id: 'user-6', username: longUsername, email: 'long@stype.local', name: 'Long User', role: 'user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-6', username: longUsername, email: 'long@stype.local', name: 'Long User', role: 'user', emailConfirmed: true, createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -175,7 +177,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-3', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', role: 'user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-3', username: 'dropdown-user', email: 'drop@stype.local', name: 'Drop User', role: 'user', emailConfirmed: true, createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -200,7 +202,7 @@ describe('App Layout Shell', () => {
 		}));
 
 		render(Layout, {
-			data: { user: { id: 'user-4', username: 'layout-user', email: 'layout@stype.local', name: 'Layout User', role: 'user', createdAt: new Date() }, settings: null },
+			data: { user: { id: 'user-4', username: 'layout-user', email: 'layout@stype.local', name: 'Layout User', role: 'user', emailConfirmed: true, createdAt: new Date() }, settings: null },
 			children: childSnippet
 		});
 
@@ -209,5 +211,30 @@ describe('App Layout Shell', () => {
 
 		const headerContainer = header.firstElementChild;
 		expect(headerContainer).toHaveClass('mx-auto', 'max-w-5xl', 'px-6');
+	});
+
+	it('suppresses shell header navigation when user email is unconfirmed', () => {
+		const childSnippet = createRawSnippet(() => ({
+			render: () => '<div data-testid="child">Verify Screen</div>'
+		}));
+
+		render(Layout, {
+			data: {
+				user: {
+					id: 'user-7',
+					username: 'unconfirmed-user',
+					email: 'unconfirmed@stype.local',
+					name: 'Unconfirmed',
+					role: 'user',
+					emailConfirmed: false,
+					createdAt: new Date()
+				},
+				settings: null
+			},
+			children: childSnippet
+		});
+
+		expect(screen.getByTestId('child')).toBeInTheDocument();
+		expect(screen.queryByRole('banner')).not.toBeInTheDocument();
 	});
 });

@@ -57,7 +57,7 @@
 
 <ModeWatcher defaultMode={data.settings?.theme ?? 'system'} />
 
-{#if data.user}
+{#if data.user && data.user.emailConfirmed}
 	<div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
 		<header class="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 			<div class="mx-auto flex max-w-5xl items-center justify-between sm:justify-start px-6 py-4">

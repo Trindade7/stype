@@ -8,6 +8,7 @@ export const users = sqliteTable('users', {
 	email: text('email').unique(),
 	name: text('name'),
 	role: text('role').$type<UserRole>().notNull().default('user'),
+	emailConfirmed: integer('email_confirmed', { mode: 'boolean' }).notNull().default(false),
 	passwordHash: text('password_hash').notNull(),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
@@ -81,6 +82,16 @@ export const passwordResetTokens = sqliteTable('password_reset_tokens', {
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 
+export const emailConfirmationTokens = sqliteTable('email_confirmation_tokens', {
+	id: text('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	tokenHash: text('token_hash').notNull().unique(),
+	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
@@ -93,4 +104,6 @@ export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type EmailConfirmationToken = typeof emailConfirmationTokens.$inferSelect;
+export type NewEmailConfirmationToken = typeof emailConfirmationTokens.$inferInsert;
 

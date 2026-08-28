@@ -30,6 +30,7 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			email TEXT UNIQUE,
 			name TEXT,
 			role TEXT NOT NULL DEFAULT 'user',
+			email_confirmed INTEGER NOT NULL DEFAULT 0,
 			created_at INTEGER NOT NULL
 		);
 		CREATE TABLE IF NOT EXISTS sessions (
@@ -79,6 +80,13 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			expires_at INTEGER NOT NULL,
 			created_at INTEGER NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS email_confirmation_tokens (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token_hash TEXT UNIQUE NOT NULL,
+			expires_at INTEGER NOT NULL,
+			created_at INTEGER NOT NULL
+		);
 	`);
 
 	// Ensure user_id column exists for pre-existing passages table
@@ -102,6 +110,12 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 
 	try {
 		sqlite.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+	} catch {
+		// Column already exists or table was just created
+	}
+
+	try {
+		sqlite.exec('ALTER TABLE users ADD COLUMN email_confirmed INTEGER NOT NULL DEFAULT 0');
 	} catch {
 		// Column already exists or table was just created
 	}
@@ -136,6 +150,20 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 	try {
 		sqlite.exec(`
 			CREATE TABLE IF NOT EXISTS password_reset_tokens (
+				id TEXT PRIMARY KEY,
+				user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				token_hash TEXT UNIQUE NOT NULL,
+				expires_at INTEGER NOT NULL,
+				created_at INTEGER NOT NULL
+			);
+		`);
+	} catch {
+		// Table already exists
+	}
+
+	try {
+		sqlite.exec(`
+			CREATE TABLE IF NOT EXISTS email_confirmation_tokens (
 				id TEXT PRIMARY KEY,
 				user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				token_hash TEXT UNIQUE NOT NULL,

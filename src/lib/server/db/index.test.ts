@@ -19,6 +19,7 @@ describe('database initialization', () => {
 		expect(admin?.email).toBe('admin@stype.local');
 		expect(admin?.name).toBe('Admin');
 		expect(admin?.role).toBe('admin');
+		expect(admin?.emailConfirmed).toBe(true);
 
 		sqlite.close();
 	});
@@ -248,6 +249,114 @@ describe('database initialization', () => {
 			expect(adminUser?.role).toBe('admin');
 
 			// Re-running initialization is idempotent
+			const reinit = initializeDatabase(dbPath);
+			reinit.sqlite.close();
+
+			sqlite.close();
+		} finally {
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it('creates email_confirmation_tokens table idempotently and enforces user foreign key with cascade delete', () => {
+		const { sqlite, db } = initializeDatabase(':memory:');
+
+		// Insert user
+		const userId = 'user-confirm-test';
+		db.insert(schema.users)
+			.values({
+				id: userId,
+				username: 'confirmuser',
+				email: 'confirm@example.com',
+				passwordHash: 'hash123',
+				emailConfirmed: false,
+				createdAt: new Date()
+			})
+			.run();
+
+		// Insert email confirmation token
+		const now = Date.now();
+		const expiresAt = new Date(now + 60 * 60 * 1000);
+		db.insert(schema.emailConfirmationTokens)
+			.values({
+				id: 'token-confirm-1',
+				userId,
+				tokenHash: 'hashed-confirm-token-value',
+				expiresAt,
+				createdAt: new Date(now)
+			})
+			.run();
+
+		// Verify token was stored and retrievable
+		const token = db
+			.select()
+			.from(schema.emailConfirmationTokens)
+			.where(eq(schema.emailConfirmationTokens.id, 'token-confirm-1'))
+			.get();
+
+		expect(token).toBeDefined();
+		expect(token?.userId).toBe(userId);
+		expect(token?.tokenHash).toBe('hashed-confirm-token-value');
+		expect(token?.expiresAt.getTime()).toBe(expiresAt.getTime());
+
+		// Verify cascade delete when user is deleted
+		db.delete(schema.users).where(eq(schema.users.id, userId)).run();
+		const tokensAfterUserDelete = db.select().from(schema.emailConfirmationTokens).all();
+		expect(tokensAfterUserDelete.length).toBe(0);
+
+		sqlite.close();
+	});
+
+	it('applies email_confirmed column and email_confirmation_tokens table idempotently to existing stores', () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stype-confirm-migration-'));
+		const dbPath = path.join(tmpDir, 'legacy-confirm.db');
+
+		try {
+			// Simulate existing SQLite database without email_confirmed column and without token table
+			const rawDb = new Database(dbPath);
+			rawDb.exec(`
+				CREATE TABLE users (
+					id TEXT PRIMARY KEY,
+					username TEXT UNIQUE NOT NULL,
+					password_hash TEXT NOT NULL,
+					email TEXT UNIQUE,
+					name TEXT,
+					role TEXT NOT NULL DEFAULT 'user',
+					created_at INTEGER NOT NULL
+				);
+				INSERT INTO users (id, username, password_hash, email, name, role, created_at)
+				VALUES ('u-legacy-confirm', 'confirmlegacy', 'hash999', 'legacy-confirm@stype.local', 'Legacy Confirm', 'user', 1700000000000);
+			`);
+			rawDb.close();
+
+			// Run initializeDatabase on existing legacy db
+			const { sqlite, db } = initializeDatabase(dbPath);
+
+			// Verify existing user now has emailConfirmed defaulted to false
+			const user = db.select().from(schema.users).where(eq(schema.users.id, 'u-legacy-confirm')).get();
+			expect(user).toBeDefined();
+			expect(user?.emailConfirmed).toBe(false);
+
+			// Verify email_confirmation_tokens table is now available and can store tokens
+			db.insert(schema.emailConfirmationTokens)
+				.values({
+					id: 'token-legacy-confirm-1',
+					userId: 'u-legacy-confirm',
+					tokenHash: 'legacy-confirm-hash',
+					expiresAt: new Date(Date.now() + 3600000),
+					createdAt: new Date()
+				})
+				.run();
+
+			const insertedToken = db
+				.select()
+				.from(schema.emailConfirmationTokens)
+				.where(eq(schema.emailConfirmationTokens.id, 'token-legacy-confirm-1'))
+				.get();
+			expect(insertedToken).toBeDefined();
+			expect(insertedToken?.userId).toBe('u-legacy-confirm');
+
+			// Running initializeDatabase again must be completely idempotent
 			const reinit = initializeDatabase(dbPath);
 			reinit.sqlite.close();
 

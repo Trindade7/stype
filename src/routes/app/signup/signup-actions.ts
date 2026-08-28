@@ -9,9 +9,23 @@ import {
 	SESSION_COOKIE_NAME,
 	SESSION_MAX_AGE_SECONDS
 } from '$lib/server/auth/session';
+import { createEmailConfirmationToken } from '$lib/server/auth/confirmation-token';
+import {
+	isSmtpConfigured as defaultIsSmtpConfigured,
+	sendEmailConfirmationEmail,
+	type EmailConfirmationEmailOptions
+} from '$lib/server/email/delivery';
 
-export function createSignupAction(db: BetterSQLite3Database<typeof schema>) {
-	return async ({ request, cookies }: RequestEvent) => {
+export interface SignupActionOptions {
+	isSmtpConfigured?: () => boolean;
+	sendEmail?: (options: EmailConfirmationEmailOptions) => Promise<{ delivered: boolean; mode: 'smtp' | 'console' }>;
+}
+
+export function createSignupAction(
+	db: BetterSQLite3Database<typeof schema>,
+	options?: SignupActionOptions
+) {
+	return async ({ request, cookies, url }: RequestEvent) => {
 		const data = await request.formData();
 		const name = data.get('name')?.toString().trim() ?? '';
 		const username = data.get('username')?.toString().trim() ?? '';
@@ -89,6 +103,8 @@ export function createSignupAction(db: BetterSQLite3Database<typeof schema>) {
 		const passwordHash = await hashPassword(password);
 		const userId = randomUUID();
 		const now = new Date();
+		const isSmtpActive = options?.isSmtpConfigured ? options.isSmtpConfigured() : defaultIsSmtpConfigured();
+		const emailConfirmed = !isSmtpActive;
 
 		db.insert(schema.users)
 			.values({
@@ -96,10 +112,26 @@ export function createSignupAction(db: BetterSQLite3Database<typeof schema>) {
 				username,
 				email,
 				name,
+				role: 'user',
+				emailConfirmed,
 				passwordHash,
 				createdAt: now
 			})
 			.run();
+
+		if (isSmtpActive) {
+			const { token } = await createEmailConfirmationToken(db, userId);
+			const origin = url?.origin ?? '';
+			const confirmUrl = `${origin}/app/confirm-email?token=${token}`;
+			const mailer = options?.sendEmail || sendEmailConfirmationEmail;
+			await mailer({
+				to: email,
+				username,
+				confirmUrl
+			});
+		} else {
+			console.log(`[Email Verification] Auto-confirmed email for ${username} (${email}) - SMTP not configured`);
+		}
 
 		const session = await createSession(db, userId);
 

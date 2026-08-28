@@ -1,8 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
 	sendPasswordResetEmail,
+	sendEmailConfirmationEmail,
+	isSmtpConfigured,
 	getSmtpConfig,
-	buildPasswordResetEmailContent
+	buildPasswordResetEmailContent,
+	buildEmailConfirmationEmailContent
 } from './delivery';
 
 describe('Password Reset Delivery Abstraction', () => {
@@ -108,5 +111,63 @@ describe('Password Reset Delivery Abstraction', () => {
 		expect(content.html).toContain('speedy');
 		expect(content.html).toContain('href="https://stype.local/app/reset-password?token=token123"');
 		expect(content.html).toContain('15 minutes');
+	});
+
+	it('detects whether SMTP is configured via isSmtpConfigured', () => {
+		expect(isSmtpConfigured()).toBe(false);
+		process.env.SMTP_HOST = 'smtp.example.com';
+		expect(isSmtpConfigured()).toBe(true);
+	});
+
+	it('builds confirmation email content with 1 hour expiration', () => {
+		const content = buildEmailConfirmationEmailContent({
+			to: 'typist@example.com',
+			username: 'speedy',
+			confirmUrl: 'https://stype.local/app/confirm-email?token=confirmtoken123'
+		}, 'noreply@stype.local');
+
+		expect(content.subject).toBe('Confirm your email - Stype');
+		expect(content.text).toContain('speedy');
+		expect(content.text).toContain('https://stype.local/app/confirm-email?token=confirmtoken123');
+		expect(content.text).toContain('1 hour');
+
+		expect(content.html).toContain('speedy');
+		expect(content.html).toContain('href="https://stype.local/app/confirm-email?token=confirmtoken123"');
+		expect(content.html).toContain('1 hour');
+	});
+
+	it('sends confirmation email via transport when SMTP is configured', async () => {
+		process.env.SMTP_HOST = 'smtp.example.com';
+		process.env.SMTP_PORT = '587';
+		process.env.SMTP_FROM = 'noreply@stype.local';
+
+		const mockTransport = vi.fn().mockResolvedValue(undefined);
+
+		const result = await sendEmailConfirmationEmail(
+			{
+				to: 'typist@example.com',
+				username: 'speedy',
+				confirmUrl: 'https://stype.local/app/confirm-email?token=confirmtoken123'
+			},
+			mockTransport
+		);
+
+		expect(result).toEqual({ delivered: true, mode: 'smtp' });
+		expect(mockTransport).toHaveBeenCalledTimes(1);
+	});
+
+	it('logs confirmation URL to server console when SMTP is unconfigured', async () => {
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+		const result = await sendEmailConfirmationEmail({
+			to: 'typist@example.com',
+			username: 'speedy',
+			confirmUrl: 'https://stype.local/app/confirm-email?token=confirmtoken123'
+		});
+
+		expect(result).toEqual({ delivered: true, mode: 'console' });
+		expect(consoleSpy).toHaveBeenCalled();
+		const loggedOutput = consoleSpy.mock.calls.flat().join(' ');
+		expect(loggedOutput).toContain('https://stype.local/app/confirm-email?token=confirmtoken123');
 	});
 });

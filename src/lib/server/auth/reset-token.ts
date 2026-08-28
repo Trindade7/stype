@@ -82,6 +82,7 @@ export async function validateResetToken(
 			email: schema.users.email,
 			name: schema.users.name,
 			role: schema.users.role,
+			emailConfirmed: schema.users.emailConfirmed,
 			createdAt: schema.users.createdAt
 		})
 		.from(schema.users)

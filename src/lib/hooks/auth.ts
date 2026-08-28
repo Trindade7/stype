@@ -6,9 +6,15 @@ import {
 	SESSION_COOKIE_NAME,
 	validateSession
 } from '../server/auth/session';
+import { isSmtpConfigured as defaultIsSmtpConfigured } from '../server/email/delivery';
+
+export interface AuthHandleOptions {
+	isSmtpConfigured?: () => boolean;
+}
 
 export function createAuthHandle(
-	db: BetterSQLite3Database<typeof schema>
+	db: BetterSQLite3Database<typeof schema>,
+	options?: AuthHandleOptions
 ): Handle {
 	return async ({ event, resolve }) => {
 		const sessionId = event.cookies.get(SESSION_COOKIE_NAME);
@@ -39,13 +45,29 @@ export function createAuthHandle(
 			event.url.pathname === '/app/signup' ||
 			event.url.pathname === '/app/forgot-password' ||
 			event.url.pathname === '/app/reset-password';
+		const isConfirmEmailPage = event.url.pathname === '/app/confirm-email';
+		const isVerifyEmailPage = event.url.pathname === '/app/verify-email';
+		const isLogoutPage = event.url.pathname === '/app/logout';
 
 		if (isAppRoute) {
-			if (!event.locals.user && !isAuthPage) {
+			if (!event.locals.user && !isAuthPage && !isConfirmEmailPage) {
 				redirect(303, '/app/login');
 			}
 			if (event.locals.user && isAuthPage) {
 				redirect(303, '/app');
+			}
+
+			if (event.locals.user) {
+				const smtpActive = options?.isSmtpConfigured ? options.isSmtpConfigured() : defaultIsSmtpConfigured();
+				const isUnconfirmed = !event.locals.user.emailConfirmed && smtpActive;
+
+				if (isUnconfirmed) {
+					if (!isVerifyEmailPage && !isConfirmEmailPage && !isLogoutPage) {
+						redirect(303, '/app/verify-email');
+					}
+				} else if (isVerifyEmailPage) {
+					redirect(303, '/app');
+				}
 			}
 
 			const isAdminRoute = event.url.pathname === '/app/admin' || event.url.pathname.startsWith('/app/admin/');

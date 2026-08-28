@@ -14,6 +14,7 @@ const mockUser = {
 	email: 'john@example.com',
 	name: 'John Doe',
 	role: 'user' as const,
+	emailConfirmed: true,
 	createdAt: new Date()
 };
 

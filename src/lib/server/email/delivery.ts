@@ -46,6 +46,10 @@ export function getSmtpConfig(): SmtpConfig | null {
 	};
 }
 
+export function isSmtpConfigured(): boolean {
+	return getSmtpConfig() !== null;
+}
+
 export function buildPasswordResetEmailContent(
 	options: PasswordResetEmailOptions,
 	fromAddress: string
@@ -98,11 +102,10 @@ This link is valid for 15 minutes. If you did not request a password reset, you 
 	};
 }
 
-export async function sendViaSmtp(
+export async function sendEmailContentViaSmtp(
 	config: SmtpConfig,
-	options: PasswordResetEmailOptions
+	email: EmailContent
 ): Promise<void> {
-	const email = buildPasswordResetEmailContent(options, config.from);
 	const boundary = `stype_boundary_${Date.now()}`;
 
 	const mimeMessage = [
@@ -281,6 +284,14 @@ export async function sendViaSmtp(
 	});
 }
 
+export async function sendViaSmtp(
+	config: SmtpConfig,
+	options: PasswordResetEmailOptions
+): Promise<void> {
+	const email = buildPasswordResetEmailContent(options, config.from);
+	return sendEmailContentViaSmtp(config, email);
+}
+
 export async function sendPasswordResetEmail(
 	options: PasswordResetEmailOptions,
 	customTransport?: (config: SmtpConfig, options: PasswordResetEmailOptions) => Promise<void>
@@ -295,5 +306,82 @@ export async function sendPasswordResetEmail(
 
 	// Fallback to server console when SMTP is unconfigured
 	console.log(`[Password Reset] Reset URL for ${options.username} (${options.to}): ${options.resetUrl}`);
+	return { delivered: true, mode: 'console' };
+}
+
+export interface EmailConfirmationEmailOptions {
+	to: string;
+	username: string;
+	confirmUrl: string;
+}
+
+export function buildEmailConfirmationEmailContent(
+	options: EmailConfirmationEmailOptions,
+	fromAddress: string
+): EmailContent {
+	const subject = 'Confirm your email - Stype';
+
+	const text = `Hello ${options.username},
+
+Thank you for signing up for Stype. Please confirm your email address by opening the link below:
+
+${options.confirmUrl}
+
+This link is valid for 1 hour. If you did not create an account on Stype, you can safely ignore this email.
+`;
+
+	const html = `<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Confirm Your Email</title>
+</head>
+<body style="font-family: sans-serif; line-height: 1.6; color: #18181b; background-color: #f4f4f5; padding: 24px;">
+	<div style="max-width: 560px; margin: 0 auto; background: #ffffff; padding: 32px; border-radius: 8px; border: 1px solid #e4e4e7;">
+		<h2 style="margin-top: 0; color: #18181b;">stype</h2>
+		<p>Hello <strong>${options.username}</strong>,</p>
+		<p>Thank you for signing up for Stype. Click the button below to confirm your email address and activate your account:</p>
+		<p style="margin: 24px 0;">
+			<a href="${options.confirmUrl}" style="background-color: #18181b; color: #fafafa; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block;">
+				Confirm Email
+			</a>
+		</p>
+		<p style="font-size: 13px; color: #71717a; word-break: break-all;">
+			Or copy and paste this URL into your browser:<br>
+			<a href="${options.confirmUrl}" style="color: #71717a;">${options.confirmUrl}</a>
+		</p>
+		<hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
+		<p style="font-size: 12px; color: #a1a1aa; margin-bottom: 0;">
+			This link is valid for 1 hour. If you did not create an account on Stype, you can safely ignore this email.
+		</p>
+	</div>
+</body>
+</html>`;
+
+	return {
+		from: fromAddress,
+		to: options.to,
+		subject,
+		text,
+		html
+	};
+}
+
+export async function sendEmailConfirmationEmail(
+	options: EmailConfirmationEmailOptions,
+	customTransport?: (config: SmtpConfig, options: EmailConfirmationEmailOptions) => Promise<void>
+): Promise<{ delivered: boolean; mode: 'smtp' | 'console' }> {
+	const config = getSmtpConfig();
+
+	if (config) {
+		const transport =
+			customTransport ||
+			((cfg, opts) => sendEmailContentViaSmtp(cfg, buildEmailConfirmationEmailContent(opts, cfg.from)));
+		await transport(config, options);
+		return { delivered: true, mode: 'smtp' };
+	}
+
+	// Fallback to server console when SMTP is unconfigured
+	console.log(`[Email Verification] Confirmation URL for ${options.username} (${options.to}): ${options.confirmUrl}`);
 	return { delivered: true, mode: 'console' };
 }

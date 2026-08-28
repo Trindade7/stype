@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 import { initializeDatabase } from '$lib/server/db';
 import { seedAdminUser } from '$lib/server/db/seed';
@@ -34,6 +34,7 @@ describe('signup form action', () => {
 
 		const event = {
 			request,
+			url: new URL('http://localhost:5173/app/signup'),
 			cookies,
 			locals: { session: null, user: null }
 		} as unknown as RequestEvent;
@@ -146,6 +147,24 @@ describe('signup form action', () => {
 		expect(result?.data?.email).toBe('not-an-email');
 	});
 
+	it('fails with 400 when email is missing or empty string', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const signupAction = createSignupAction(db);
+		const { event } = createActionMockEvent({
+			name: 'Test Typist',
+			username: 'validuser',
+			email: '   ',
+			password: 'password123'
+		});
+
+		const result: any = await signupAction(event);
+		expect(result?.status).toBe(400);
+		expect(result?.data?.message).toMatch(/email.*format|valid email/i);
+		expect(result?.data?.name).toBe('Test Typist');
+		expect(result?.data?.username).toBe('validuser');
+		expect(result?.data?.email).toBe('');
+	});
+
 	it('fails with 400 when password is fewer than 8 characters', async () => {
 		const { db } = initializeDatabase(':memory:');
 		const signupAction = createSignupAction(db);
@@ -246,5 +265,75 @@ describe('signup form action', () => {
 		const sessionInDb = db.select().from(schema.sessions).where(eq(schema.sessions.id, cookie!.value)).get();
 		expect(sessionInDb).toBeDefined();
 		expect(sessionInDb?.userId).toBe(userInDb!.id);
+	});
+
+	it('sets emailConfirmed to true immediately when SMTP is unconfigured', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const sendEmailMock = vi.fn();
+		const signupAction = createSignupAction(db, {
+			isSmtpConfigured: () => false,
+			sendEmail: sendEmailMock
+		});
+
+		const { event } = createActionMockEvent({
+			name: 'Offline User',
+			username: 'offlineuser',
+			email: 'offline@example.com',
+			password: 'securepassword123'
+		});
+
+		await expect(signupAction(event)).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+
+		const user = db.select().from(schema.users).where(eq(schema.users.username, 'offlineuser')).get();
+		expect(user).toBeDefined();
+		expect(user?.emailConfirmed).toBe(true);
+
+		// No tokens created and no email sent
+		const tokens = db.select().from(schema.emailConfirmationTokens).all();
+		expect(tokens.length).toBe(0);
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	});
+
+	it('sets emailConfirmed to false, creates 1-hour token, and sends confirmation email when SMTP is configured', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const sendEmailMock = vi.fn().mockResolvedValue({ delivered: true, mode: 'smtp' });
+		const signupAction = createSignupAction(db, {
+			isSmtpConfigured: () => true,
+			sendEmail: sendEmailMock
+		});
+
+		const { event } = createActionMockEvent({
+			name: 'Online User',
+			username: 'onlineuser',
+			email: 'online@example.com',
+			password: 'securepassword123'
+		});
+
+		await expect(signupAction(event)).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+
+		const user = db.select().from(schema.users).where(eq(schema.users.username, 'onlineuser')).get();
+		expect(user).toBeDefined();
+		expect(user?.emailConfirmed).toBe(false);
+
+		// 1-hour confirmation token stored in database
+		const tokens = db.select().from(schema.emailConfirmationTokens).where(eq(schema.emailConfirmationTokens.userId, user!.id)).all();
+		expect(tokens.length).toBe(1);
+		expect(tokens[0].expiresAt.getTime()).toBeGreaterThan(Date.now());
+
+		// Email sent with confirmation link
+		expect(sendEmailMock).toHaveBeenCalledTimes(1);
+		expect(sendEmailMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				to: 'online@example.com',
+				username: 'onlineuser',
+				confirmUrl: expect.stringContaining('/app/confirm-email?token=')
+			})
+		);
 	});
 });

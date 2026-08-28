@@ -391,4 +391,147 @@ describe('auth server hook', () => {
 			}
 		});
 	});
+
+	describe('email verification routing guard', () => {
+		it('redirects unauthenticated user accessing /app/verify-email to /app/login', async () => {
+			const { db } = initializeDatabase(':memory:');
+			const handle = createAuthHandle(db, { isSmtpConfigured: () => true });
+			const { event } = createMockEvent('/app/verify-email');
+			const resolve = async () => new Response('PAGE');
+
+			await expect(handle({ event, resolve })).rejects.toMatchObject({
+				status: 303,
+				location: '/app/login'
+			});
+		});
+
+		it('allows unauthenticated access to /app/confirm-email', async () => {
+			const { db } = initializeDatabase(':memory:');
+			const handle = createAuthHandle(db, { isSmtpConfigured: () => true });
+			const { event } = createMockEvent('/app/confirm-email');
+			let resolveCalled = false;
+			const resolve = async () => {
+				resolveCalled = true;
+				return new Response('CONFIRM_PAGE');
+			};
+
+			const res = await handle({ event, resolve });
+			expect(resolveCalled).toBe(true);
+			expect(await res.text()).toBe('CONFIRM_PAGE');
+		});
+
+		it('redirects unconfirmed authenticated user on SMTP-enabled instance to /app/verify-email when accessing app routes', async () => {
+			const { db } = initializeDatabase(':memory:');
+			db.insert(schema.users)
+				.values({
+					id: 'unconfirmed-user-id',
+					username: 'unconfirmed',
+					email: 'unconfirmed@example.com',
+					role: 'user',
+					emailConfirmed: false,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const session = await createSession(db, 'unconfirmed-user-id');
+			const handle = createAuthHandle(db, { isSmtpConfigured: () => true });
+
+			for (const path of ['/app', '/app/history', '/app/stats', '/app/settings', '/app/admin']) {
+				const { event } = createMockEvent(path, session.id);
+				const resolve = async () => new Response('APP_PAGE');
+
+				await expect(handle({ event, resolve })).rejects.toMatchObject({
+					status: 303,
+					location: '/app/verify-email'
+				});
+			}
+		});
+
+		it('allows unconfirmed authenticated user on SMTP-enabled instance to access /app/verify-email, /app/confirm-email, and /app/logout', async () => {
+			const { db } = initializeDatabase(':memory:');
+			db.insert(schema.users)
+				.values({
+					id: 'unconfirmed-user-id',
+					username: 'unconfirmed',
+					email: 'unconfirmed@example.com',
+					role: 'user',
+					emailConfirmed: false,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const session = await createSession(db, 'unconfirmed-user-id');
+			const handle = createAuthHandle(db, { isSmtpConfigured: () => true });
+
+			for (const path of ['/app/verify-email', '/app/confirm-email', '/app/logout']) {
+				const { event } = createMockEvent(path, session.id);
+				let resolveCalled = false;
+				const resolve = async () => {
+					resolveCalled = true;
+					return new Response('OK');
+				};
+
+				const res = await handle({ event, resolve });
+				expect(resolveCalled).toBe(true);
+				expect(await res.text()).toBe('OK');
+			}
+		});
+
+		it('redirects confirmed authenticated user accessing /app/verify-email to /app', async () => {
+			const { db } = initializeDatabase(':memory:');
+			db.insert(schema.users)
+				.values({
+					id: 'confirmed-user-id',
+					username: 'confirmed',
+					email: 'confirmed@example.com',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const session = await createSession(db, 'confirmed-user-id');
+			const handle = createAuthHandle(db, { isSmtpConfigured: () => true });
+
+			const { event } = createMockEvent('/app/verify-email', session.id);
+			const resolve = async () => new Response('PAGE');
+
+			await expect(handle({ event, resolve })).rejects.toMatchObject({
+				status: 303,
+				location: '/app'
+			});
+		});
+
+		it('allows unconfirmed user to access /app when SMTP is unconfigured', async () => {
+			const { db } = initializeDatabase(':memory:');
+			db.insert(schema.users)
+				.values({
+					id: 'unconfirmed-user-id',
+					username: 'unconfirmed',
+					email: 'unconfirmed@example.com',
+					role: 'user',
+					emailConfirmed: false,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const session = await createSession(db, 'unconfirmed-user-id');
+			const handle = createAuthHandle(db, { isSmtpConfigured: () => false });
+
+			const { event } = createMockEvent('/app', session.id);
+			let resolveCalled = false;
+			const resolve = async () => {
+				resolveCalled = true;
+				return new Response('APP_PAGE');
+			};
+
+			const res = await handle({ event, resolve });
+			expect(resolveCalled).toBe(true);
+			expect(await res.text()).toBe('APP_PAGE');
+		});
+	});
 });

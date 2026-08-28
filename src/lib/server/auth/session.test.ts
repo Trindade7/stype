@@ -54,6 +54,21 @@ describe('session management', () => {
 
 		expect(result.user).toBeDefined();
 		expect(result.user?.role).toBe('user');
+		expect(result.user?.emailConfirmed).toBe(false);
+
+		sqlite.close();
+	});
+
+	it('returns emailConfirmed true for confirmed users in validateSession', async () => {
+		const { sqlite, db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+		const session = await createSession(db, admin.id);
+		const result = await validateSession(db, session.id);
+
+		expect(result.user).toBeDefined();
+		expect(result.user?.emailConfirmed).toBe(true);
 
 		sqlite.close();
 	});
