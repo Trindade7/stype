@@ -933,6 +933,7 @@ describe('TypingEngine', () => {
 			const notice = screen.getByTestId('inactivity-notice');
 			expect(notice).toHaveClass('absolute');
 			expect(notice).toHaveClass('pointer-events-none');
+			expect(notice).toHaveClass('bg-primary');
 			expect(notice).toHaveAttribute('role', 'status');
 
 			// Notice is inside the typing container
