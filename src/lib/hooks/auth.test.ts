@@ -106,6 +106,42 @@ describe('auth server hook', () => {
 		expect(event.locals.session).toBeNull();
 	});
 
+	it('allows unauthenticated user to access /app/forgot-password', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/app/forgot-password');
+
+		let resolveCalled = false;
+		const resolve = async () => {
+			resolveCalled = true;
+			return new Response('FORGOT_PASSWORD_PAGE');
+		};
+
+		const response = await handle({ event, resolve });
+		expect(resolveCalled).toBe(true);
+		expect(await response.text()).toBe('FORGOT_PASSWORD_PAGE');
+		expect(event.locals.user).toBeNull();
+		expect(event.locals.session).toBeNull();
+	});
+
+	it('allows unauthenticated user to access /app/reset-password', async () => {
+		const { db } = initializeDatabase(':memory:');
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/app/reset-password?token=some-token');
+
+		let resolveCalled = false;
+		const resolve = async () => {
+			resolveCalled = true;
+			return new Response('RESET_PASSWORD_PAGE');
+		};
+
+		const response = await handle({ event, resolve });
+		expect(resolveCalled).toBe(true);
+		expect(await response.text()).toBe('RESET_PASSWORD_PAGE');
+		expect(event.locals.user).toBeNull();
+		expect(event.locals.session).toBeNull();
+	});
+
 	it('authenticates valid session and attaches user and session to locals', async () => {
 		const { db } = initializeDatabase(':memory:');
 		await seedAdminUser(db);
@@ -159,6 +195,42 @@ describe('auth server hook', () => {
 		const { event } = createMockEvent('/app/signup', session.id);
 
 		const resolve = async () => new Response('SIGNUP_PAGE');
+
+		await expect(handle({ event, resolve })).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+	});
+
+	it('redirects authenticated user accessing /app/forgot-password to /app', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+		const session = await createSession(db, admin.id);
+
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/app/forgot-password', session.id);
+
+		const resolve = async () => new Response('FORGOT_PASSWORD_PAGE');
+
+		await expect(handle({ event, resolve })).rejects.toMatchObject({
+			status: 303,
+			location: '/app'
+		});
+	});
+
+	it('redirects authenticated user accessing /app/reset-password to /app', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+		const session = await createSession(db, admin.id);
+
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/app/reset-password?token=test', session.id);
+
+		const resolve = async () => new Response('RESET_PASSWORD_PAGE');
 
 		await expect(handle({ event, resolve })).rejects.toMatchObject({
 			status: 303,

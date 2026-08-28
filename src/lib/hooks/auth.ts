@@ -34,7 +34,11 @@ export function createAuthHandle(
 		}
 
 		const isAppRoute = event.url.pathname.startsWith('/app');
-		const isAuthPage = event.url.pathname === '/app/login' || event.url.pathname === '/app/signup';
+		const isAuthPage =
+			event.url.pathname === '/app/login' ||
+			event.url.pathname === '/app/signup' ||
+			event.url.pathname === '/app/forgot-password' ||
+			event.url.pathname === '/app/reset-password';
 
 		if (isAppRoute) {
 			if (!event.locals.user && !isAuthPage) {
