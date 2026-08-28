@@ -83,4 +83,110 @@ describe('database initialization', () => {
 			fs.rmSync(tmpDir, { recursive: true, force: true });
 		}
 	});
+
+	it('creates password_reset_tokens table idempotently and enforces user foreign key with cascade delete', () => {
+		const { sqlite, db } = initializeDatabase(':memory:');
+
+		// Insert user
+		const userId = 'user-reset-test';
+		db.insert(schema.users)
+			.values({
+				id: userId,
+				username: 'resetuser',
+				email: 'reset@example.com',
+				passwordHash: 'hash123',
+				createdAt: new Date()
+			})
+			.run();
+
+		// Insert password reset token
+		const now = Date.now();
+		const expiresAt = new Date(now + 15 * 60 * 1000);
+		db.insert(schema.passwordResetTokens)
+			.values({
+				id: 'token-id-1',
+				userId,
+				tokenHash: 'hashed-token-value',
+				expiresAt,
+				createdAt: new Date(now)
+			})
+			.run();
+
+		// Verify token was stored and retrievable
+		const token = db
+			.select()
+			.from(schema.passwordResetTokens)
+			.where(eq(schema.passwordResetTokens.id, 'token-id-1'))
+			.get();
+
+		expect(token).toBeDefined();
+		expect(token?.userId).toBe(userId);
+		expect(token?.tokenHash).toBe('hashed-token-value');
+		expect(token?.expiresAt.getTime()).toBe(expiresAt.getTime());
+
+		// Verify cascade delete when user is deleted
+		db.delete(schema.users).where(eq(schema.users.id, userId)).run();
+		const tokensAfterUserDelete = db.select().from(schema.passwordResetTokens).all();
+		expect(tokensAfterUserDelete.length).toBe(0);
+
+		sqlite.close();
+	});
+
+	it('applies password_reset_tokens table idempotently for pre-existing database stores without table', () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stype-reset-migration-'));
+		const dbPath = path.join(tmpDir, 'legacy.db');
+
+		try {
+			// Simulate existing SQLite database without password_reset_tokens table
+			const rawDb = new Database(dbPath);
+			rawDb.exec(`
+				CREATE TABLE users (
+					id TEXT PRIMARY KEY,
+					username TEXT UNIQUE NOT NULL,
+					password_hash TEXT NOT NULL,
+					email TEXT UNIQUE,
+					name TEXT,
+					created_at INTEGER NOT NULL
+				);
+				INSERT INTO users (id, username, password_hash, email, created_at)
+				VALUES ('u-legacy', 'legacyuser', 'hash999', 'legacy@stype.local', 1700000000000);
+			`);
+			rawDb.close();
+
+			// Run initializeDatabase on existing legacy db
+			const { sqlite, db } = initializeDatabase(dbPath);
+
+			// Verify existing user is intact
+			const user = db.select().from(schema.users).where(eq(schema.users.id, 'u-legacy')).get();
+			expect(user).toBeDefined();
+			expect(user?.username).toBe('legacyuser');
+
+			// Verify password_reset_tokens table is now available and can store tokens
+			db.insert(schema.passwordResetTokens)
+				.values({
+					id: 'token-legacy-1',
+					userId: 'u-legacy',
+					tokenHash: 'legacy-token-hash',
+					expiresAt: new Date(Date.now() + 900000),
+					createdAt: new Date()
+				})
+				.run();
+
+			const insertedToken = db
+				.select()
+				.from(schema.passwordResetTokens)
+				.where(eq(schema.passwordResetTokens.id, 'token-legacy-1'))
+				.get();
+			expect(insertedToken).toBeDefined();
+			expect(insertedToken?.userId).toBe('u-legacy');
+
+			// Running initializeDatabase again must be completely idempotent
+			const reinit = initializeDatabase(dbPath);
+			reinit.sqlite.close();
+
+			sqlite.close();
+		} finally {
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
 });

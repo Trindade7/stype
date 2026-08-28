@@ -71,6 +71,13 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS password_reset_tokens (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token_hash TEXT UNIQUE NOT NULL,
+			expires_at INTEGER NOT NULL,
+			created_at INTEGER NOT NULL
+		);
 	`);
 
 	// Ensure user_id column exists for pre-existing passages table
@@ -117,6 +124,20 @@ export function initializeDatabase(dbPath: string = DEFAULT_DB_PATH): {
 		sqlite.exec("ALTER TABLE user_settings ADD COLUMN scroll_mode TEXT NOT NULL DEFAULT 'center'");
 	} catch {
 		// Column already exists or table was just created
+	}
+
+	try {
+		sqlite.exec(`
+			CREATE TABLE IF NOT EXISTS password_reset_tokens (
+				id TEXT PRIMARY KEY,
+				user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				token_hash TEXT UNIQUE NOT NULL,
+				expires_at INTEGER NOT NULL,
+				created_at INTEGER NOT NULL
+			);
+		`);
+	} catch {
+		// Table already exists
 	}
 
 	const db = drizzle(sqlite, { schema });

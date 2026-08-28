@@ -102,9 +102,17 @@
 				</div>
 
 				<div class="space-y-2">
-					<Label for="password" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-						Password
-					</Label>
+					<div class="flex items-center justify-between">
+						<Label for="password" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Password
+						</Label>
+						<a
+							href="/app/forgot-password"
+							class="text-xs font-medium text-primary underline-offset-4 hover:underline"
+						>
+							Forgot password?
+						</a>
+					</div>
 					<div class="relative">
 						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
 							<HugeiconsIcon icon={Key01Icon} size={18} />

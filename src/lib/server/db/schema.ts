@@ -68,6 +68,16 @@ export const userSettings = sqliteTable('user_settings', {
 	updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull()
 });
 
+export const passwordResetTokens = sqliteTable('password_reset_tokens', {
+	id: text('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	tokenHash: text('token_hash').notNull().unique(),
+	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
@@ -78,3 +88,6 @@ export type TestRun = typeof testRuns.$inferSelect;
 export type NewTestRun = typeof testRuns.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+

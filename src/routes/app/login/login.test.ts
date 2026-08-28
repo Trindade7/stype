@@ -89,6 +89,22 @@ describe('Login View Contract', () => {
 		expect(signupLink).toHaveAttribute('href', '/app/signup');
 	});
 
+	it('renders a "Forgot password?" link aligned with the password label navigating to /app/forgot-password', () => {
+		render(LoginPage, { form: null });
+
+		const forgotPasswordLink = screen.getByRole('link', { name: /forgot password\?/i });
+		expect(forgotPasswordLink).toBeInTheDocument();
+		expect(forgotPasswordLink).toHaveAttribute('href', '/app/forgot-password');
+
+		const passwordLabel = screen.getByText(/^password$/i);
+		expect(passwordLabel).toBeInTheDocument();
+
+		// Both the label and the link share the same container header for alignment
+		const commonContainer = passwordLabel.parentElement;
+		expect(commonContainer).toContainElement(forgotPasswordLink);
+		expect(commonContainer?.className).toMatch(/flex.*items-center.*justify-between/);
+	});
+
 	it('renders submit button with submit type inside POST form', () => {
 		render(LoginPage, { form: null });
 

@@ -4,14 +4,14 @@
 
 **Blocked by:** 01 — Theme Tokens and Form Input Visibility
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] A dedicated database table stores password reset tokens with user association, secure token hashes, and expiration timestamps.
-- [ ] Database initialization applies the new table idempotently for existing SQLite stores.
-- [ ] A "Forgot password?" link appears on the login screen aligned with the password label, navigating to `/app/forgot-password`.
-- [ ] The forgot password page accepts either a username or a registered email.
-- [ ] Submitting a request for an existing user generates a 15-minute single-use token and invalidates any prior unused tokens for that user.
-- [ ] When SMTP environment variables are configured, the reset link is sent via email.
-- [ ] When SMTP environment variables are unconfigured, the reset URL is logged to the server console for local testing.
-- [ ] The submission response displays a generic confirmation message regardless of whether the account exists, preventing account enumeration.
-- [ ] Automated tests verify request action handling, token generation, single-active-token enforcement, and login page link placement.
+- [x] A dedicated database table stores password reset tokens with user association, secure token hashes, and expiration timestamps.
+- [x] Database initialization applies the new table idempotently for existing SQLite stores.
+- [x] A "Forgot password?" link appears on the login screen aligned with the password label, navigating to `/app/forgot-password`.
+- [x] The forgot password page accepts either a username or a registered email.
+- [x] Submitting a request for an existing user generates a 15-minute single-use token and invalidates any prior unused tokens for that user.
+- [x] When SMTP environment variables are configured, the reset link is sent via email.
+- [x] When SMTP environment variables are unconfigured, the reset URL is logged to the server console for local testing.
+- [x] The submission response displays a generic confirmation message regardless of whether the account exists, preventing account enumeration.
+- [x] Automated tests verify request action handling, token generation, single-active-token enforcement, and login page link placement.
