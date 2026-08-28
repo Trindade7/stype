@@ -8,6 +8,11 @@ A lightweight browser-based typing test application for practicing and tracking 
 An authenticated typist identified by a unique username and email, with a display name, who owns test history, custom passages, and settings.
 _Avoid_: Account, member, profile
 
+**Administrator**:
+A user with elevated permissions to manage other users and server configuration.
+_Avoid_: Server manager, superuser, operator, mod, root
+
+
 **Session**:
 An active authenticated login state represented by a secure session token stored in the database and client cookie.
 _Avoid_: Auth token, login, connection
@@ -94,5 +99,10 @@ _Avoid_: Reset code, recovery key, temporary password
 **Password Reset Request**:
 An unauthenticated action by a user to initiate credential recovery using their username or registered email.
 _Avoid_: Recovery ticket, reset claim
+
+**Email Confirmation Token**:
+A cryptographically secure, time-limited single-use token sent to verify a user's email address.
+_Avoid_: Verification code, activation key, confirm link
+
 
 
