@@ -1,6 +1,6 @@
 ---
 title: Inactivity Reset Visual Cue, User Signup & User Details Management
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem Statement

@@ -4,13 +4,13 @@
 
 **Blocked by:** 05 — User Details Management Page
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] A "Change Password" card is rendered on `/app/user` with inputs for Current Password, New Password, and Confirm Password.
-- [ ] Submitting an incorrect current password rejects the update with a clear error message.
-- [ ] Submitting a new password shorter than 8 characters rejects the update with an error message.
-- [ ] Submitting a new password and confirmation that do not match rejects the update with an error message.
-- [ ] Submitting valid password fields updates the password hash in the database.
-- [ ] After a successful password update, password input fields are cleared and a success alert is shown.
-- [ ] Logging out and attempting to log in with the old password fails.
-- [ ] Logging in with the new password succeeds.
+- [x] A "Change Password" card is rendered on `/app/user` with inputs for Current Password, New Password, and Confirm Password.
+- [x] Submitting an incorrect current password rejects the update with a clear error message.
+- [x] Submitting a new password shorter than 8 characters rejects the update with an error message.
+- [x] Submitting a new password and confirmation that do not match rejects the update with an error message.
+- [x] Submitting valid password fields updates the password hash in the database.
+- [x] After a successful password update, password input fields are cleared and a success alert is shown.
+- [x] Logging out and attempting to log in with the old password fails.
+- [x] Logging in with the new password succeeds.

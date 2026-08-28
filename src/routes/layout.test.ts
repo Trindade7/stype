@@ -65,6 +65,25 @@ describe('App Layout Shell', () => {
 		expect(screen.getAllByRole('link', { name: /settings/i }).length).toBeGreaterThanOrEqual(1);
 	});
 
+	it('replaces "My Account" with "User Details" in user dropdown and links directly to /app/user', async () => {
+		const childSnippet = createRawSnippet(() => ({
+			render: () => '<div>Content</div>'
+		}));
+
+		render(Layout, {
+			data: { user: { id: 'user-5', username: 'details-user', email: 'details@stype.local', name: 'Details User', createdAt: new Date() }, settings: null },
+			children: childSnippet
+		});
+
+		const userTrigger = screen.getByText('details-user').closest('button');
+		await fireEvent.click(userTrigger!);
+
+		expect(screen.queryByText('My Account')).not.toBeInTheDocument();
+		const userDetailsLink = await screen.findByRole('link', { name: /user details/i });
+		expect(userDetailsLink).toBeInTheDocument();
+		expect(userDetailsLink).toHaveAttribute('href', '/app/user');
+	});
+
 	it('opens theme switcher dropdown and persists preference on selection', async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,

@@ -116,7 +116,11 @@
 							<span class="hidden sm:inline-block text-sm font-medium">{data.user.username}</span>
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end" class="w-48">
-							<DropdownMenu.Label>My Account</DropdownMenu.Label>
+							<DropdownMenu.Label class="p-0">
+								<a href="/app/user" class="block px-2 py-1.5 hover:underline text-foreground">
+									User Details
+								</a>
+							</DropdownMenu.Label>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item class="text-muted-foreground">
 								<span class="truncate">Logged in as {data.user.username}</span>
