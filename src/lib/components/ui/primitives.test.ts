@@ -13,6 +13,7 @@ import * as RadioGroup from './radio-group';
 import * as Select from './select';
 import { Calendar } from './calendar';
 import * as Popover from './popover';
+import SelectTestHelper from './select-test-helper.svelte';
 
 function createSnippet(text: string) {
 	return createRawSnippet(() => ({
@@ -115,6 +116,22 @@ describe('UI Primitives', () => {
 			const input = screen.getByPlaceholderText('Enter password');
 			expect(input).toBeInTheDocument();
 			expect(input).toHaveAttribute('type', 'password');
+		});
+
+		it('renders text input with solid surface, crisp border tokens, and shadow-xs', () => {
+			render(Input, {
+				props: {
+					type: 'text',
+					placeholder: 'Contrast test'
+				}
+			});
+
+			const input = screen.getByPlaceholderText('Contrast test');
+			expect(input).toHaveClass('border');
+			expect(input).toHaveClass('border-input');
+			expect(input).toHaveClass('bg-background');
+			expect(input).toHaveClass('shadow-xs');
+			expect(input).not.toHaveClass('bg-transparent');
 		});
 	});
 
@@ -259,6 +276,63 @@ describe('UI Primitives', () => {
 
 			const trigger = screen.getByText('Select Option');
 			expect(trigger).toBeInTheDocument();
+		});
+
+		it('renders select trigger with solid background, border-input, and shadow-xs', () => {
+			render(SelectTestHelper, {
+				props: {
+					open: false,
+					value: 'opt1'
+				}
+			});
+
+			const trigger = document.querySelector('[data-slot="select-trigger"]');
+			expect(trigger).toBeInTheDocument();
+			expect(trigger).toHaveClass('bg-background');
+			expect(trigger).toHaveClass('border');
+			expect(trigger).toHaveClass('border-input');
+			expect(trigger).toHaveClass('shadow-xs');
+			expect(trigger?.className).not.toContain('bg-transparent');
+		});
+
+		it('renders select content fully opaque with clear border, shadow, and without blur artifacts', () => {
+			render(SelectTestHelper, {
+				props: {
+					open: true,
+					value: 'opt1'
+				}
+			});
+
+			const content = document.querySelector('[data-slot="select-content"]');
+			expect(content).toBeInTheDocument();
+			expect(content).toHaveClass('bg-popover');
+			expect(content).toHaveClass('border');
+			expect(content).toHaveClass('border-border');
+			expect(content).toHaveClass('shadow-md');
+
+			// Verify absence of translucent blur artifacts and legacy ring
+			expect(content?.className).not.toContain('bg-popover/70');
+			expect(content?.className).not.toContain('backdrop-blur');
+			expect(content?.className).not.toContain('ring-foreground/10');
+		});
+
+		it('renders select items with secondary highlight and focus contrast classes', () => {
+			render(SelectTestHelper, {
+				props: {
+					open: true,
+					value: 'opt1'
+				}
+			});
+
+			const items = document.querySelectorAll('[data-slot="select-item"]');
+			expect(items.length).toBeGreaterThan(0);
+			for (const item of items) {
+				expect(item).toHaveClass('data-highlighted:bg-secondary');
+				expect(item).toHaveClass('data-highlighted:text-secondary-foreground');
+				expect(item).toHaveClass('focus:bg-secondary');
+				expect(item).toHaveClass('focus:text-secondary-foreground');
+				expect(item.className).not.toContain('data-highlighted:bg-accent');
+			}
 		});
 	});
 

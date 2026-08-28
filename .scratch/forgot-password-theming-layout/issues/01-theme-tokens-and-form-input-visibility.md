@@ -4,13 +4,13 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Semantic tokens for positive feedback, typing character states (untyped, correct, error, caret), and refined input borders are defined in the light theme stylesheet.
-- [ ] Corresponding dark mode values for all new semantic tokens are defined in the dark theme stylesheet.
-- [ ] All new semantic tokens are exposed to the utility classes generator.
-- [ ] Select triggers render with a solid background and a distinct border with sufficient contrast against light backgrounds.
-- [ ] Select dropdown content renders fully opaque with a clear border and shadow, without translucent backdrop blur artifacts.
-- [ ] Select menu items provide clear visual contrast between unhighlighted, hovered, and keyboard-focused states.
-- [ ] Text inputs maintain clean contrast and legible borders across light and dark modes.
-- [ ] Automated tests verify the presence of all required theme tokens and the styling classes of the select primitives.
+- [x] Semantic tokens for positive feedback, typing character states (untyped, correct, error, caret), and refined input borders are defined in the light theme stylesheet.
+- [x] Corresponding dark mode values for all new semantic tokens are defined in the dark theme stylesheet.
+- [x] All new semantic tokens are exposed to the utility classes generator.
+- [x] Select triggers render with a solid background and a distinct border with sufficient contrast against light backgrounds.
+- [x] Select dropdown content renders fully opaque with a clear border and shadow, without translucent backdrop blur artifacts.
+- [x] Select menu items provide clear visual contrast between unhighlighted, hovered, and keyboard-focused states.
+- [x] Text inputs maintain clean contrast and legible borders across light and dark modes.
+- [x] Automated tests verify the presence of all required theme tokens and the styling classes of the select primitives.

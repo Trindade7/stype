@@ -44,6 +44,71 @@ describe('Design System and Theme Configuration', () => {
 		expect(css).toContain("--font-sans: 'Figtree Variable', sans-serif;");
 	});
 
+	it('defines semantic theme tokens for positive feedback, typing engine states, and form inputs in light and dark modes', () => {
+		const cssPath = path.resolve(process.cwd(), 'src/app.css');
+		const css = fs.readFileSync(cssPath, 'utf8');
+
+		// Extract blocks
+		const rootMatch = css.match(/:root\s*\{([^}]+)\}/);
+		expect(rootMatch).not.toBeNull();
+		const rootBlock = rootMatch![1];
+
+		const darkMatch = css.match(/\.dark\s*\{([^}]+)\}/);
+		expect(darkMatch).not.toBeNull();
+		const darkBlock = darkMatch![1];
+
+		const themeMatch = css.match(/@theme inline\s*\{([^}]+)\}/);
+		expect(themeMatch).not.toBeNull();
+		const themeBlock = themeMatch![1];
+
+		// Verify light theme semantic tokens
+		expect(rootBlock).toContain('--success:');
+		expect(rootBlock).toContain('--success-foreground:');
+		expect(rootBlock).toContain('--typing-untyped:');
+		expect(rootBlock).toContain('--typing-correct:');
+		expect(rootBlock).toContain('--typing-error:');
+		expect(rootBlock).toContain('--typing-caret:');
+		expect(rootBlock).toContain('--border:');
+		expect(rootBlock).toContain('--input:');
+
+		// Verify dark theme semantic tokens
+		expect(darkBlock).toContain('--success:');
+		expect(darkBlock).toContain('--success-foreground:');
+		expect(darkBlock).toContain('--typing-untyped:');
+		expect(darkBlock).toContain('--typing-correct:');
+		expect(darkBlock).toContain('--typing-error:');
+		expect(darkBlock).toContain('--typing-caret:');
+		expect(darkBlock).toContain('--border:');
+		expect(darkBlock).toContain('--input:');
+
+		// Verify registration in @theme inline
+		expect(themeBlock).toContain('--color-success: var(--success);');
+		expect(themeBlock).toContain('--color-success-foreground: var(--success-foreground);');
+		expect(themeBlock).toContain('--color-typing-untyped: var(--typing-untyped);');
+		expect(themeBlock).toContain('--color-typing-correct: var(--typing-correct);');
+		expect(themeBlock).toContain('--color-typing-error: var(--typing-error);');
+		expect(themeBlock).toContain('--color-typing-caret: var(--typing-caret);');
+		expect(themeBlock).toContain('--color-input: var(--input);');
+		expect(themeBlock).toContain('--color-border: var(--border);');
+	});
+
+	it('enforces refined input border contrast and preserves standard border in light theme', () => {
+		const cssPath = path.resolve(process.cwd(), 'src/app.css');
+		const css = fs.readFileSync(cssPath, 'utf8');
+
+		const rootMatch = css.match(/:root\s*\{([^}]+)\}/);
+		const rootBlock = rootMatch![1];
+
+		// Parse input lightness in :root for crisp input borders
+		const inputMatch = rootBlock.match(/--input:\s*oklch\(\s*([\d.]+)/);
+		expect(inputMatch).not.toBeNull();
+		const inputLightness = parseFloat(inputMatch![1]);
+		expect(inputLightness).toBeLessThanOrEqual(0.83);
+
+		// Verify standard border token in :root
+		expect(rootBlock).toContain('--border: oklch(0.92 0.004 286.32);');
+	});
+
 	it('configures scrollbar-gutter stable globally on html in app.css to prevent layout shifts', () => {
 		const cssPath = path.resolve(process.cwd(), 'src/app.css');
 		expect(fs.existsSync(cssPath)).toBe(true);

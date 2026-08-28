@@ -90,9 +90,21 @@
 
 	--destructive: oklch(0.577 0.245 27.325);
 
+	--success: oklch(0.6 0.17 155);
+
+	--success-foreground: oklch(0.985 0 0);
+
+	--typing-untyped: oklch(0.552 0.016 285.938);
+
+	--typing-correct: oklch(0.141 0.005 285.823);
+
+	--typing-error: oklch(0.577 0.245 27.325);
+
+	--typing-caret: oklch(0.511 0.096 186.391);
+
 	--border: oklch(0.92 0.004 286.32);
 
-	--input: oklch(0.92 0.004 286.32);
+	--input: oklch(0.82 0.004 286.32);
 
 	--ring: oklch(0.705 0.015 286.067);
 
@@ -156,6 +168,18 @@
 	--accent-foreground: oklch(0.984 0.014 180.72);
 
 	--destructive: oklch(0.704 0.191 22.216);
+
+	--success: oklch(0.696 0.17 162.48);
+
+	--success-foreground: oklch(0.141 0.005 285.823);
+
+	--typing-untyped: oklch(0.552 0.016 285.938);
+
+	--typing-correct: oklch(0.985 0 0);
+
+	--typing-error: oklch(0.704 0.191 22.216);
+
+	--typing-caret: oklch(0.696 0.17 162.48);
 
 	--border: oklch(1 0 0 / 10%);
 
@@ -221,6 +245,18 @@
 	--color-chart-2: var(--chart-2);
 
 	--color-chart-1: var(--chart-1);
+
+	--color-typing-caret: var(--typing-caret);
+
+	--color-typing-error: var(--typing-error);
+
+	--color-typing-correct: var(--typing-correct);
+
+	--color-typing-untyped: var(--typing-untyped);
+
+	--color-success-foreground: var(--success-foreground);
+
+	--color-success: var(--success);
 
 	--color-ring: var(--ring);
 
