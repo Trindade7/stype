@@ -59,7 +59,10 @@
 	let scrollMode = $state<ScrollMode>('center');
 
 	const INACTIVITY_TIMEOUT_MS = 10000;
+	const INACTIVITY_NOTICE_DURATION_MS = 3000;
 	let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+	let noticeTimer: ReturnType<typeof setTimeout> | null = null;
+	let showInactivityNotice = $state(false);
 
 	$effect.pre(() => {
 		mode = initialMode;
@@ -162,17 +165,43 @@
 		}
 	}
 
+	function clearNoticeTimer() {
+		if (noticeTimer !== null) {
+			clearTimeout(noticeTimer);
+			noticeTimer = null;
+		}
+	}
+
+	function dismissInactivityNotice() {
+		clearNoticeTimer();
+		showInactivityNotice = false;
+	}
+
+	function triggerInactivityReset() {
+		reset();
+		showInactivityNotice = true;
+		clearNoticeTimer();
+		noticeTimer = setTimeout(() => {
+			showInactivityNotice = false;
+			noticeTimer = null;
+		}, INACTIVITY_NOTICE_DURATION_MS);
+	}
+
 	function resetInactivityTimer() {
 		clearInactivityTimer();
 		if (startTime !== null && !isFinished) {
 			inactivityTimer = setTimeout(() => {
-				reset();
+				triggerInactivityReset();
 			}, INACTIVITY_TIMEOUT_MS);
 		}
 	}
 
 	function applyTypedValue(val: string) {
 		if (isFinished) return;
+
+		if (showInactivityNotice) {
+			dismissInactivityNotice();
+		}
 
 		if (val.length > chars.length) {
 			val = val.slice(0, chars.length);
@@ -240,6 +269,7 @@
 
 	function reset() {
 		clearInactivityTimer();
+		dismissInactivityNotice();
 		resetScroll();
 		typedText = '';
 		startTime = null;
@@ -369,6 +399,7 @@
 	$effect(() => {
 		const _id = passage.id;
 		resetScroll();
+		dismissInactivityNotice();
 	});
 
 	$effect(() => {
@@ -387,6 +418,7 @@
 
 		return () => {
 			clearInactivityTimer();
+			clearNoticeTimer();
 			cancelAnimationFrame(raf);
 			clearTimeout(timer);
 			window.removeEventListener('keydown', handleGlobalKeydown);
@@ -396,6 +428,7 @@
 
 	onDestroy(() => {
 		clearInactivityTimer();
+		clearNoticeTimer();
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('keydown', handleGlobalKeydown);
 			window.removeEventListener('focus', handleWindowFocus);
@@ -487,6 +520,18 @@
 		onclick={focusInput}
 	>
 		{#if !isFinished}
+			{#if showInactivityNotice}
+				<div
+					data-testid="inactivity-notice"
+					role="status"
+					aria-live="polite"
+					class="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 pointer-events-none flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-zinc-800/90 text-zinc-300 border border-zinc-700/60 rounded-full shadow-lg backdrop-blur-xs transition-opacity"
+				>
+					<i class="bi bi-arrow-counterclockwise text-zinc-400"></i>
+					<span>Reset due to inactivity</span>
+				</div>
+			{/if}
+
 			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				bind:this={inputEl}

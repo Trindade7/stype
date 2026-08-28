@@ -776,6 +776,175 @@ describe('TypingEngine', () => {
 			cleanup();
 		});
 
+		it('displays overlay notice reading "Reset due to inactivity" when 10 seconds of inactivity elapse during an active test run', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// Advance by 10 seconds
+			await vi.advanceTimersByTimeAsync(10000);
+
+			const notice = screen.getByText('Reset due to inactivity');
+			expect(notice).toBeInTheDocument();
+			expect(screen.getByTestId('inactivity-notice')).toBeInTheDocument();
+		});
+
+		it('automatically dismisses the notice after 3 seconds if no typing occurs', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Trigger inactivity reset at 10s
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
+
+			// Advance by 2.9 seconds: notice still visible
+			await vi.advanceTimersByTimeAsync(2900);
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
+
+			// Advance past 3 seconds (additional 200ms): notice automatically disappears
+			await vi.advanceTimersByTimeAsync(200);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+		});
+
+		it('dismisses the notice immediately upon typing any valid keystroke', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Trigger inactivity reset at 10s
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
+
+			// Type a valid keystroke before the 3 seconds are up (e.g. at 500ms)
+			await vi.advanceTimersByTimeAsync(500);
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Notice must disappear immediately
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+		});
+
+		it('does not display the notice on manual reset with Escape key, and dismisses active notice if present', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Manual reset via Escape before inactivity timeout
+			await fireEvent.keyDown(window, { key: 'Escape' });
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// 10s after manual reset, notice still does not appear
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// Now start typing again and let inactivity notice appear
+			await fireEvent.input(input, { target: { value: 'H' } });
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
+
+			// Press Escape while notice is visible: dismisses notice immediately
+			await fireEvent.keyDown(window, { key: 'Escape' });
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+		});
+
+		it('does not display the notice on manual reset with restart button, and dismisses active notice if present', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Manual reset via Restart button before inactivity timeout
+			const restartBtn = screen.getByRole('button', { name: /restart/i });
+			await fireEvent.click(restartBtn);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// 10s after manual reset, notice still does not appear
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// Now start typing again and let inactivity notice appear
+			await fireEvent.input(input, { target: { value: 'H' } });
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
+
+			// Click Restart button while notice is visible: dismisses notice immediately
+			await fireEvent.click(restartBtn);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+		});
+
+		it('does not display the notice on navigating to a new passage, and dismisses active notice if present', async () => {
+			const onNextPassageMock = vi.fn();
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container, rerender } = render(TypingEngine, {
+				passage,
+				onNextPassage: onNextPassageMock
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+
+			// Press Tab to navigate to next passage before inactivity timeout
+			await fireEvent.keyDown(window, { key: 'Tab' });
+			expect(onNextPassageMock).toHaveBeenCalledTimes(1);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// 10s after navigating without typing, notice still does not appear
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// Now start typing and let inactivity notice appear
+			await fireEvent.input(input, { target: { value: 'H' } });
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
+
+			// Tab to next passage while notice is visible
+			await fireEvent.keyDown(window, { key: 'Tab' });
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+
+			// Rerender with a new passage prop also ensures notice is dismissed
+			await fireEvent.input(input, { target: { value: 'H' } });
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
+
+			rerender({ passage: { id: 2, text: 'New passage text', source: 'Source 2' } });
+			await vi.advanceTimersByTimeAsync(0);
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
+		});
+
+		it('positions the notice as an overlay inside the typing container with disabled pointer events', async () => {
+			const passage = { id: 1, text: 'Hello world', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+			await vi.advanceTimersByTimeAsync(10000);
+
+			const notice = screen.getByTestId('inactivity-notice');
+			expect(notice).toHaveClass('absolute');
+			expect(notice).toHaveClass('pointer-events-none');
+			expect(notice).toHaveAttribute('role', 'status');
+
+			// Notice is inside the typing container
+			const typingContainer = input.parentElement!;
+			expect(typingContainer).toContainElement(notice);
+
+			// Passage text container is also inside typing container and remains intact
+			const scrollContainer = typingContainer.querySelector<HTMLElement>('[data-scroll-mode]');
+			expect(scrollContainer).toBeInTheDocument();
+			expect(typingContainer).toContainElement(scrollContainer);
+		});
+
 		it('automatically resets in-progress test run to zero on same passage after 10 seconds of inactivity in Passage Mode', async () => {
 			const passage = { id: 1, text: 'Hello world', source: 'Test' };
 			const { container } = render(TypingEngine, { passage });
@@ -823,7 +992,7 @@ describe('TypingEngine', () => {
 			expect(input.value).toBe('');
 		});
 
-		it('triggers inactivity reset in Timed Mode after 10 seconds without keystrokes', async () => {
+		it('triggers inactivity reset and displays visual notice in Timed Mode after 10 seconds without keystrokes', async () => {
 			const passage = { id: 1, text: 'Hello world', source: 'Test' };
 			const { container } = render(TypingEngine, {
 				passage,
@@ -835,14 +1004,19 @@ describe('TypingEngine', () => {
 			await fireEvent.input(input, { target: { value: 'H' } });
 			expect(input.value).toBe('H');
 
-			vi.advanceTimersByTime(10000);
+			await vi.advanceTimersByTimeAsync(10000);
 
 			expect(input.value).toBe('');
 			expect(screen.getByText('— Test')).toBeInTheDocument();
+			expect(screen.getByText('Reset due to inactivity')).toBeInTheDocument();
 			expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
+
+			// Keystroke in timed mode dismisses the notice immediately
+			await fireEvent.input(input, { target: { value: 'H' } });
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
 		});
 
-		it('does not run inactivity timer before typing begins, allowing typists to read without being reset', async () => {
+		it('does not run inactivity timer or display notice before typing begins, allowing typists to read without being reset', async () => {
 			const onRestartMock = vi.fn();
 			const passage = { id: 1, text: 'Hello world', source: 'Test' };
 			const { container } = render(TypingEngine, {
@@ -853,18 +1027,19 @@ describe('TypingEngine', () => {
 			const input = container.querySelector('input') as HTMLInputElement;
 
 			// Advance by 15 seconds before any keystroke
-			vi.advanceTimersByTime(15000);
+			await vi.advanceTimersByTimeAsync(15000);
 
-			// onRestart should not have been called by an inactivity reset
+			// onRestart should not have been called by an inactivity reset and no notice is displayed
 			expect(onRestartMock).not.toHaveBeenCalled();
 			expect(screen.getByText('— Test')).toBeInTheDocument();
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
 
 			// Typist can start typing normally now
 			await fireEvent.input(input, { target: { value: 'H' } });
 			expect(input.value).toBe('H');
 		});
 
-		it('disables inactivity timer when test run is completed and Result Summary is visible', async () => {
+		it('disables inactivity timer and never displays notice when test run is completed and Result Summary is visible', async () => {
 			const onRestartMock = vi.fn();
 			const passage = { id: 1, text: 'Hi', source: 'Test' };
 			const { container } = render(TypingEngine, {
@@ -877,12 +1052,14 @@ describe('TypingEngine', () => {
 
 			// Result Summary should be displayed
 			expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
 
 			// Advance by 15 seconds
-			vi.advanceTimersByTime(15000);
+			await vi.advanceTimersByTimeAsync(15000);
 
-			// Result Summary is still visible and not reset by inactivity
+			// Result Summary is still visible and not reset by inactivity, notice never displayed
 			expect(screen.getByText('Passage Complete')).toBeInTheDocument();
+			expect(screen.queryByText('Reset due to inactivity')).not.toBeInTheDocument();
 			expect(onRestartMock).not.toHaveBeenCalled();
 		});
 

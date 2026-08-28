@@ -4,14 +4,14 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] When 10 seconds elapse without a keystroke during an active test run, an overlay notice displaying "Reset due to inactivity" appears.
-- [ ] The notice is positioned as an overlay inside the typing container so that no layout shift occurs on the passage text.
-- [ ] Typing any valid keystroke after an inactivity reset dismisses the notice immediately.
-- [ ] If no typing occurs after an inactivity reset, the notice automatically disappears after 3 seconds.
-- [ ] Manually resetting the test with the Escape key does not display the inactivity notice.
-- [ ] Manually resetting the test with the restart button does not display the inactivity notice.
-- [ ] Navigating to a new passage does not display the inactivity notice.
-- [ ] The notice never displays before the first keystroke of a passage or after a test run is completed.
-- [ ] The overlay notice functions identically in both Passage Mode and Timed Mode.
+- [x] When 10 seconds elapse without a keystroke during an active test run, an overlay notice displaying "Reset due to inactivity" appears.
+- [x] The notice is positioned as an overlay inside the typing container so that no layout shift occurs on the passage text.
+- [x] Typing any valid keystroke after an inactivity reset dismisses the notice immediately.
+- [x] If no typing occurs after an inactivity reset, the notice automatically disappears after 3 seconds.
+- [x] Manually resetting the test with the Escape key does not display the inactivity notice.
+- [x] Manually resetting the test with the restart button does not display the inactivity notice.
+- [x] Navigating to a new passage does not display the inactivity notice.
+- [x] The notice never displays before the first keystroke of a passage or after a test run is completed.
+- [x] The overlay notice functions identically in both Passage Mode and Timed Mode.
