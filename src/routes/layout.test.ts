@@ -65,7 +65,7 @@ describe('App Layout Shell', () => {
 		expect(screen.getAllByRole('link', { name: /settings/i }).length).toBeGreaterThanOrEqual(1);
 	});
 
-	it('replaces "My Account" with "User Details" in user dropdown and links directly to /app/user', async () => {
+	it('displays "Logged in as [username]" as an interactive link to /app/user and removes redundant User Details entry', async () => {
 		const childSnippet = createRawSnippet(() => ({
 			render: () => '<div>Content</div>'
 		}));
@@ -79,9 +79,32 @@ describe('App Layout Shell', () => {
 		await fireEvent.click(userTrigger!);
 
 		expect(screen.queryByText('My Account')).not.toBeInTheDocument();
-		const userDetailsLink = await screen.findByRole('link', { name: /user details/i });
-		expect(userDetailsLink).toBeInTheDocument();
-		expect(userDetailsLink).toHaveAttribute('href', '/app/user');
+		expect(screen.queryByRole('link', { name: /^user details$/i })).not.toBeInTheDocument();
+
+		const loggedInLink = await screen.findByRole('link', { name: /logged in as details-user/i });
+		expect(loggedInLink).toBeInTheDocument();
+		expect(loggedInLink).toHaveAttribute('href', '/app/user');
+	});
+
+	it('truncates long usernames cleanly in user dropdown link and header trigger', async () => {
+		const childSnippet = createRawSnippet(() => ({
+			render: () => '<div>Content</div>'
+		}));
+
+		const longUsername = 'supercalifragilisticexpialidocious_typist_with_an_exceptionally_long_name';
+		render(Layout, {
+			data: { user: { id: 'user-6', username: longUsername, email: 'long@stype.local', name: 'Long User', createdAt: new Date() }, settings: null },
+			children: childSnippet
+		});
+
+		const userTrigger = screen.getByText(longUsername).closest('button');
+		expect(userTrigger).toHaveClass('max-w-[200px]');
+		await fireEvent.click(userTrigger!);
+
+		const loggedInLink = await screen.findByRole('link', { name: new RegExp(`logged in as ${longUsername}`, 'i') });
+		expect(loggedInLink).toHaveClass('truncate', 'min-w-0');
+		const truncateSpan = loggedInLink.querySelector('.truncate');
+		expect(truncateSpan).toBeInTheDocument();
 	});
 
 	it('opens theme switcher dropdown and persists preference on selection', async () => {

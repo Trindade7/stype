@@ -20,7 +20,7 @@
 <div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
 	<GuestHeader />
 
-	<main class="mx-auto max-w-3xl px-6 py-8 flex-1 w-full mt-[69px]">
+	<main class="mx-auto max-w-5xl px-6 py-8 flex-1 w-full mt-[69px]">
 		<div class="mb-8">
 			<div class="flex items-center gap-2">
 				<HugeiconsIcon icon={Settings02Icon} size={28} class="text-primary" />

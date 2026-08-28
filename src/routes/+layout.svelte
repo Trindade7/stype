@@ -111,19 +111,15 @@
 					</DropdownMenu.Root>
 
 					<DropdownMenu.Root>
-						<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline' }) + " h-9 px-3 gap-2"}>
-							<HugeiconsIcon icon={UserCircleIcon} size={18} />
-							<span class="hidden sm:inline-block text-sm font-medium">{data.user.username}</span>
+						<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline' }) + " h-9 px-3 gap-2 max-w-[200px]"}>
+							<HugeiconsIcon icon={UserCircleIcon} size={18} class="shrink-0" />
+							<span class="hidden sm:inline-block text-sm font-medium truncate">{data.user.username}</span>
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end" class="w-48">
-							<DropdownMenu.Label class="p-0">
-								<a href="/app/user" class="block px-2 py-1.5 hover:underline text-foreground">
-									User Details
+							<DropdownMenu.Item class="w-full cursor-pointer p-0 min-w-0">
+								<a href="/app/user" class="w-full min-w-0 block px-2 py-1.5 truncate text-foreground hover:text-foreground">
+									<span class="truncate block">Logged in as <span class="font-semibold">{data.user.username}</span></span>
 								</a>
-							</DropdownMenu.Label>
-							<DropdownMenu.Separator />
-							<DropdownMenu.Item class="text-muted-foreground">
-								<span class="truncate">Logged in as {data.user.username}</span>
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item class="w-full cursor-pointer p-0">

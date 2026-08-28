@@ -33,7 +33,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-5xl px-6 py-8">
+<div class="mx-auto max-w-5xl px-6 py-8 w-full">
 	<div class="mb-8 flex items-center justify-between">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Passages</h1>

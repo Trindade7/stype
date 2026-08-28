@@ -187,4 +187,47 @@ describe('Design System and Theme Configuration', () => {
 		expect(themeBlock).toContain('--color-chart-1: var(--chart-1);');
 		expect(themeBlock).toContain('--color-chart-2: var(--chart-2);');
 	});
+
+	it('standardizes content page containers to uniform max-w-5xl and px-6 py-8 across guest and authenticated routes', () => {
+		const contentPages = [
+			'src/routes/history/+page.svelte',
+			'src/routes/stats/+page.svelte',
+			'src/routes/passages/+page.svelte',
+			'src/routes/settings/+page.svelte',
+			'src/routes/app/history/+page.svelte',
+			'src/routes/app/stats/+page.svelte',
+			'src/routes/app/passages/+page.svelte',
+			'src/routes/app/settings/+page.svelte',
+			'src/routes/app/user/+page.svelte'
+		];
+
+		for (const relativePath of contentPages) {
+			const filePath = path.resolve(process.cwd(), relativePath);
+			expect(fs.existsSync(filePath), `File exists: ${relativePath}`).toBe(true);
+
+			const content = fs.readFileSync(filePath, 'utf8');
+
+			// Must use standardized container width and padding matching header
+			expect(content, `${relativePath} enforces max-w-5xl`).toContain('max-w-5xl');
+			expect(content, `${relativePath} enforces px-6`).toContain('px-6');
+			expect(content, `${relativePath} enforces py-8`).toContain('py-8');
+
+			// Must not retain disparate legacy container widths
+			expect(content, `${relativePath} does not use max-w-3xl`).not.toContain('max-w-3xl');
+			expect(content, `${relativePath} does not use max-w-4xl`).not.toContain('max-w-4xl');
+		}
+	});
+
+	it('standardizes user dropdown in layout to link identity directly to /app/user and removes redundant label', () => {
+		const layoutPath = path.resolve(process.cwd(), 'src/routes/+layout.svelte');
+		const content = fs.readFileSync(layoutPath, 'utf8');
+
+		// Contains interactive link for Logged in as
+		expect(content).toContain('href="/app/user"');
+		expect(content).toContain('Logged in as');
+		expect(content).toMatch(/<a[^>]*href="\/app\/user"[^>]*>[\s\S]*Logged in as/);
+
+		// Does not contain redundant standalone User Details menu item
+		expect(content).not.toContain('User Details');
+	});
 });

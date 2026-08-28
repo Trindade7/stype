@@ -46,7 +46,7 @@
 	<title>User Details — Stype</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl px-6 py-8">
+<div class="mx-auto max-w-5xl px-6 py-8 w-full">
 	<div class="mb-8">
 		<div class="flex items-center gap-2">
 			<HugeiconsIcon icon={UserCircleIcon} size={28} class="text-primary" />

@@ -9,7 +9,7 @@
 	<title>Test History - Stype</title>
 </svelte:head>
 
-<div class="container mx-auto max-w-4xl py-10 px-4 sm:px-6">
+<div class="mx-auto max-w-5xl px-6 py-8 w-full">
 	<div class="mb-8">
 		<h1 class="text-3xl font-bold tracking-tight mb-2">Test History</h1>
 		<p class="text-muted-foreground">Review your past test runs and see how you've improved.</p>
