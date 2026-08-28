@@ -6,7 +6,9 @@
 		ShieldUserIcon,
 		UserAdd01Icon,
 		Search01Icon,
-		Alert01Icon
+		Alert01Icon,
+		MoreVerticalIcon,
+		Edit01Icon
 	} from '@hugeicons/core-free-icons';
 
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -14,6 +16,8 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Switch } from '$lib/components/ui/switch';
 	import { generateRandomPassword } from '$lib/password-utils';
 
 	let { data, form }: { data: PageData; form?: ActionData } = $props();
@@ -26,6 +30,18 @@
 	let formPassword = $state('');
 	let formRole = $state('user');
 
+	let isEditDialogOpen = $state(false);
+	let editingUser = $state<any>(null);
+	let editUserId = $state('');
+	let editName = $state('');
+	let editEmail = $state('');
+	let editRole = $state('user');
+	let editEmailConfirmed = $state(true);
+
+	let isSelfDemoteDialogOpen = $state(false);
+	let isConfirmedSelfDemotion = $state(false);
+	let editFormElement: HTMLFormElement | undefined = $state();
+
 	$effect.pre(() => {
 		if (form?.action === 'createUser' && !form.success) {
 			isCreateDialogOpen = true;
@@ -36,10 +52,74 @@
 				if (form.values.role !== undefined) formRole = form.values.role;
 			}
 		}
+		if (form?.action === 'updateUser' && !form.success) {
+			isEditDialogOpen = true;
+			const updateForm = form as any;
+			if (updateForm.values) {
+				if (updateForm.values.id !== undefined) editUserId = updateForm.values.id;
+				if (updateForm.values.name !== undefined) editName = updateForm.values.name;
+				if (updateForm.values.email !== undefined) editEmail = updateForm.values.email;
+				if (updateForm.values.role !== undefined) editRole = updateForm.values.role;
+				if (updateForm.values.emailConfirmed !== undefined) {
+					editEmailConfirmed = updateForm.values.emailConfirmed === 'true' || updateForm.values.emailConfirmed === true;
+				}
+			}
+		}
 	});
 
 	function handleGenerateRandomPassword() {
 		formPassword = generateRandomPassword(16);
+	}
+
+	function openEditModal(user: any) {
+		editingUser = user;
+		editUserId = user.id;
+		editName = user.name ?? '';
+		editEmail = user.email ?? '';
+		editRole = user.role ?? 'user';
+		editEmailConfirmed = Boolean(user.emailConfirmed);
+		isConfirmedSelfDemotion = false;
+		isEditDialogOpen = true;
+	}
+
+	function handleSaveClick(event: MouseEvent) {
+		const currentUserId = data.user?.id;
+		const isSelfDemotion =
+			editingUser &&
+			editingUser.id === currentUserId &&
+			editingUser.role === 'admin' &&
+			editRole === 'user';
+
+		if (isSelfDemotion && !isConfirmedSelfDemotion) {
+			event.preventDefault();
+			event.stopPropagation();
+			isSelfDemoteDialogOpen = true;
+		}
+	}
+
+	function handleEditFormSubmit(event: SubmitEvent) {
+		const currentUserId = data.user?.id;
+		const isSelfDemotion =
+			editingUser &&
+			editingUser.id === currentUserId &&
+			editingUser.role === 'admin' &&
+			editRole === 'user';
+
+		if (isSelfDemotion && !isConfirmedSelfDemotion) {
+			event.preventDefault();
+			event.stopPropagation();
+			isSelfDemoteDialogOpen = true;
+		}
+	}
+
+	function handleConfirmSelfDemotion() {
+		isConfirmedSelfDemotion = true;
+		isSelfDemoteDialogOpen = false;
+		if (typeof editFormElement?.requestSubmit === 'function') {
+			editFormElement.requestSubmit();
+		} else {
+			editFormElement?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+		}
 	}
 
 	function formatDate(date: string | Date | number): string {
@@ -52,6 +132,7 @@
 	}
 
 	let formErrors = $derived(form?.action === 'createUser' && !form.success ? form.errors : undefined);
+	let editErrors = $derived(form?.action === 'updateUser' && !form.success ? form.errors : undefined);
 
 	let users = $derived(data.users ?? []);
 	let filteredUsers = $derived(
@@ -236,6 +317,157 @@
 				</form>
 			</Dialog.Content>
 		</Dialog.Root>
+
+		<!-- Edit User Dialog -->
+		<Dialog.Root bind:open={isEditDialogOpen}>
+			<Dialog.Content class="sm:max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>Edit User Details</Dialog.Title>
+					<Dialog.Description>
+						Update display name, email, role, and verification status.
+					</Dialog.Description>
+				</Dialog.Header>
+
+				{#if form?.action === 'updateUser' && !form.success && form.message}
+					<div
+						role="alert"
+						class="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive"
+					>
+						<HugeiconsIcon icon={Alert01Icon} size={16} class="shrink-0" />
+						<span>{form.message}</span>
+					</div>
+				{/if}
+
+				<form
+					bind:this={editFormElement}
+					method="POST"
+					action="?/updateUser"
+					class="space-y-4"
+					onsubmit={handleEditFormSubmit}
+					use:enhance={(opts) => {
+						if (opts?.formData && isConfirmedSelfDemotion) {
+							opts.formData.set('confirmSelfDemotion', 'true');
+						}
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								if (result.data?.demotedSelf) {
+									window.location.href = '/app';
+									return;
+								}
+								isEditDialogOpen = false;
+								isSelfDemoteDialogOpen = false;
+								isConfirmedSelfDemotion = false;
+								editingUser = null;
+							}
+							await update();
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={editUserId} />
+					<input type="hidden" name="confirmSelfDemotion" value={isConfirmedSelfDemotion ? 'true' : 'false'} />
+
+					<div class="space-y-1.5">
+						<Label for="edit-name">Display Name</Label>
+						<Input
+							id="edit-name"
+							name="name"
+							bind:value={editName}
+							placeholder="Display name"
+							required
+							maxlength={50}
+							aria-invalid={editErrors?.name ? 'true' : undefined}
+						/>
+						{#if editErrors?.name}
+							<p role="alert" class="text-xs text-destructive">{editErrors.name}</p>
+						{/if}
+					</div>
+
+					<div class="space-y-1.5">
+						<Label for="edit-email">Email</Label>
+						<Input
+							id="edit-email"
+							type="email"
+							name="email"
+							bind:value={editEmail}
+							placeholder="user@example.com"
+							required
+							aria-invalid={editErrors?.email ? 'true' : undefined}
+						/>
+						{#if editErrors?.email}
+							<p role="alert" class="text-xs text-destructive">{editErrors.email}</p>
+						{/if}
+					</div>
+
+					<div class="space-y-1.5">
+						<Label for="edit-role">Role</Label>
+						<select
+							id="edit-role"
+							name="role"
+							bind:value={editRole}
+							class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+							aria-invalid={editErrors?.role ? 'true' : undefined}
+						>
+							<option value="user">User</option>
+							<option value="admin">Admin</option>
+						</select>
+						{#if editErrors?.role}
+							<p role="alert" class="text-xs text-destructive">{editErrors.role}</p>
+						{/if}
+					</div>
+
+					<div class="flex items-center justify-between rounded-lg border border-border p-3">
+						<div class="space-y-0.5">
+							<Label for="edit-email-confirmed" class="font-medium cursor-pointer">Email Verified</Label>
+							<p class="text-xs text-muted-foreground">
+								Keep user email marked as confirmed.
+							</p>
+						</div>
+						<Switch id="edit-email-confirmed" bind:checked={editEmailConfirmed} />
+						<input type="hidden" name="emailConfirmed" value={editEmailConfirmed ? 'true' : 'false'} />
+					</div>
+
+					<Dialog.Footer class="pt-2">
+						<Button type="button" variant="outline" onclick={() => (isEditDialogOpen = false)}>
+							Cancel
+						</Button>
+						<Button type="submit" onclick={handleSaveClick}>Save Changes</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+
+		<!-- Confirmation Dialog for Self-Demotion -->
+		<Dialog.Root bind:open={isSelfDemoteDialogOpen}>
+			<Dialog.Content class="sm:max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>Confirm Demotion</Dialog.Title>
+					<Dialog.Description class="text-destructive font-medium">
+						Warning: Demoting your account to User will revoke your administrative privileges immediately.
+					</Dialog.Description>
+				</Dialog.Header>
+				<p class="text-sm text-muted-foreground">
+					Administrative privileges will be revoked immediately. You will no longer have access to user management or administrative settings. Are you sure you want to proceed?
+				</p>
+				<Dialog.Footer class="pt-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => {
+							isSelfDemoteDialogOpen = false;
+						}}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="button"
+						variant="destructive"
+						onclick={handleConfirmSelfDemotion}
+					>
+						Confirm Demotion
+					</Button>
+				</Dialog.Footer>
+			</Dialog.Content>
+		</Dialog.Root>
 	</div>
 
 	<!-- Registered Users Table -->
@@ -249,12 +481,13 @@
 					<th scope="col" class="py-3 px-4 font-semibold">Role</th>
 					<th scope="col" class="py-3 px-4 font-semibold">Confirmation</th>
 					<th scope="col" class="py-3 px-4 font-semibold">Registration Date</th>
+					<th scope="col" class="py-3 px-4 font-semibold text-right">Actions</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#if filteredUsers.length === 0}
 					<tr>
-						<td colspan="6" class="p-8 text-center text-muted-foreground">
+						<td colspan="7" class="p-8 text-center text-muted-foreground">
 							No users found matching your search.
 						</td>
 					</tr>
@@ -281,6 +514,22 @@
 							</td>
 							<td class="py-3.5 px-4 text-muted-foreground text-xs whitespace-nowrap">
 								{formatDate(user.createdAt)}
+							</td>
+							<td class="py-3.5 px-4 text-right">
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger
+										class={buttonVariants({ variant: 'ghost', size: 'icon' }) + ' h-8 w-8 rounded-md'}
+										aria-label={`Actions for ${user.username}`}
+									>
+										<HugeiconsIcon icon={MoreVerticalIcon} size={16} />
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<DropdownMenu.Item onclick={() => openEditModal(user)}>
+											<HugeiconsIcon icon={Edit01Icon} size={14} class="mr-2" />
+											Edit Details
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
 							</td>
 						</tr>
 					{/each}

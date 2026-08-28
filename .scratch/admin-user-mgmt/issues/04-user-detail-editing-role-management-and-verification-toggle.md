@@ -4,13 +4,13 @@
 
 **Blocked by:** 03 — Administrator User Table and Direct User Creation
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Each user row includes an action menu with an "Edit Details" option that opens an edit modal dialog.
-- [ ] The edit modal displays fields for display name, email, role selection (`admin` or `user`), and an "Email Verified" toggle.
-- [ ] Submitting the form validates display name length, email format, and uniqueness against other registered users.
-- [ ] Updating a user's details persists the changes and keeps the user verified by default unless the verification toggle was unchecked.
-- [ ] Demoting an Administrator to User verifies within a database transaction that at least one other Administrator remains; if not, the action is rejected with a clear error.
-- [ ] Attempting to demote one's own account displays an explicit confirmation dialog warning that administrative privileges will be revoked immediately.
-- [ ] When an Administrator confirms self-demotion (and another administrator exists), their role updates to User and administrative access is revoked.
-- [ ] Automated tests verify user detail updates, role changes, verification status toggling, single-admin demotion prevention, and self-demotion confirmation handling.
+- [x] Each user row includes an action menu with an "Edit Details" option that opens an edit modal dialog.
+- [x] The edit modal displays fields for display name, email, role selection (`admin` or `user`), and an "Email Verified" toggle.
+- [x] Submitting the form validates display name length, email format, and uniqueness against other registered users.
+- [x] Updating a user's details persists the changes and keeps the user verified by default unless the verification toggle was unchecked.
+- [x] Demoting an Administrator to User verifies within a database transaction that at least one other Administrator remains; if not, the action is rejected with a clear error.
+- [x] Attempting to demote one's own account displays an explicit confirmation dialog warning that administrative privileges will be revoked immediately.
+- [x] When an Administrator confirms self-demotion (and another administrator exists), their role updates to User and administrative access is revoked.
+- [x] Automated tests verify user detail updates, role changes, verification status toggling, single-admin demotion prevention, and self-demotion confirmation handling.

@@ -7,9 +7,15 @@ vi.mock('$app/forms', () => {
 	return {
 		enhance: (node: HTMLFormElement, submitFunction: any) => {
 			node.addEventListener('submit', async (e) => {
+				if (e.defaultPrevented) return;
 				e.preventDefault();
 				if (submitFunction) {
-					const cb = submitFunction();
+					const cb = submitFunction({
+						formData: new FormData(node),
+						cancel: () => {},
+						submitter: null,
+						formElement: node
+					});
 					if (typeof cb === 'function') {
 						await cb({ result: { type: 'success' }, update: async () => {} });
 					}
@@ -295,5 +301,211 @@ describe('Admin Users Page', () => {
 		await fireEvent.submit(form!);
 
 		expect(screen.queryByRole('heading', { level: 2, name: /create user/i })).not.toBeInTheDocument();
+	});
+
+	it('renders an action menu for each user row with an Edit Details option', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		expect(screen.getByRole('columnheader', { name: /^actions$/i })).toBeInTheDocument();
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		expect(actionBtn).toBeInTheDocument();
+
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		expect(editOption).toBeInTheDocument();
+	});
+
+	it('opens Edit User dialog with user details pre-populated when Edit Details is clicked', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		await fireEvent.click(editOption);
+
+		expect(screen.getByRole('heading', { level: 2, name: /edit user/i })).toBeInTheDocument();
+
+		const nameInput = screen.getByLabelText(/^display name$/i) as HTMLInputElement;
+		const emailInput = screen.getByLabelText(/^email$/i) as HTMLInputElement;
+		const roleSelect = screen.getByLabelText(/^role$/i) as HTMLSelectElement;
+		const verifiedSwitch = screen.getByRole('switch', { name: /email verified/i });
+
+		expect(nameInput.value).toBe('Jane Doe');
+		expect(emailInput.value).toBe('jane@example.com');
+		expect(roleSelect.value).toBe('user');
+		expect(verifiedSwitch).toHaveAttribute('aria-checked', 'true');
+	});
+
+	it('allows toggling the Email Verified switch in Edit User dialog', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		// Open edit dialog for Bob Smith (emailConfirmed: false)
+		const actionBtn = screen.getByRole('button', { name: /actions for bobsmith/i });
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		await fireEvent.click(editOption);
+
+		const verifiedSwitch = screen.getByRole('switch', { name: /email verified/i });
+		expect(verifiedSwitch).toHaveAttribute('aria-checked', 'false');
+
+		await fireEvent.click(verifiedSwitch);
+		expect(verifiedSwitch).toHaveAttribute('aria-checked', 'true');
+	});
+
+	it('submits updateUser form with updated fields and closes dialog on success', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		await fireEvent.click(editOption);
+
+		const saveButton = screen.getByRole('button', { name: /save changes|update user/i });
+		const form = saveButton.closest('form');
+		expect(form).toBeInTheDocument();
+		expect(form?.getAttribute('action')).toContain('updateUser');
+
+		const idInput = form?.querySelector('input[name="id"]') as HTMLInputElement;
+		expect(idInput).toBeInTheDocument();
+		expect(idInput.value).toBe('user-2');
+
+		await fireEvent.submit(form!);
+		expect(screen.queryByRole('heading', { level: 2, name: /edit user/i })).not.toBeInTheDocument();
+	});
+
+	it('displays validation errors in Edit User dialog when updateUser returns error', () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: {
+				action: 'updateUser',
+				success: false,
+				message: 'Please resolve the errors in the form',
+				errors: {
+					name: 'Display name must be between 1 and 50 characters',
+					email: 'Email is already registered'
+				},
+				values: {
+					id: 'user-2',
+					name: '',
+					email: 'admin@stype.local',
+					role: 'user',
+					emailConfirmed: 'true'
+				}
+			} as any
+		});
+
+		expect(screen.getByRole('heading', { level: 2, name: /edit user/i })).toBeInTheDocument();
+		expect(screen.getByText('Display name must be between 1 and 50 characters')).toBeInTheDocument();
+		expect(screen.getByText('Email is already registered')).toBeInTheDocument();
+	});
+
+	it('displays confirmation dialog warning when an administrator demotes their own account', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0], // current user is admin-1
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		// Open edit dialog for own account (admin-1)
+		const actionBtn = screen.getByRole('button', { name: /actions for admin/i });
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		await fireEvent.click(editOption);
+
+		const roleSelect = screen.getByLabelText(/^role$/i) as HTMLSelectElement;
+		expect(roleSelect.value).toBe('admin');
+
+		// Change role to 'user'
+		await fireEvent.change(roleSelect, { target: { value: 'user' } });
+		expect(roleSelect.value).toBe('user');
+
+		// Click save changes
+		const saveButton = screen.getByRole('button', { name: /save changes|update user/i });
+		await fireEvent.click(saveButton);
+
+		// Confirmation dialog should be visible with warning
+		expect(
+			screen.getByText(/administrative privileges will be revoked immediately/i)
+		).toBeInTheDocument();
+
+		// Cancel should close confirmation dialog
+		const cancelButtons = screen.getAllByRole('button', { name: /cancel/i });
+		const confirmationCancelButton = cancelButtons[cancelButtons.length - 1];
+		await fireEvent.click(confirmationCancelButton);
+
+		expect(
+			screen.queryByText(/administrative privileges will be revoked immediately/i)
+		).not.toBeInTheDocument();
+	});
+
+	it('confirms self-demotion and submits update with confirmation flag', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		// Open edit dialog for own account
+		const actionBtn = screen.getByRole('button', { name: /actions for admin/i });
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		await fireEvent.click(editOption);
+
+		const roleSelect = screen.getByLabelText(/^role$/i) as HTMLSelectElement;
+		await fireEvent.change(roleSelect, { target: { value: 'user' } });
+
+		const saveButton = screen.getByRole('button', { name: /save changes|update user/i });
+		await fireEvent.click(saveButton);
+
+		expect(
+			screen.getByText(/administrative privileges will be revoked immediately/i)
+		).toBeInTheDocument();
+
+		const confirmButton = screen.getByRole('button', {
+			name: /confirm demotion|confirm/i
+		});
+		await fireEvent.click(confirmButton);
+
+		expect(
+			screen.queryByText(/administrative privileges will be revoked immediately/i)
+		).not.toBeInTheDocument();
 	});
 });

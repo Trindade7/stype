@@ -6,7 +6,8 @@ import { eq } from 'drizzle-orm';
 import { verifyPassword } from '$lib/server/auth/password';
 import {
 	createAdminUsersPageLoad,
-	createAdminCreateUserAction
+	createAdminCreateUserAction,
+	createAdminUpdateUserAction
 } from './admin-users-actions';
 
 function createMockEvent(
@@ -445,6 +446,547 @@ describe('Admin Users Page Server Load and Actions', () => {
 
 			expect(userInDb?.role).toBe('user');
 			expect(userInDb?.emailConfirmed).toBe(true);
+
+			sqlite.close();
+		});
+	});
+
+	describe('updateUser action', () => {
+		it('rejects unauthenticated requests with 401 Unauthorized', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const event = createMockEvent({
+				user: null,
+				formData: {
+					id: 'u-1',
+					name: 'Updated Name',
+					email: 'updated@example.com',
+					role: 'user'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(401);
+			expect(result?.data?.message).toBe('Unauthorized');
+
+			sqlite.close();
+		});
+
+		it('rejects non-admin users with 403 Forbidden', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const event = createMockEvent({
+				user: { id: 'u-regular', username: 'regular', role: 'user' },
+				formData: {
+					id: 'u-1',
+					name: 'Updated Name',
+					email: 'updated@example.com',
+					role: 'user'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(403);
+			expect(result?.data?.message).toBe('Forbidden');
+
+			sqlite.close();
+		});
+
+		it('fails with 400 when user id is missing or invalid', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: {
+					name: 'Valid Name',
+					email: 'valid@example.com',
+					role: 'user'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.message).toMatch(/user id/i);
+
+			sqlite.close();
+		});
+
+		it('fails with 404 when target user does not exist', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'non-existent-id',
+					name: 'Valid Name',
+					email: 'valid@example.com',
+					role: 'user'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(404);
+			expect(result?.data?.message).toMatch(/user not found/i);
+
+			sqlite.close();
+		});
+
+		it('validates display name length, email format, and role', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values({
+					id: 'u-target',
+					username: 'target',
+					email: 'target@example.com',
+					name: 'Target User',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const eventEmptyName = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-target',
+					name: '   ',
+					email: 'target@example.com',
+					role: 'user'
+				}
+			});
+			const resultName: any = await action(eventEmptyName as any);
+			expect(resultName?.status).toBe(400);
+			expect(resultName?.data?.errors?.name).toMatch(/between 1 and 50/i);
+
+			const eventInvalidEmail = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-target',
+					name: 'Valid Name',
+					email: 'not-an-email',
+					role: 'user'
+				}
+			});
+			const resultEmail: any = await action(eventInvalidEmail as any);
+			expect(resultEmail?.status).toBe(400);
+			expect(resultEmail?.data?.errors?.email).toMatch(/valid email/i);
+
+			const eventInvalidRole = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-target',
+					name: 'Valid Name',
+					email: 'target@example.com',
+					role: 'superuser'
+				}
+			});
+			const resultRole: any = await action(eventInvalidRole as any);
+			expect(resultRole?.status).toBe(400);
+			expect(resultRole?.data?.errors?.role).toMatch(/admin or user/i);
+
+			sqlite.close();
+		});
+
+		it('validates email uniqueness against other registered users while allowing existing email for same user', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'u-1',
+						username: 'userone',
+						email: 'userone@example.com',
+						name: 'User One',
+						role: 'user',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'u-2',
+						username: 'usertwo',
+						email: 'usertwo@example.com',
+						name: 'User Two',
+						role: 'user',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Attempting to set u-1's email to u-2's email should fail
+			const eventDuplicate = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-1',
+					name: 'User One Renamed',
+					email: 'usertwo@example.com',
+					role: 'user'
+				}
+			});
+			const resultDuplicate: any = await action(eventDuplicate as any);
+			expect(resultDuplicate?.status).toBe(400);
+			expect(resultDuplicate?.data?.errors?.email).toMatch(/already registered/i);
+
+			// Updating u-1 while keeping their own email should pass email validation
+			const eventSameEmail = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-1',
+					name: 'User One Renamed',
+					email: 'userone@example.com',
+					role: 'user'
+				}
+			});
+			const resultSame: any = await action(eventSameEmail as any);
+			expect(resultSame?.status).not.toBe(400);
+			expect(resultSame?.success).toBe(true);
+
+			sqlite.close();
+		});
+
+		it('persists name and email changes and maintains verified status by default', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values({
+					id: 'u-target',
+					username: 'targetuser',
+					email: 'old@example.com',
+					name: 'Old Name',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-target',
+					name: 'Brand New Name',
+					email: 'newemail@example.com',
+					role: 'user'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.message).toBeDefined();
+			expect(result?.user?.name).toBe('Brand New Name');
+			expect(result?.user?.email).toBe('newemail@example.com');
+			expect(result?.user?.emailConfirmed).toBe(true);
+
+			const inDb = db.select().from(schema.users).where(eq(schema.users.id, 'u-target')).get();
+			expect(inDb?.name).toBe('Brand New Name');
+			expect(inDb?.email).toBe('newemail@example.com');
+			expect(inDb?.emailConfirmed).toBe(true);
+
+			sqlite.close();
+		});
+
+		it('explicitly un-verifies user when email verification toggle is unchecked', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values({
+					id: 'u-target',
+					username: 'targetuser',
+					email: 'user@example.com',
+					name: 'Target User',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-target',
+					name: 'Target User',
+					email: 'user@example.com',
+					role: 'user',
+					emailConfirmed: 'false'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.user?.emailConfirmed).toBe(false);
+
+			const inDb = db.select().from(schema.users).where(eq(schema.users.id, 'u-target')).get();
+			expect(inDb?.emailConfirmed).toBe(false);
+
+			sqlite.close();
+		});
+
+		it('explicitly verifies user when email verification toggle is checked', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values({
+					id: 'u-target',
+					username: 'targetuser',
+					email: 'user@example.com',
+					name: 'Target User',
+					role: 'user',
+					emailConfirmed: false,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-target',
+					name: 'Target User',
+					email: 'user@example.com',
+					role: 'user',
+					emailConfirmed: 'true'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.user?.emailConfirmed).toBe(true);
+
+			const inDb = db.select().from(schema.users).where(eq(schema.users.id, 'u-target')).get();
+			expect(inDb?.emailConfirmed).toBe(true);
+
+			sqlite.close();
+		});
+
+		it('allows promoting a user to administrator', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const adminUser = { id: 'admin-1', username: 'admin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values({
+					id: 'u-user',
+					username: 'regularuser',
+					email: 'regular@example.com',
+					name: 'Regular User',
+					role: 'user',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: adminUser,
+				formData: {
+					id: 'u-user',
+					name: 'Regular User',
+					email: 'regular@example.com',
+					role: 'admin'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.user?.role).toBe('admin');
+
+			const inDb = db.select().from(schema.users).where(eq(schema.users.id, 'u-user')).get();
+			expect(inDb?.role).toBe('admin');
+
+			sqlite.close();
+		});
+
+		it('allows demoting an administrator to user when another administrator remains', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const admin1 = { id: 'admin-1', username: 'admin1', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-1',
+						username: 'admin1',
+						email: 'admin1@example.com',
+						name: 'Admin One',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'admin-2',
+						username: 'admin2',
+						email: 'admin2@example.com',
+						name: 'Admin Two',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			const event = createMockEvent({
+				user: admin1,
+				formData: {
+					id: 'admin-2',
+					name: 'Admin Two',
+					email: 'admin2@example.com',
+					role: 'user'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.success).toBe(true);
+			expect(result?.user?.role).toBe('user');
+
+			const inDb = db.select().from(schema.users).where(eq(schema.users.id, 'admin-2')).get();
+			expect(inDb?.role).toBe('user');
+
+			sqlite.close();
+		});
+
+		it('enforces single administrator invariant: rejects demotion of sole administrator in transaction', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const admin1 = { id: 'admin-sole', username: 'soleadmin', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-sole',
+						username: 'soleadmin',
+						email: 'soleadmin@example.com',
+						name: 'Sole Administrator',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'user-regular',
+						username: 'regular',
+						email: 'regular@example.com',
+						name: 'Regular User',
+						role: 'user',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			const event = createMockEvent({
+				user: admin1,
+				formData: {
+					id: 'admin-sole',
+					name: 'Sole Administrator',
+					email: 'soleadmin@example.com',
+					role: 'user',
+					confirmSelfDemotion: 'true'
+				}
+			});
+
+			const result: any = await action(event as any);
+			expect(result?.status).toBe(400);
+			expect(result?.data?.message).toMatch(/sole administrator|at least one administrator/i);
+
+			// Sole administrator in database must remain admin
+			const inDb = db.select().from(schema.users).where(eq(schema.users.id, 'admin-sole')).get();
+			expect(inDb?.role).toBe('admin');
+
+			sqlite.close();
+		});
+
+		it('requires explicit confirmation when an administrator demotes their own account', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const action = createAdminUpdateUserAction(db);
+			const admin1 = { id: 'admin-1', username: 'admin1', role: 'admin' };
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'admin-1',
+						username: 'admin1',
+						email: 'admin1@example.com',
+						name: 'Admin One',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date()
+					},
+					{
+						id: 'admin-2',
+						username: 'admin2',
+						email: 'admin2@example.com',
+						name: 'Admin Two',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash2',
+						createdAt: new Date()
+					}
+				])
+				.run();
+
+			// Attempting to demote self without confirmation should fail with 400
+			const eventUnconfirmed = createMockEvent({
+				user: admin1,
+				formData: {
+					id: 'admin-1',
+					name: 'Admin One',
+					email: 'admin1@example.com',
+					role: 'user'
+				}
+			});
+
+			const resultUnconfirmed: any = await action(eventUnconfirmed as any);
+			expect(resultUnconfirmed?.status).toBe(400);
+			expect(resultUnconfirmed?.data?.requiresConfirmation).toBe(true);
+			expect(resultUnconfirmed?.data?.message).toMatch(/administrative privileges will be revoked immediately/i);
+
+			// Account should still be admin
+			let inDb = db.select().from(schema.users).where(eq(schema.users.id, 'admin-1')).get();
+			expect(inDb?.role).toBe('admin');
+
+			// Now confirming self-demotion
+			const eventConfirmed = createMockEvent({
+				user: admin1,
+				formData: {
+					id: 'admin-1',
+					name: 'Admin One',
+					email: 'admin1@example.com',
+					role: 'user',
+					confirmSelfDemotion: 'true'
+				}
+			});
+
+			const resultConfirmed: any = await action(eventConfirmed as any);
+			expect(resultConfirmed?.success).toBe(true);
+			expect(resultConfirmed?.demotedSelf).toBe(true);
+			expect(resultConfirmed?.user?.role).toBe('user');
+
+			// Account is now user
+			inDb = db.select().from(schema.users).where(eq(schema.users.id, 'admin-1')).get();
+			expect(inDb?.role).toBe('user');
 
 			sqlite.close();
 		});
