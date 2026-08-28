@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ActionData } from './$types';
 	import { enhance } from '$app/forms';
+	import { localStore } from '$lib/localStore';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
 		KeyboardIcon,
@@ -24,6 +25,7 @@
 	let username = $state('');
 	let email = $state('');
 	let password = $state('');
+	let isSyncing = $state(false);
 
 	$effect.pre(() => {
 		if (form?.name !== undefined) {
@@ -39,6 +41,34 @@
 			password = '';
 		}
 	});
+
+	function handleSignup() {
+		return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
+			if (result.type === 'redirect' || result.type === 'success') {
+				const guestData = localStore.getGuestData();
+				const hasMeaningfulData = guestData.testRuns.length > 0 || guestData.customPassages.length > 0;
+
+				if (hasMeaningfulData) {
+					isSyncing = true;
+					try {
+						const res = await fetch('/app/api/sync', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(guestData)
+						});
+						if (res.ok) {
+							localStore.clearGuestData();
+						}
+					} catch (err) {
+						console.error('Failed to sync guest data:', err);
+					} finally {
+						isSyncing = false;
+					}
+				}
+			}
+			await update();
+		};
+	}
 </script>
 
 <svelte:head>
@@ -63,7 +93,7 @@
 				</div>
 			{/if}
 
-			<form method="POST" class="space-y-4" use:enhance>
+			<form method="POST" class="space-y-4" use:enhance={handleSignup}>
 				<div class="space-y-2">
 					<Label for="name" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 						Name

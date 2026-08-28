@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { localStore } from '$lib/localStore';
 import SignupPage from './+page.svelte';
 
 vi.mock('$app/forms', () => {
@@ -131,5 +132,54 @@ describe('Signup View Contract', () => {
 		});
 
 		expect(passwordInput.value).toBe('');
+	});
+
+	it('syncs guest data to /app/api/sync on successful registration when there is guest data', async () => {
+		global.fetch = vi.fn().mockResolvedValue({ ok: true });
+		localStore.saveCustomPassage({ text: 'guest registration custom passage' });
+		localStore.saveTestRun({
+			wpm: 75,
+			accuracy: 98,
+			correctChars: 196,
+			incorrectChars: 4,
+			extraChars: 0,
+			missedChars: 0,
+			timeElapsed: 30,
+			duration: 30,
+			passageId: 1,
+			mode: 'passage',
+			timelineSnapshots: []
+		});
+
+		render(SignupPage, { form: null });
+
+		const form = screen.getByRole('button', { name: /create account|sign up/i }).closest('form')!;
+		await fireEvent.submit(form);
+
+		expect(global.fetch).toHaveBeenCalledWith(
+			'/app/api/sync',
+			expect.objectContaining({
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: expect.stringContaining('guest registration custom passage')
+			})
+		);
+
+		// Local guest data cleared after successful sync
+		const guestData = localStore.getGuestData();
+		expect(guestData.customPassages.length).toBe(0);
+		expect(guestData.testRuns.length).toBe(0);
+	});
+
+	it('does not sync guest data on registration if there are no test runs or custom passages', async () => {
+		global.fetch = vi.fn().mockResolvedValue({ ok: true });
+		localStore.clearGuestData();
+
+		render(SignupPage, { form: null });
+
+		const form = screen.getByRole('button', { name: /create account|sign up/i }).closest('form')!;
+		await fireEvent.submit(form);
+
+		expect(global.fetch).not.toHaveBeenCalled();
 	});
 });

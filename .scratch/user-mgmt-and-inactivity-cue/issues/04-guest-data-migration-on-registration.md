@@ -4,10 +4,10 @@
 
 **Blocked by:** 03 — User Registration Flow at Signup
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] When registration completes successfully, any local guest test runs and custom passages are sent to the synchronization endpoint.
-- [ ] After successful synchronization, the local storage guest data is cleared.
-- [ ] Newly registered typists who had guest test runs see those test runs appear in their history at `/app/history`.
-- [ ] Newly registered typists who created custom passages see those passages available in `/app/passages`.
-- [ ] If the user registers with no prior guest data, registration completes immediately without unnecessary sync delays.
+- [x] When registration completes successfully, any local guest test runs and custom passages are sent to the synchronization endpoint.
+- [x] After successful synchronization, the local storage guest data is cleared.
+- [x] Newly registered typists who had guest test runs see those test runs appear in their history at `/app/history`.
+- [x] Newly registered typists who created custom passages see those passages available in `/app/passages`.
+- [x] If the user registers with no prior guest data, registration completes immediately without unnecessary sync delays.
