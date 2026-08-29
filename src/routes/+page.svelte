@@ -2,33 +2,47 @@
 	import { onMount } from 'svelte';
 	import TypingEngine from '$lib/components/TypingEngine.svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
-	import { localStore, type GuestPassage, type GuestSettings } from '$lib/localStore';
-	import { getPassageIdFromUrl, clearPassageQuery } from '$lib/passage-utils';
+	import {
+		localStore,
+		DEFAULT_GUEST_SETTINGS,
+		DEFAULT_PASSAGES,
+		type GuestPassage,
+		type GuestSettings
+	} from '$lib/localStore';
+	import { getPassageIdFromUrl, clearPassageQuery, filterPassagesByLength } from '$lib/passage-utils';
 
-	let settings = $state<GuestSettings>(localStore.getSettings());
+	let settings = $state<GuestSettings>(DEFAULT_GUEST_SETTINGS);
+	let currentPassage = $state<GuestPassage | null>(resolveFallbackPassage());
 
-	function resolveInitialPassage(lengthFilter = settings.passageLength): GuestPassage | null {
+	function resolveFallbackPassage(): GuestPassage | null {
 		const targetId = getPassageIdFromUrl();
 		if (targetId !== null) {
-			const found = localStore.getPassageById(targetId);
+			const found = DEFAULT_PASSAGES.find((p) => p.id === targetId);
+			if (found) return found;
+		}
+		const filtered = filterPassagesByLength([...DEFAULT_PASSAGES], DEFAULT_GUEST_SETTINGS.passageLength);
+		return filtered[0] ?? DEFAULT_PASSAGES[0];
+	}
+
+	async function resolvePassage(lengthFilter = settings.passageLength): Promise<GuestPassage | null> {
+		const targetId = getPassageIdFromUrl();
+		if (targetId !== null) {
+			const found = await localStore.getPassageById(targetId);
 			if (found) return found;
 		}
 		return localStore.getRandomPassage(lengthFilter);
 	}
 
-	let currentPassage = $state<GuestPassage | null>(
-		resolveInitialPassage(localStore.getSettings().passageLength)
-	);
-
-	function loadNextPassage() {
+	async function loadNextPassage() {
 		clearPassageQuery();
-		currentPassage = localStore.getRandomPassage(settings.passageLength);
+		currentPassage = await localStore.getRandomPassage(settings.passageLength);
 	}
 
-	onMount(() => {
-		settings = localStore.getSettings();
-		if (!currentPassage) {
-			currentPassage = resolveInitialPassage(settings.passageLength);
+	onMount(async () => {
+		settings = await localStore.getSettings();
+		const resolved = await resolvePassage(settings.passageLength);
+		if (resolved) {
+			currentPassage = resolved;
 		}
 	});
 </script>

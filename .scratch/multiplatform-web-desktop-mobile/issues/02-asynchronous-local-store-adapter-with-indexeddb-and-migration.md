@@ -4,11 +4,11 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] The client storage layer exposes an asynchronous contract for reading and writing Test Runs, Custom Passages, and Settings.
-- [ ] In web browsers, the storage adapter reads and writes records using browser IndexedDB.
-- [ ] Completed test runs persist to IndexedDB asynchronously without blocking input or causing frame drops during active typing.
-- [ ] On first launch with existing `localStorage` keys, records migrate to IndexedDB, and obsolete `localStorage` keys are cleaned up.
-- [ ] Client views (TypingEngine, HistoryTable, SettingsForm, Passages) interact with the asynchronous store cleanly with loading states where necessary.
-- [ ] Tests verify CRUD operations across all entities in the storage adapter and confirm accurate migration from legacy `localStorage` payloads.
+- [x] The client storage layer exposes an asynchronous contract for reading and writing Test Runs, Custom Passages, and Settings.
+- [x] In web browsers, the storage adapter reads and writes records using browser IndexedDB.
+- [x] Completed test runs persist to IndexedDB asynchronously without blocking input or causing frame drops during active typing.
+- [x] On first launch with existing `localStorage` keys, records migrate to IndexedDB, and obsolete `localStorage` keys are cleaned up.
+- [x] Client views (TypingEngine, HistoryTable, SettingsForm, Passages) interact with the asynchronous store cleanly with loading states where necessary.
+- [x] Tests verify CRUD operations across all entities in the storage adapter and confirm accurate migration from legacy `localStorage` payloads.

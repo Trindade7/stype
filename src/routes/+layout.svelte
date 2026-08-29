@@ -38,11 +38,11 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		if (data.settings?.theme) {
 			setMode(data.settings.theme);
 		} else if (!data.user) {
-			const guestSettings = localStore.getSettings();
+			const guestSettings = await localStore.getSettings();
 			if (guestSettings?.theme) {
 				setMode(guestSettings.theme);
 			}

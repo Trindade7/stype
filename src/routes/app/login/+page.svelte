@@ -31,7 +31,7 @@
 	function handleLogin() {
 		return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
 			if (result.type === 'redirect' || result.type === 'success') {
-				const guestData = localStore.getGuestData();
+				const guestData = await localStore.getGuestData();
 				const hasMeaningfulData = guestData.testRuns.length > 0 || guestData.customPassages.length > 0;
 				
 				if (hasMeaningfulData) {
@@ -43,7 +43,7 @@
 							body: JSON.stringify(guestData)
 						});
 						if (res.ok) {
-							localStore.clearGuestData();
+							await localStore.clearGuestData();
 						}
 					} catch (err) {
 						console.error('Failed to sync guest data:', err);

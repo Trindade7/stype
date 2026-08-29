@@ -1,16 +1,28 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/svelte';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/svelte';
 import GuestStatsPage from './+page.svelte';
 import {
+	localStore,
 	saveGuestTestRun,
 	clearGuestTestRuns,
 	DEFAULT_PASSAGES
 } from '$lib/localStore';
+import { setAdapter, resetMigrationStatus } from '$lib/storage';
 
 describe('Guest Stats Route (/stats/+page.svelte)', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		localStorage.clear();
+		resetMigrationStatus();
+		if (typeof indexedDB !== 'undefined') {
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.deleteDatabase('stype_db');
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+				req.onblocked = () => resolve();
+			});
+		}
+		setAdapter(null);
 		vi.restoreAllMocks();
 	});
 
@@ -36,11 +48,11 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 		).toBeInTheDocument();
 	});
 
-	it('displays zeroed metrics and empty chart state when localStore has no test runs', () => {
-		clearGuestTestRuns();
+	it('displays zeroed metrics and empty chart state when localStore has no test runs', async () => {
+		await clearGuestTestRuns();
 		render(GuestStatsPage);
 
-		expect(screen.getByText('Tests Completed')).toBeInTheDocument();
+		expect(await screen.findByText('Tests Completed')).toBeInTheDocument();
 		expect(screen.getByText('0')).toBeInTheDocument();
 
 		expect(screen.getByText('Average Speed')).toBeInTheDocument();
@@ -56,10 +68,7 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 	it('calculates and displays lifetime stats and performance chart from stored test runs', async () => {
 		const passage = DEFAULT_PASSAGES[0];
 
-		vi.useFakeTimers();
-		vi.setSystemTime(new Date('2025-01-01T10:00:00Z'));
-
-		saveGuestTestRun({
+		await saveGuestTestRun({
 			passageId: passage.id,
 			mode: 'passage',
 			duration: null,
@@ -70,12 +79,11 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 			incorrectChars: 2,
 			extraChars: 0,
 			missedChars: 0,
-			timelineSnapshots: []
+			timelineSnapshots: [],
+			createdAt: '2025-01-01T10:00:00Z'
 		});
 
-		vi.setSystemTime(new Date('2025-01-02T10:00:00Z'));
-
-		saveGuestTestRun({
+		await saveGuestTestRun({
 			passageId: passage.id,
 			mode: 'timed',
 			duration: 30,
@@ -86,14 +94,13 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 			incorrectChars: 0,
 			extraChars: 0,
 			missedChars: 0,
-			timelineSnapshots: []
+			timelineSnapshots: [],
+			createdAt: '2025-01-02T10:00:00Z'
 		});
-
-		vi.useRealTimers();
 
 		const { container } = render(GuestStatsPage);
 
-		expect(screen.getByText('2')).toBeInTheDocument();
+		expect(await screen.findByText('2')).toBeInTheDocument();
 		expect(screen.getByText('80 WPM')).toBeInTheDocument();
 		expect(screen.getByText('90 WPM')).toBeInTheDocument();
 		expect(screen.getByText('98%')).toBeInTheDocument();
@@ -112,5 +119,14 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 		expect(tooltip).toBeInTheDocument();
 		expect(tooltip).toHaveTextContent('90 WPM');
 		expect(tooltip).toHaveTextContent('100%');
+	});
+
+	it('shows clean loading indicator while stats load from localStore', () => {
+		vi.spyOn(localStore, 'getTestRuns').mockReturnValue(new Promise(() => {}));
+
+		render(GuestStatsPage);
+
+		expect(screen.getByTestId('stats-loading')).toBeInTheDocument();
+		expect(screen.getByText(/loading stats/i)).toBeInTheDocument();
 	});
 });

@@ -4,10 +4,12 @@
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
 	import { localStore, type GuestTestRun } from '$lib/localStore';
 
-	let runs = $state<GuestTestRun[]>(localStore.getTestRuns());
+	let runs = $state<GuestTestRun[]>([]);
+	let isLoading = $state(true);
 
-	onMount(() => {
-		runs = localStore.getTestRuns();
+	onMount(async () => {
+		runs = await localStore.getTestRuns();
+		isLoading = false;
 	});
 </script>
 
@@ -24,6 +26,12 @@
 			<p class="text-muted-foreground">Review your past test runs and see how you've improved.</p>
 		</div>
 
-		<HistoryTable {runs} />
+		{#if isLoading}
+			<div class="py-12 flex justify-center items-center text-muted-foreground" data-testid="history-loading">
+				<div class="animate-pulse text-sm">Loading test history...</div>
+			</div>
+		{:else}
+			<HistoryTable {runs} />
+		{/if}
 	</main>
 </div>

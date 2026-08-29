@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import GuestPassagesPage from './+page.svelte';
 import {
 	localStore,
@@ -8,10 +8,21 @@ import {
 	getCustomPassages,
 	DEFAULT_PASSAGES
 } from '$lib/localStore';
+import { setAdapter, resetMigrationStatus } from '$lib/storage';
 
 describe('Guest Passages Route (/passages/+page.svelte)', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		localStorage.clear();
+		resetMigrationStatus();
+		if (typeof indexedDB !== 'undefined') {
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.deleteDatabase('stype_db');
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+				req.onblocked = () => resolve();
+			});
+		}
+		setAdapter(null);
 		vi.restoreAllMocks();
 	});
 
@@ -38,25 +49,25 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		expect(screen.getByRole('button', { name: /new passage/i })).toBeInTheDocument();
 	});
 
-	it('displays default seeded passages with Seeded badge', () => {
+	it('displays default seeded passages with Seeded badge', async () => {
 		render(GuestPassagesPage);
 
-		const seededBadges = screen.getAllByText('Seeded');
+		const seededBadges = await screen.findAllByText('Seeded');
 		expect(seededBadges.length).toBe(DEFAULT_PASSAGES.length);
 
 		expect(screen.getByText(DEFAULT_PASSAGES[0].text)).toBeInTheDocument();
 		expect(screen.getByText(DEFAULT_PASSAGES[0].source!)).toBeInTheDocument();
 	});
 
-	it('displays custom passages with Custom badge and delete button', () => {
-		saveCustomPassage({
+	it('displays custom passages with Custom badge and delete button', async () => {
+		await saveCustomPassage({
 			text: 'A custom passage created for testing.',
 			source: 'Custom Test Source'
 		});
 
 		render(GuestPassagesPage);
 
-		expect(screen.getByText('Custom')).toBeInTheDocument();
+		expect(await screen.findByText('Custom')).toBeInTheDocument();
 		expect(screen.getByText('Custom Test Source')).toBeInTheDocument();
 		expect(screen.getByText('A custom passage created for testing.')).toBeInTheDocument();
 	});
@@ -65,7 +76,7 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		render(GuestPassagesPage);
 
 		// Open Create dialog
-		const newPassageButton = screen.getByRole('button', { name: /new passage/i });
+		const newPassageButton = await screen.findByRole('button', { name: /new passage/i });
 		await fireEvent.click(newPassageButton);
 
 		expect(screen.getByRole('heading', { level: 2, name: /create custom passage/i })).toBeInTheDocument();
@@ -86,44 +97,46 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		await fireEvent.click(submitButton);
 
 		// Verify passage is rendered in page
-		expect(screen.getByText('Original Source')).toBeInTheDocument();
+		expect(await screen.findByText('Original Source')).toBeInTheDocument();
 		expect(screen.getByText('My newly created custom practice passage.')).toBeInTheDocument();
 
 		// Verify stored in localStore
-		const stored = getCustomPassages();
+		const stored = await getCustomPassages();
 		expect(stored).toHaveLength(1);
 		expect(stored[0].text).toBe('My newly created custom practice passage.');
 		expect(stored[0].source).toBe('Original Source');
 	});
 
 	it('deletes a custom passage when delete button is clicked', async () => {
-		const custom = saveCustomPassage({
+		await saveCustomPassage({
 			text: 'Passage to be deleted.',
 			source: 'Ephemeral Source'
 		});
 
 		render(GuestPassagesPage);
 
-		expect(screen.getByText('Ephemeral Source')).toBeInTheDocument();
+		expect(await screen.findByText('Ephemeral Source')).toBeInTheDocument();
 
 		// Find delete button
 		const deleteButton = screen.getByRole('button', { name: /delete passage/i });
 		await fireEvent.click(deleteButton);
 
 		// Verify passage is removed
-		expect(screen.queryByText('Ephemeral Source')).not.toBeInTheDocument();
-		expect(getCustomPassages()).toHaveLength(0);
+		await waitFor(() => {
+			expect(screen.queryByText('Ephemeral Source')).not.toBeInTheDocument();
+		});
+		expect(await getCustomPassages()).toHaveLength(0);
 	});
 
 	it('edits a custom passage when edit form is submitted', async () => {
-		const custom = saveCustomPassage({
+		await saveCustomPassage({
 			text: 'Initial text content.',
 			source: 'Initial Source'
 		});
 
 		render(GuestPassagesPage);
 
-		expect(screen.getByText('Initial Source')).toBeInTheDocument();
+		expect(await screen.findByText('Initial Source')).toBeInTheDocument();
 
 		// Open edit dialog
 		const editButton = screen.getByRole('button', { name: /edit passage/i });
@@ -140,10 +153,10 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		const saveButton = screen.getByRole('button', { name: /save changes/i });
 		await fireEvent.click(saveButton);
 
-		expect(screen.getByText('Modified Source')).toBeInTheDocument();
+		expect(await screen.findByText('Modified Source')).toBeInTheDocument();
 		expect(screen.getByText('Modified text content.')).toBeInTheDocument();
 
-		const stored = getCustomPassages();
+		const stored = await getCustomPassages();
 		expect(stored[0].text).toBe('Modified text content.');
 		expect(stored[0].source).toBe('Modified Source');
 	});
@@ -151,7 +164,7 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 	it('paginates when passages exceed 10 items', async () => {
 		// DEFAULT_PASSAGES has 7. Add 5 custom passages to total 12.
 		for (let i = 1; i <= 5; i++) {
-			saveCustomPassage({
+			await saveCustomPassage({
 				text: `Extra custom passage number ${i}`,
 				source: `Custom Source ${i}`
 			});
@@ -160,7 +173,7 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		render(GuestPassagesPage);
 
 		// Page 1 should show initial items
-		expect(screen.getByText(DEFAULT_PASSAGES[0].source!)).toBeInTheDocument();
+		expect(await screen.findByText(DEFAULT_PASSAGES[0].source!)).toBeInTheDocument();
 		expect(screen.getByText('Custom Source 3')).toBeInTheDocument(); // 7 + 3 = 10
 		expect(screen.queryByText('Custom Source 4')).not.toBeInTheDocument(); // 11th item
 
@@ -174,7 +187,9 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		await fireEvent.click(nextButton);
 
 		// Page 2 shows items 11 and 12
-		expect(screen.queryByText(DEFAULT_PASSAGES[0].source!)).not.toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.queryByText(DEFAULT_PASSAGES[0].source!)).not.toBeInTheDocument();
+		});
 		expect(screen.getByText('Custom Source 4')).toBeInTheDocument();
 		expect(screen.getByText('Custom Source 5')).toBeInTheDocument();
 
@@ -182,14 +197,23 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 		expect(nextButton).toBeDisabled();
 	});
 
-	it('renders a Practice button for each passage card linking to /?passageId=<id>', () => {
+	it('renders a Practice button for each passage card linking to /?passageId=<id>', async () => {
 		render(GuestPassagesPage);
 
-		const practiceLinks = screen.getAllByRole('link', { name: /^practice$/i });
+		const practiceLinks = await screen.findAllByRole('link', { name: /^practice$/i });
 		expect(practiceLinks.length).toBe(DEFAULT_PASSAGES.length);
 
 		DEFAULT_PASSAGES.forEach((passage, idx) => {
 			expect(practiceLinks[idx]).toHaveAttribute('href', `/?passageId=${passage.id}`);
 		});
+	});
+
+	it('shows clean loading indicator while passages load from store', () => {
+		vi.spyOn(localStore, 'getAllPassages').mockReturnValue(new Promise(() => {}));
+
+		render(GuestPassagesPage);
+
+		expect(screen.getByTestId('passages-loading')).toBeInTheDocument();
+		expect(screen.getByText(/loading passages/i)).toBeInTheDocument();
 	});
 });

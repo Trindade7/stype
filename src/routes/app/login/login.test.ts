@@ -1,8 +1,9 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import LoginPage from './+page.svelte';
 import { localStore } from '$lib/localStore';
+import { setAdapter, resetMigrationStatus } from '$lib/storage';
 
 vi.mock('$app/forms', () => {
 	return {
@@ -22,10 +23,24 @@ vi.mock('$app/forms', () => {
 });
 
 describe('Login View Contract', () => {
-	afterEach(() => {
+	beforeEach(async () => {
+		localStorage.clear();
+		resetMigrationStatus();
+		if (typeof indexedDB !== 'undefined') {
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.deleteDatabase('stype_db');
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+				req.onblocked = () => resolve();
+			});
+		}
+		setAdapter(null);
+	});
+
+	afterEach(async () => {
 		cleanup();
 		vi.clearAllMocks();
-		localStore.clearGuestData();
+		await localStore.clearGuestData();
 	});
 
 	it('renders username and password fields', () => {
@@ -193,7 +208,7 @@ describe('Login View Contract', () => {
 
 	it('submitting form after clicking quick-fill uses the populated credentials', async () => {
 		global.fetch = vi.fn().mockResolvedValue({ ok: true });
-		localStore.saveCustomPassage({ text: 'mock passage' });
+		await localStore.saveCustomPassage({ text: 'mock passage' });
 
 		render(LoginPage, { form: null });
 
@@ -208,36 +223,42 @@ describe('Login View Contract', () => {
 		const form = screen.getByRole('button', { name: /log in/i }).closest('form')!;
 		await fireEvent.submit(form);
 
-		expect(global.fetch).toHaveBeenCalledWith('/app/api/sync', expect.anything());
+		await waitFor(() => {
+			expect(global.fetch).toHaveBeenCalledWith('/app/api/sync', expect.anything());
+		});
 	});
 
 	it('syncs guest data to /app/api/sync on successful login when there is meaningful data', async () => {
 		global.fetch = vi.fn().mockResolvedValue({ ok: true });
 		
 		// Setup some guest data
-		localStore.saveCustomPassage({ text: 'mock passage' });
+		await localStore.saveCustomPassage({ text: 'mock passage' });
 		
 		render(LoginPage, { form: null });
 		
 		const form = screen.getByRole('button', { name: /log in/i }).closest('form')!;
 		await fireEvent.submit(form);
 		
-		expect(global.fetch).toHaveBeenCalledWith('/app/api/sync', expect.objectContaining({
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: expect.stringContaining('mock passage')
-		}));
+		await waitFor(() => {
+			expect(global.fetch).toHaveBeenCalledWith('/app/api/sync', expect.objectContaining({
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: expect.stringContaining('mock passage')
+			}));
+		});
 		
 		// Data should be cleared after sync
-		const data = localStore.getGuestData();
-		expect(data.customPassages.length).toBe(0);
+		await waitFor(async () => {
+			const data = await localStore.getGuestData();
+			expect(data.customPassages.length).toBe(0);
+		});
 	});
 
 	it('does not sync guest data if there are no test runs or custom passages', async () => {
 		global.fetch = vi.fn().mockResolvedValue({ ok: true });
 		
 		// clear guest data
-		localStore.clearGuestData();
+		await localStore.clearGuestData();
 		
 		render(LoginPage, { form: null });
 		

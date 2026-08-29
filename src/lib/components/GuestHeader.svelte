@@ -19,9 +19,9 @@
 
 	let isMobileMenuOpen = $state(false);
 
-	function handleThemeChange(newTheme: 'light' | 'dark' | 'system') {
+	async function handleThemeChange(newTheme: 'light' | 'dark' | 'system') {
 		setMode(newTheme);
-		localStore.saveSettings({ theme: newTheme });
+		await localStore.saveSettings({ theme: newTheme });
 		isMobileMenuOpen = false;
 	}
 

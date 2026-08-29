@@ -1,12 +1,23 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/svelte';
+import { render, screen, cleanup, waitFor } from '@testing-library/svelte';
 import GuestHistoryPage from './+page.svelte';
 import { localStore, saveGuestTestRun, clearGuestTestRuns, DEFAULT_PASSAGES } from '$lib/localStore';
+import { setAdapter, resetMigrationStatus } from '$lib/storage';
 
 describe('Guest History Route (/history/+page.svelte)', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		localStorage.clear();
+		resetMigrationStatus();
+		if (typeof indexedDB !== 'undefined') {
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.deleteDatabase('stype_db');
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+				req.onblocked = () => resolve();
+			});
+		}
+		setAdapter(null);
 		vi.restoreAllMocks();
 	});
 
@@ -32,18 +43,18 @@ describe('Guest History Route (/history/+page.svelte)', () => {
 		).toBeInTheDocument();
 	});
 
-	it('displays empty state when localStore has no test runs', () => {
-		clearGuestTestRuns();
+	it('displays empty state when localStore has no test runs', async () => {
+		await clearGuestTestRuns();
 		render(GuestHistoryPage);
 
 		expect(
-			screen.getByText('No test runs found matching your filters.')
+			await screen.findByText('No test runs found matching your filters.')
 		).toBeInTheDocument();
 	});
 
-	it('reads and displays test runs from localStore', () => {
+	it('reads and displays test runs from localStore', async () => {
 		const passage = DEFAULT_PASSAGES[0];
-		saveGuestTestRun({
+		await saveGuestTestRun({
 			passageId: passage.id,
 			mode: 'passage',
 			duration: null,
@@ -59,9 +70,19 @@ describe('Guest History Route (/history/+page.svelte)', () => {
 
 		render(GuestHistoryPage);
 
-		expect(screen.getByText('88 WPM')).toBeInTheDocument();
+		expect(await screen.findByText('88 WPM')).toBeInTheDocument();
 		expect(screen.getByText('• 97% Acc')).toBeInTheDocument();
 		expect(screen.getByText('22s')).toBeInTheDocument();
 		expect(screen.getByText(passage.source!)).toBeInTheDocument();
+	});
+
+	it('shows clean loading state initially while fetching history from store', () => {
+		// Mock getTestRuns with a pending promise that never resolves during initial render
+		vi.spyOn(localStore, 'getTestRuns').mockReturnValue(new Promise(() => {}));
+
+		render(GuestHistoryPage);
+
+		expect(screen.getByTestId('history-loading')).toBeInTheDocument();
+		expect(screen.getByText(/loading test history/i)).toBeInTheDocument();
 	});
 });

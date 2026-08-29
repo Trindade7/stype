@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import GuestPage from './+page.svelte';
 import {
 	localStore,
@@ -9,10 +9,21 @@ import {
 	getGuestTestRuns,
 	DEFAULT_PASSAGES
 } from '$lib/localStore';
+import { setAdapter, resetMigrationStatus } from '$lib/storage';
 
 describe('Guest Root Route (+page.svelte)', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		localStorage.clear();
+		resetMigrationStatus();
+		if (typeof indexedDB !== 'undefined') {
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.deleteDatabase('stype_db');
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+				req.onblocked = () => resolve();
+			});
+		}
+		setAdapter(null);
 		vi.restoreAllMocks();
 	});
 
@@ -44,8 +55,8 @@ describe('Guest Root Route (+page.svelte)', () => {
 		expect(hasDefaultPassage).toBe(true);
 	});
 
-	it('loads initial mode and duration from localStore settings', () => {
-		saveGuestSettings({
+	it('loads initial mode and duration from localStore settings', async () => {
+		await saveGuestSettings({
 			mode: 'timed',
 			duration: 60,
 			zenMode: false
@@ -53,23 +64,26 @@ describe('Guest Root Route (+page.svelte)', () => {
 
 		render(GuestPage);
 
-		// In timed mode with 60s duration, "60s" should be displayed in the UI (toolbar / HUD)
-		const durationElements = screen.getAllByText('60s');
-		expect(durationElements.length).toBeGreaterThanOrEqual(1);
+		await waitFor(() => {
+			const durationElements = screen.getAllByText('60s');
+			expect(durationElements.length).toBeGreaterThanOrEqual(1);
+		});
 	});
 
-	it('loads saved scrollMode from guest settings into TypingEngine', () => {
-		saveGuestSettings({
+	it('loads saved scrollMode from guest settings into TypingEngine', async () => {
+		await saveGuestSettings({
 			scrollMode: 'step'
 		});
 
 		const { container } = render(GuestPage);
-		expect(container.querySelector('[data-scroll-mode="step"]')).toBeInTheDocument();
+		await waitFor(() => {
+			expect(container.querySelector('[data-scroll-mode="step"]')).toBeInTheDocument();
+		});
 	});
 
-	it('loads custom passage if stored in localStore', () => {
+	it('loads custom passage if stored in localStore', async () => {
 		localStorage.clear();
-		saveCustomPassage({
+		await saveCustomPassage({
 			text: 'Unique custom passage exclusively for guest testing.',
 			source: 'Guest Custom'
 		});
@@ -82,15 +96,17 @@ describe('Guest Root Route (+page.svelte)', () => {
 
 	it('saves test run into localStorage when typing test completes', async () => {
 		// Set a single short custom passage to make typing test easy to complete
-		const singlePassage = saveCustomPassage({
+		const singlePassage = await saveCustomPassage({
 			text: 'Hi',
 			source: 'Short test'
 		});
 
 		// Mock getRandomPassage to return singlePassage
-		vi.spyOn(localStore, 'getRandomPassage').mockReturnValue(singlePassage);
+		vi.spyOn(localStore, 'getRandomPassage').mockResolvedValue(singlePassage);
 
 		render(GuestPage);
+
+		await screen.findByText('— Short test');
 
 		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
 		expect(input).toBeInTheDocument();
@@ -100,11 +116,13 @@ describe('Guest Root Route (+page.svelte)', () => {
 		await fireEvent.input(input, { target: { value: 'Hi' } });
 
 		// Check that the test run was saved to localStore
-		const runs = getGuestTestRuns();
-		expect(runs.length).toBeGreaterThanOrEqual(1);
-		expect(runs[0].passageId).toBe(singlePassage.id);
-		expect(runs[0].correctChars).toBe(2);
-		expect(runs[0].accuracy).toBe(100);
+		await waitFor(async () => {
+			const runs = await getGuestTestRuns();
+			expect(runs.length).toBeGreaterThanOrEqual(1);
+			expect(runs[0].passageId).toBe(singlePassage.id);
+			expect(runs[0].correctChars).toBe(2);
+			expect(runs[0].accuracy).toBe(100);
+		});
 	});
 
 	it('cycles to another passage when Next button is clicked', async () => {
@@ -112,19 +130,23 @@ describe('Guest Root Route (+page.svelte)', () => {
 		const passageB = { id: 102, text: 'Second passage text here.', source: 'Source B' };
 
 		let callCount = 0;
-		vi.spyOn(localStore, 'getRandomPassage').mockImplementation(() => {
+		vi.spyOn(localStore, 'getRandomPassage').mockImplementation(async () => {
 			callCount++;
 			return callCount === 1 ? passageA : passageB;
 		});
 
 		render(GuestPage);
 
-		expect(document.body.textContent).toContain('First passage text here.');
+		await waitFor(() => {
+			expect(document.body.textContent).toContain('First passage text here.');
+		});
 
 		const nextButton = screen.getByRole('button', { name: /next/i });
 		await fireEvent.click(nextButton);
 
-		expect(document.body.textContent).toContain('Second passage text here.');
+		await waitFor(() => {
+			expect(document.body.textContent).toContain('Second passage text here.');
+		});
 	});
 
 	it('maintains fixed positioning and centered max-width layout alignment for guest header', () => {
@@ -161,12 +183,14 @@ describe('Guest Root Route (+page.svelte)', () => {
 		const passageB = { id: 202, text: 'Next passage text.', source: 'Source B' };
 
 		let callCount = 0;
-		vi.spyOn(localStore, 'getRandomPassage').mockImplementation(() => {
+		vi.spyOn(localStore, 'getRandomPassage').mockImplementation(async () => {
 			callCount++;
 			return callCount === 1 ? passageA : passageB;
 		});
 
 		render(GuestPage);
+
+		await screen.findByText('— Source A');
 
 		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
 		await fireEvent.input(input, { target: { value: 'H' } });
@@ -202,29 +226,31 @@ describe('Guest Root Route (+page.svelte)', () => {
 		expect(document.body.textContent).toContain(`— ${targetPassage.source}`);
 	});
 
-	it('falls back to random passage when passageId in URL is invalid or non-existent', () => {
+	it('falls back to random passage when passageId in URL is invalid or non-existent', async () => {
 		const fallbackPassage = { id: 888, text: 'Fallback random passage.', source: 'Fallback' };
-		vi.spyOn(localStore, 'getRandomPassage').mockReturnValue(fallbackPassage);
+		vi.spyOn(localStore, 'getRandomPassage').mockResolvedValue(fallbackPassage);
 
 		window.history.pushState({}, '', '/?passageId=invalid');
 		render(GuestPage);
 
-		expect(document.body.textContent).toContain('Fallback random passage.');
+		await waitFor(() => {
+			expect(document.body.textContent).toContain('Fallback random passage.');
+		});
 	});
 
 	it('retains selected passage on Retry and clears passageId from URL on Next Passage', async () => {
-		const targetPassage = saveCustomPassage({
+		const targetPassage = await saveCustomPassage({
 			text: 'Hi',
 			source: 'Target Selection'
 		});
 		const nextPassage = { id: 999, text: 'Subsequent random passage.', source: 'Random Next' };
 
-		vi.spyOn(localStore, 'getRandomPassage').mockReturnValue(nextPassage);
+		vi.spyOn(localStore, 'getRandomPassage').mockResolvedValue(nextPassage);
 
 		window.history.pushState({}, '', `/?passageId=${targetPassage.id}`);
 		render(GuestPage);
 
-		expect(screen.getByText('— Target Selection')).toBeInTheDocument();
+		expect(await screen.findByText('— Target Selection')).toBeInTheDocument();
 
 		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
 		await fireEvent.input(input, { target: { value: 'H' } });

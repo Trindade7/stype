@@ -2,14 +2,16 @@
 	import { onMount } from 'svelte';
 	import SettingsForm from '$lib/components/SettingsForm.svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
-	import { localStore, type GuestSettings } from '$lib/localStore';
+	import { localStore, DEFAULT_GUEST_SETTINGS, type GuestSettings } from '$lib/localStore';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { Settings02Icon } from '@hugeicons/core-free-icons';
 
-	let settings = $state<GuestSettings>(localStore.getSettings());
+	let settings = $state<GuestSettings>(DEFAULT_GUEST_SETTINGS);
+	let isLoading = $state(true);
 
-	onMount(() => {
-		settings = localStore.getSettings();
+	onMount(async () => {
+		settings = await localStore.getSettings();
+		isLoading = false;
 	});
 </script>
 
@@ -29,12 +31,18 @@
 			<p class="text-muted-foreground mt-1">Configure your default typing test environment and preferences.</p>
 		</div>
 
-		<SettingsForm
-			{settings}
-			onSave={(newSettings) => {
-				settings = localStore.saveSettings(newSettings);
-				return { success: true };
-			}}
-		/>
+		{#if isLoading}
+			<div class="py-12 flex justify-center items-center text-muted-foreground" data-testid="settings-loading">
+				<div class="animate-pulse text-sm">Loading settings...</div>
+			</div>
+		{:else}
+			<SettingsForm
+				{settings}
+				onSave={async (newSettings) => {
+					settings = await localStore.saveSettings(newSettings);
+					return { success: true };
+				}}
+			/>
+		{/if}
 	</main>
 </div>

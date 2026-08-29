@@ -1,12 +1,23 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import GuestSettingsPage from './+page.svelte';
 import { localStore, saveGuestSettings, getGuestSettings, DEFAULT_GUEST_SETTINGS } from '$lib/localStore';
+import { setAdapter, resetMigrationStatus } from '$lib/storage';
 
 describe('Guest Settings Route (/settings/+page.svelte)', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		localStorage.clear();
+		resetMigrationStatus();
+		if (typeof indexedDB !== 'undefined') {
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.deleteDatabase('stype_db');
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+				req.onblocked = () => resolve();
+			});
+		}
+		setAdapter(null);
 		vi.restoreAllMocks();
 	});
 
@@ -32,18 +43,18 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 		).toBeInTheDocument();
 	});
 
-	it('renders settings form with default guest values', () => {
+	it('renders settings form with default guest values', async () => {
 		render(GuestSettingsPage);
 
-		expect(screen.getByLabelText(/passage mode/i)).toBeInTheDocument();
+		expect(await screen.findByLabelText(/passage mode/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/timed mode/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/zen mode/i)).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: /scroll mode/i })).toHaveTextContent('Centered (Default)');
 		expect(screen.getByRole('button', { name: /save settings/i })).toBeInTheDocument();
 	});
 
-	it('renders settings form with pre-configured guest settings from localStore', () => {
-		saveGuestSettings({
+	it('renders settings form with pre-configured guest settings from localStore', async () => {
+		await saveGuestSettings({
 			mode: 'timed',
 			duration: 60,
 			passageLength: 'short',
@@ -54,19 +65,21 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 
 		render(GuestSettingsPage);
 
-		const timedRadio = screen.getByRole('radio', { name: /timed mode/i });
-		expect(timedRadio).toHaveAttribute('aria-checked', 'true');
+		await waitFor(() => {
+			const timedRadio = screen.getByRole('radio', { name: /timed mode/i });
+			expect(timedRadio).toHaveAttribute('aria-checked', 'true');
 
-		const zenSwitch = screen.getByRole('switch', { name: /zen mode/i });
-		expect(zenSwitch).toHaveAttribute('aria-checked', 'true');
+			const zenSwitch = screen.getByRole('switch', { name: /zen mode/i });
+			expect(zenSwitch).toHaveAttribute('aria-checked', 'true');
 
-		expect(screen.getByRole('button', { name: /scroll mode/i })).toHaveTextContent('Step Scroll');
+			expect(screen.getByRole('button', { name: /scroll mode/i })).toHaveTextContent('Step Scroll');
+		});
 	});
 
 	it('saves modified settings to localStore and shows success notification on submit', async () => {
 		render(GuestSettingsPage);
 
-		const timedRadio = screen.getByLabelText(/timed mode/i);
+		const timedRadio = await screen.findByLabelText(/timed mode/i);
 		await fireEvent.click(timedRadio);
 
 		const zenCheckbox = screen.getByLabelText(/zen mode/i);
@@ -79,9 +92,18 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 		expect(await screen.findByText(/settings saved successfully/i)).toBeInTheDocument();
 
 		// localStore is updated
-		const stored = getGuestSettings();
+		const stored = await getGuestSettings();
 		expect(stored.mode).toBe('timed');
 		expect(stored.zenMode).toBe(true);
 		expect(stored.scrollMode).toBe('center');
+	});
+
+	it('shows clean loading indicator while settings load from localStore', () => {
+		vi.spyOn(localStore, 'getSettings').mockReturnValue(new Promise(() => {}));
+
+		render(GuestSettingsPage);
+
+		expect(screen.getByTestId('settings-loading')).toBeInTheDocument();
+		expect(screen.getByText(/loading settings/i)).toBeInTheDocument();
 	});
 });

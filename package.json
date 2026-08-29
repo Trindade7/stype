@@ -31,6 +31,7 @@
 		"@types/better-sqlite3": "^9.6.0",
 		"bits-ui": "^2.19.0",
 		"drizzle-kit": "^0.31.10",
+		"fake-indexeddb": "^6.2.5",
 		"jsdom": "^30.0.1",
 		"shadcn-svelte": "^1.5.0",
 		"svelte": "^5.56.1",

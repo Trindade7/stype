@@ -2,11 +2,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import GuestHeader from './GuestHeader.svelte';
-import { localStore } from '$lib/localStore';
+import { localStore, DEFAULT_GUEST_SETTINGS } from '$lib/localStore';
+import { setAdapter, resetMigrationStatus } from '$lib/storage';
 
 describe('GuestHeader Component', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		localStorage.clear();
+		resetMigrationStatus();
+		if (typeof indexedDB !== 'undefined') {
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.deleteDatabase('stype_db');
+				req.onsuccess = () => resolve();
+				req.onerror = () => reject(req.error);
+				req.onblocked = () => resolve();
+			});
+		}
+		setAdapter(null);
 		vi.restoreAllMocks();
 	});
 
@@ -90,7 +101,9 @@ describe('GuestHeader Component', () => {
 
 		await fireEvent.click(darkOption);
 
-		expect(localStore.getSettings().theme).toBe('dark');
+		await waitFor(async () => {
+			expect((await localStore.getSettings()).theme).toBe('dark');
+		});
 	});
 
 	it('closes mobile menu when a navigation link is clicked', async () => {

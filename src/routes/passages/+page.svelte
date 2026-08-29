@@ -14,7 +14,8 @@
 	import { getPassageLength } from '$lib/passage-utils';
 	import { localStore, type GuestPassage } from '$lib/localStore';
 
-	let passages = $state<GuestPassage[]>(localStore.getAllPassages());
+	let passages = $state<GuestPassage[]>([]);
+	let isLoading = $state(true);
 	let isCreateOpen = $state(false);
 	let editingId = $state<number | null>(null);
 	let editText = $state('');
@@ -24,13 +25,14 @@
 	let createError = $state<string | null>(null);
 	let currentPage = $state(1);
 
-	onMount(() => {
-		passages = localStore.getAllPassages();
-	});
-
-	function refreshPassages() {
-		passages = localStore.getAllPassages();
+	async function refreshPassages() {
+		passages = await localStore.getAllPassages();
 	}
+
+	onMount(async () => {
+		await refreshPassages();
+		isLoading = false;
+	});
 
 	let paginatedPassages = $derived(passages.slice((currentPage - 1) * 10, currentPage * 10));
 
@@ -46,13 +48,13 @@
 		return len.charAt(0).toUpperCase() + len.slice(1);
 	}
 
-	function handleCreate(e: SubmitEvent) {
+	async function handleCreate(e: SubmitEvent) {
 		e.preventDefault();
 		if (!newText.trim()) {
 			createError = 'Text is required';
 			return;
 		}
-		localStore.saveCustomPassage({
+		await localStore.saveCustomPassage({
 			text: newText,
 			source: newSource.trim() || undefined
 		});
@@ -60,7 +62,7 @@
 		newSource = '';
 		createError = null;
 		isCreateOpen = false;
-		refreshPassages();
+		await refreshPassages();
 	}
 
 	function startEdit(passage: GuestPassage) {
@@ -69,22 +71,22 @@
 		editSource = passage.source ?? '';
 	}
 
-	function handleUpdate(e: SubmitEvent) {
+	async function handleUpdate(e: SubmitEvent) {
 		e.preventDefault();
 		if (editingId === null || !editText.trim()) {
 			return;
 		}
-		localStore.updateCustomPassage(editingId, {
+		await localStore.updateCustomPassage(editingId, {
 			text: editText,
 			source: editSource.trim() || undefined
 		});
 		editingId = null;
-		refreshPassages();
+		await refreshPassages();
 	}
 
-	function handleDelete(id: number) {
-		localStore.deleteCustomPassage(id);
-		refreshPassages();
+	async function handleDelete(id: number) {
+		await localStore.deleteCustomPassage(id);
+		await refreshPassages();
 	}
 </script>
 
@@ -153,110 +155,116 @@
 			</div>
 		{/if}
 
-		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each paginatedPassages as passage (passage.id)}
-				<Card.Root class="flex flex-col justify-between">
-					<div>
-						<Card.Header class="pb-3">
-							<div class="flex items-start justify-between gap-2">
-								<div class="flex items-center gap-2">
-									{#if !passage.isCustom}
-										<Badge variant="secondary">Seeded</Badge>
-									{:else}
-										<Badge>Custom</Badge>
-									{/if}
-									<Badge variant="outline">{displayPassageLength(passage.text)}</Badge>
-								</div>
-								
-								{#if passage.isCustom}
-									<div class="flex items-center gap-1">
-										<Dialog.Root open={editingId === passage.id} onOpenChange={(open) => { if (!open) editingId = null; else startEdit(passage); }}>
-											<Dialog.Trigger aria-label="Edit passage" class={buttonVariants({ variant: 'ghost', size: 'icon' }) + " h-8 w-8"}>
-												<HugeiconsIcon icon={Edit01Icon} size={16} />
-											</Dialog.Trigger>
-											<Dialog.Content>
-												<Dialog.Header>
-													<Dialog.Title>Edit Passage</Dialog.Title>
-												</Dialog.Header>
-												<form onsubmit={handleUpdate}>
-													<div class="grid gap-4 py-4">
-														<div class="grid gap-2">
-															<Label for="edit-text">Text</Label>
-															<Textarea id="edit-text" name="text" required bind:value={editText} class="min-h-[120px]" />
-														</div>
-														<div class="grid gap-2">
-															<Label for="edit-source">Source</Label>
-															<Input id="edit-source" name="source" bind:value={editSource} />
-														</div>
-													</div>
-													<Dialog.Footer>
-														<Button type="button" variant="outline" onclick={() => editingId = null}>Cancel</Button>
-														<Button type="submit">Save Changes</Button>
-													</Dialog.Footer>
-												</form>
-											</Dialog.Content>
-										</Dialog.Root>
-
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											aria-label="Delete passage"
-											onclick={() => handleDelete(passage.id)}
-											class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-										>
-											<HugeiconsIcon icon={Delete01Icon} size={16} />
-										</Button>
-									</div>
-								{/if}
-							</div>
-							<Card.Title class="mt-4 line-clamp-1 text-base">
-								{passage.source || 'Unknown Source'}
-							</Card.Title>
-						</Card.Header>
-						<Card.Content>
-							<p class="line-clamp-4 text-sm text-muted-foreground">
-								{passage.text}
-							</p>
-						</Card.Content>
-					</div>
-					<Card.Footer class="pt-0 justify-end">
-						<Button variant="outline" size="sm" href={`/?passageId=${passage.id}`}>
-							Practice
-						</Button>
-					</Card.Footer>
-				</Card.Root>
-			{/each}
-		</div>
-
-		{#if passages.length > 10}
-			<div class="mt-6">
-				<Pagination.Root count={passages.length} perPage={10} bind:page={currentPage}>
-					{#snippet children({ pages, currentPage })}
-						<Pagination.Content>
-							<Pagination.Item>
-								<Pagination.Previous />
-							</Pagination.Item>
-							{#each pages as page (page.key)}
-								{#if page.type === "ellipsis"}
-									<Pagination.Item>
-										<Pagination.Ellipsis />
-									</Pagination.Item>
-								{:else}
-									<Pagination.Item>
-										<Pagination.Link {page} isActive={currentPage === page.value}>
-											{page.value}
-										</Pagination.Link>
-									</Pagination.Item>
-								{/if}
-							{/each}
-							<Pagination.Item>
-								<Pagination.Next />
-							</Pagination.Item>
-						</Pagination.Content>
-					{/snippet}
-				</Pagination.Root>
+		{#if isLoading}
+			<div class="py-12 flex justify-center items-center text-muted-foreground" data-testid="passages-loading">
+				<div class="animate-pulse text-sm">Loading passages...</div>
 			</div>
+		{:else}
+			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+				{#each paginatedPassages as passage (passage.id)}
+					<Card.Root class="flex flex-col justify-between">
+						<div>
+							<Card.Header class="pb-3">
+								<div class="flex items-start justify-between gap-2">
+									<div class="flex items-center gap-2">
+										{#if !passage.isCustom}
+											<Badge variant="secondary">Seeded</Badge>
+										{:else}
+											<Badge>Custom</Badge>
+										{/if}
+										<Badge variant="outline">{displayPassageLength(passage.text)}</Badge>
+									</div>
+									
+									{#if passage.isCustom}
+										<div class="flex items-center gap-1">
+											<Dialog.Root open={editingId === passage.id} onOpenChange={(open) => { if (!open) editingId = null; else startEdit(passage); }}>
+												<Dialog.Trigger aria-label="Edit passage" class={buttonVariants({ variant: 'ghost', size: 'icon' }) + " h-8 w-8"}>
+													<HugeiconsIcon icon={Edit01Icon} size={16} />
+												</Dialog.Trigger>
+												<Dialog.Content>
+													<Dialog.Header>
+														<Dialog.Title>Edit Passage</Dialog.Title>
+													</Dialog.Header>
+													<form onsubmit={handleUpdate}>
+														<div class="grid gap-4 py-4">
+															<div class="grid gap-2">
+																<Label for="edit-text">Text</Label>
+																<Textarea id="edit-text" name="text" required bind:value={editText} class="min-h-[120px]" />
+															</div>
+															<div class="grid gap-2">
+																<Label for="edit-source">Source</Label>
+																<Input id="edit-source" name="source" bind:value={editSource} />
+															</div>
+														</div>
+														<Dialog.Footer>
+															<Button type="button" variant="outline" onclick={() => editingId = null}>Cancel</Button>
+															<Button type="submit">Save Changes</Button>
+														</Dialog.Footer>
+													</form>
+												</Dialog.Content>
+											</Dialog.Root>
+
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												aria-label="Delete passage"
+												onclick={() => handleDelete(passage.id)}
+												class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+											>
+												<HugeiconsIcon icon={Delete01Icon} size={16} />
+											</Button>
+										</div>
+									{/if}
+								</div>
+								<Card.Title class="mt-4 line-clamp-1 text-base">
+									{passage.source || 'Unknown Source'}
+								</Card.Title>
+							</Card.Header>
+							<Card.Content>
+								<p class="line-clamp-4 text-sm text-muted-foreground">
+									{passage.text}
+								</p>
+							</Card.Content>
+						</div>
+						<Card.Footer class="pt-0 justify-end">
+							<Button variant="outline" size="sm" href={`/?passageId=${passage.id}`}>
+								Practice
+							</Button>
+						</Card.Footer>
+					</Card.Root>
+				{/each}
+			</div>
+
+			{#if passages.length > 10}
+				<div class="mt-6">
+					<Pagination.Root count={passages.length} perPage={10} bind:page={currentPage}>
+						{#snippet children({ pages, currentPage })}
+							<Pagination.Content>
+								<Pagination.Item>
+									<Pagination.Previous />
+								</Pagination.Item>
+								{#each pages as page (page.key)}
+									{#if page.type === "ellipsis"}
+										<Pagination.Item>
+											<Pagination.Ellipsis />
+										</Pagination.Item>
+									{:else}
+										<Pagination.Item>
+											<Pagination.Link {page} isActive={currentPage === page.value}>
+												{page.value}
+											</Pagination.Link>
+										</Pagination.Item>
+									{/if}
+								{/each}
+								<Pagination.Item>
+									<Pagination.Next />
+								</Pagination.Item>
+							</Pagination.Content>
+						{/snippet}
+					</Pagination.Root>
+				</div>
+			{/if}
 		{/if}
 	</main>
 </div>

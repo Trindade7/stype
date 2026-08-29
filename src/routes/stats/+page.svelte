@@ -12,10 +12,12 @@
 		BadgeCheckIcon
 	} from '@hugeicons/core-free-icons';
 
-	let runs = $state<GuestTestRun[]>(localStore.getTestRuns());
+	let runs = $state<GuestTestRun[]>([]);
+	let isLoading = $state(true);
 
-	onMount(() => {
-		runs = localStore.getTestRuns();
+	onMount(async () => {
+		runs = await localStore.getTestRuns();
+		isLoading = false;
 	});
 
 	let stats = $derived.by(() => {
@@ -66,34 +68,40 @@
 			<p class="text-muted-foreground">Your all-time typing performance metrics.</p>
 		</div>
 
-		<div class="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
-			{#each stats as stat}
+		{#if isLoading}
+			<div class="py-12 flex justify-center items-center text-muted-foreground" data-testid="stats-loading">
+				<div class="animate-pulse text-sm">Loading stats...</div>
+			</div>
+		{:else}
+			<div class="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
+				{#each stats as stat}
+					<Card>
+						<CardHeader class="flex flex-row items-center justify-between pb-2">
+							<CardTitle class="text-sm font-medium text-muted-foreground">
+								{stat.title}
+							</CardTitle>
+							{#if stat.icon}
+								<HugeiconsIcon icon={stat.icon} size={20} class="text-muted-foreground shrink-0" />
+							{/if}
+						</CardHeader>
+						<CardContent>
+							<div class="text-2xl sm:text-3xl font-bold">{stat.value}</div>
+							<p class="text-xs text-muted-foreground mt-1">{stat.desc}</p>
+						</CardContent>
+					</Card>
+				{/each}
+			</div>
+
+			<div class="mt-8">
 				<Card>
-					<CardHeader class="flex flex-row items-center justify-between pb-2">
-						<CardTitle class="text-sm font-medium text-muted-foreground">
-							{stat.title}
-						</CardTitle>
-						{#if stat.icon}
-							<HugeiconsIcon icon={stat.icon} size={20} class="text-muted-foreground shrink-0" />
-						{/if}
+					<CardHeader>
+						<CardTitle class="text-lg font-semibold">Performance Trend</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div class="text-2xl sm:text-3xl font-bold">{stat.value}</div>
-						<p class="text-xs text-muted-foreground mt-1">{stat.desc}</p>
+						<PerformanceChart {runs} />
 					</CardContent>
 				</Card>
-			{/each}
-		</div>
-
-		<div class="mt-8">
-			<Card>
-				<CardHeader>
-					<CardTitle class="text-lg font-semibold">Performance Trend</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<PerformanceChart {runs} />
-				</CardContent>
-			</Card>
-		</div>
+			</div>
+		{/if}
 	</main>
 </div>
