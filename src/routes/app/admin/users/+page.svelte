@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
 		ShieldUserIcon,
@@ -20,6 +21,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Pagination from '$lib/components/ui/pagination';
 	import * as Select from '$lib/components/ui/select';
 	import { Switch } from '$lib/components/ui/switch';
 	import { generateRandomPassword } from '$lib/password-utils';
@@ -190,6 +192,45 @@
 	let resetPasswordErrors = $derived(form?.action === 'resetPassword' && !form.success ? (form as any).errors : undefined);
 	let canSendResetLink = $derived(Boolean(data.smtpConfigured && resetUser?.emailConfirmed && resetUser?.email));
 
+	let pagination = $derived(
+		data.pagination ?? {
+			page: 1,
+			perPage: 25,
+			totalCount: (data.users ?? []).length,
+			totalPages: Math.max(1, Math.ceil((data.users ?? []).length / 25))
+		}
+	);
+
+	let rangeStart = $derived((pagination.page - 1) * pagination.perPage + 1);
+	let rangeEnd = $derived(Math.min(pagination.page * pagination.perPage, pagination.totalCount));
+
+	function handlePageChange(newPage: number) {
+		if (newPage === pagination.page) return;
+		const url = new URL(window.location.href);
+		url.searchParams.set('page', String(newPage));
+		goto(`${url.pathname}?${url.searchParams.toString()}`, {
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
+	$effect(() => {
+		if (typeof window !== 'undefined' && data.pagination) {
+			const currentUrl = new URL(window.location.href);
+			if (currentUrl.searchParams.has('page')) {
+				const urlPage = parseInt(currentUrl.searchParams.get('page') ?? '', 10);
+				if (isNaN(urlPage) || urlPage !== data.pagination.page) {
+					currentUrl.searchParams.set('page', String(data.pagination.page));
+					goto(`${currentUrl.pathname}?${currentUrl.searchParams.toString()}`, {
+						replaceState: true,
+						noScroll: true,
+						keepFocus: true
+					});
+				}
+			}
+		}
+	});
+
 	let users = $derived(data.users ?? []);
 	let filteredUsers = $derived(
 		users.filter((u) => {
@@ -267,6 +308,11 @@
 								formEmail = '';
 								formPassword = '';
 								formRole = 'user';
+								searchQuery = '';
+								await goto('/app/admin/users?page=1', {
+									noScroll: true,
+									keepFocus: true
+								});
 							}
 							await update();
 						};
@@ -860,5 +906,55 @@
 				{/if}
 			</tbody>
 		</table>
+	</div>
+
+	<!-- Pagination Controls -->
+	<div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+		<div class="text-sm text-muted-foreground">
+			{#if pagination.totalCount === 0}
+				No users found
+			{:else}
+				Showing {rangeStart} to {rangeEnd} of {pagination.totalCount} users
+			{/if}
+		</div>
+
+		<Pagination.Root
+			count={pagination.totalCount}
+			perPage={pagination.perPage}
+			page={pagination.page}
+			onPageChange={(p) => handlePageChange(p)}
+		>
+			{#snippet children({ pages, currentPage })}
+				<Pagination.Content>
+					<Pagination.Item>
+						<Pagination.Previous
+							disabled={currentPage <= 1 || pagination.totalCount === 0}
+						/>
+					</Pagination.Item>
+					{#each pages as page (page.key)}
+						{#if page.type === 'ellipsis'}
+							<Pagination.Item>
+								<Pagination.Ellipsis />
+							</Pagination.Item>
+						{:else}
+							<Pagination.Item>
+								<Pagination.Link
+									{page}
+									isActive={currentPage === page.value}
+									disabled={pagination.totalCount === 0}
+								>
+									{page.value}
+								</Pagination.Link>
+							</Pagination.Item>
+						{/if}
+					{/each}
+					<Pagination.Item>
+						<Pagination.Next
+							disabled={currentPage >= pagination.totalPages || pagination.totalCount === 0}
+						/>
+					</Pagination.Item>
+				</Pagination.Content>
+			{/snippet}
+		</Pagination.Root>
 	</div>
 </div>

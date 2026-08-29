@@ -153,6 +153,193 @@ describe('Admin Users Page Server Load and Actions', () => {
 			expect(bob).not.toHaveProperty('passwordHash');
 
 			expect(data).toHaveProperty('smtpConfigured');
+			expect(data).toHaveProperty('pagination');
+			expect(data.pagination).toEqual({
+				page: 1,
+				perPage: 25,
+				totalCount: 3,
+				totalPages: 1
+			});
+
+			sqlite.close();
+		});
+
+		it('fetches up to 25 users on page 1 with correct pagination metadata when more than 25 users exist', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+
+			// Seed 30 users
+			const baseTime = new Date('2026-01-01T00:00:00Z').getTime();
+			const usersToInsert = Array.from({ length: 30 }, (_, i) => ({
+				id: `user-${i + 1}`,
+				username: `user_${String(i + 1).padStart(2, '0')}`,
+				email: `user${i + 1}@example.com`,
+				name: `User ${i + 1}`,
+				role: (i === 0 ? 'admin' : 'user') as schema.UserRole,
+				emailConfirmed: true,
+				passwordHash: 'hash',
+				createdAt: new Date(baseTime + i * 1000)
+			}));
+
+			db.insert(schema.users).values(usersToInsert).run();
+
+			const event = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=1'
+			});
+
+			const data = await loadFn(event as any);
+			expect(data.users).toHaveLength(25);
+			// Newest first (user-30 is newest)
+			expect(data.users[0].username).toBe('user_30');
+			expect(data.users[24].username).toBe('user_06');
+			expect(data.pagination).toEqual({
+				page: 1,
+				perPage: 25,
+				totalCount: 30,
+				totalPages: 2
+			});
+
+			sqlite.close();
+		});
+
+		it('clamps negative or non-numeric page search parameters to page 1 without redirects', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+
+			// Seed 30 users
+			const baseTime = new Date('2026-01-01T00:00:00Z').getTime();
+			const usersToInsert = Array.from({ length: 30 }, (_, i) => ({
+				id: `user-${i + 1}`,
+				username: `user_${String(i + 1).padStart(2, '0')}`,
+				email: `user${i + 1}@example.com`,
+				name: `User ${i + 1}`,
+				role: (i === 0 ? 'admin' : 'user') as schema.UserRole,
+				emailConfirmed: true,
+				passwordHash: 'hash',
+				createdAt: new Date(baseTime + i * 1000)
+			}));
+			db.insert(schema.users).values(usersToInsert).run();
+
+			// Negative page: ?page=-5
+			const eventNegative = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=-5'
+			});
+			const dataNegative = await loadFn(eventNegative as any);
+			expect(dataNegative.pagination.page).toBe(1);
+			expect(dataNegative.users).toHaveLength(25);
+			expect(dataNegative.users[0].username).toBe('user_30');
+
+			// Zero page: ?page=0
+			const eventZero = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=0'
+			});
+			const dataZero = await loadFn(eventZero as any);
+			expect(dataZero.pagination.page).toBe(1);
+			expect(dataZero.users).toHaveLength(25);
+
+			// Non-numeric page: ?page=invalid
+			const eventInvalid = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=invalid'
+			});
+			const dataInvalid = await loadFn(eventInvalid as any);
+			expect(dataInvalid.pagination.page).toBe(1);
+			expect(dataInvalid.users).toHaveLength(25);
+
+			sqlite.close();
+		});
+
+		it('clamps oversized page numbers to totalPages without redirects and returns final slice', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+
+			// Seed 30 users (totalPages = 2)
+			const baseTime = new Date('2026-01-01T00:00:00Z').getTime();
+			const usersToInsert = Array.from({ length: 30 }, (_, i) => ({
+				id: `user-${i + 1}`,
+				username: `user_${String(i + 1).padStart(2, '0')}`,
+				email: `user${i + 1}@example.com`,
+				name: `User ${i + 1}`,
+				role: (i === 0 ? 'admin' : 'user') as schema.UserRole,
+				emailConfirmed: true,
+				passwordHash: 'hash',
+				createdAt: new Date(baseTime + i * 1000)
+			}));
+			db.insert(schema.users).values(usersToInsert).run();
+
+			// Request page 99
+			const eventOversized = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=99'
+			});
+			const data = await loadFn(eventOversized as any);
+
+			// Clamped to totalPages = 2
+			expect(data.pagination.page).toBe(2);
+			expect(data.pagination.totalPages).toBe(2);
+			expect(data.pagination.totalCount).toBe(30);
+			// 30 - 25 = 5 users on page 2
+			expect(data.users).toHaveLength(5);
+			// Oldest records are on page 2
+			expect(data.users[0].username).toBe('user_05');
+			expect(data.users[4].username).toBe('user_01');
+
+			sqlite.close();
+		});
+
+		it('gracefully clamps to preceding page when deleting a user on the final page reduces total pages', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+			const deleteAction = createAdminDeleteUserAction(db);
+
+			// Seed 26 users (page 1 has 25, page 2 has 1 user)
+			const baseTime = new Date('2026-01-01T00:00:00Z').getTime();
+			const usersToInsert = Array.from({ length: 26 }, (_, i) => ({
+				id: `user-${i + 1}`,
+				username: `user_${String(i + 1).padStart(2, '0')}`,
+				email: `user${i + 1}@example.com`,
+				name: `User ${i + 1}`,
+				role: (i === 0 ? 'admin' : 'user') as schema.UserRole,
+				emailConfirmed: true,
+				passwordHash: 'hash',
+				createdAt: new Date(baseTime + i * 1000)
+			}));
+			db.insert(schema.users).values(usersToInsert).run();
+
+			// Confirm page 2 currently exists and has 1 user (user-1 is the oldest, so on page 2)
+			const eventBefore = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=2'
+			});
+			const dataBefore = await loadFn(eventBefore as any);
+			expect(dataBefore.pagination.page).toBe(2);
+			expect(dataBefore.pagination.totalPages).toBe(2);
+			expect(dataBefore.pagination.totalCount).toBe(26);
+			expect(dataBefore.users).toHaveLength(1);
+
+			// Now delete user-26 (one of the users)
+			const deleteEvent = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				formData: { id: 'user-26' }
+			});
+			const deleteResult: any = await deleteAction(deleteEvent as any);
+			expect(deleteResult?.success).toBe(true);
+
+			// Now reload with the same URL (?page=2)
+			const eventAfter = createMockEvent({
+				user: { id: 'user-1', username: 'user_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=2'
+			});
+			const dataAfter = await loadFn(eventAfter as any);
+
+			// Total pages is now 1, page request for page 2 gracefully clamped to page 1
+			expect(dataAfter.pagination.page).toBe(1);
+			expect(dataAfter.pagination.totalPages).toBe(1);
+			expect(dataAfter.pagination.totalCount).toBe(25);
+			expect(dataAfter.users).toHaveLength(25);
 
 			sqlite.close();
 		});

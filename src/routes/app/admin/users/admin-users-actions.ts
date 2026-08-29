@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { error, fail, redirect, type RequestEvent } from '@sveltejs/kit';
-import { and, desc, eq, ne } from 'drizzle-orm';
+import { and, count, desc, eq, ne } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import { hashPassword } from '$lib/server/auth/password';
@@ -8,9 +8,18 @@ import { invalidateUserSessions, SESSION_COOKIE_NAME } from '$lib/server/auth/se
 import { createPasswordResetToken } from '$lib/server/auth/reset-token';
 import { isSmtpConfigured, sendPasswordResetEmail } from '$lib/server/email/delivery';
 
+export interface PaginationMetadata {
+	page: number;
+	perPage: number;
+	totalCount: number;
+	totalPages: number;
+}
+
 export interface AdminUsersPageLoadOptions {
 	isSmtpConfigured?: () => boolean;
 }
+
+const PAGE_SIZE = 25;
 
 export function createAdminUsersPageLoad(
 	db: BetterSQLite3Database<typeof schema>,
@@ -18,13 +27,22 @@ export function createAdminUsersPageLoad(
 ) {
 	const checkSmtp = options?.isSmtpConfigured || isSmtpConfigured;
 
-	return async ({ locals }: RequestEvent) => {
+	return async ({ locals, url }: RequestEvent) => {
 		if (!locals.user) {
 			redirect(303, '/app/login');
 		}
 		if (locals.user.role !== 'admin') {
 			error(403, 'Forbidden');
 		}
+
+		const countResult = db.select({ count: count() }).from(schema.users).get();
+		const totalCount = countResult?.count ?? 0;
+		const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+		const rawPageParam = url.searchParams.get('page');
+		const parsedPage = rawPageParam !== null ? parseInt(rawPageParam, 10) : 1;
+		const page = isNaN(parsedPage) || parsedPage < 1 ? 1 : Math.min(parsedPage, totalPages);
+		const offset = (page - 1) * PAGE_SIZE;
 
 		const usersList = db
 			.select({
@@ -38,10 +56,18 @@ export function createAdminUsersPageLoad(
 			})
 			.from(schema.users)
 			.orderBy(desc(schema.users.createdAt))
+			.limit(PAGE_SIZE)
+			.offset(offset)
 			.all();
 
 		return {
 			users: usersList,
+			pagination: {
+				page,
+				perPage: PAGE_SIZE,
+				totalCount,
+				totalPages
+			},
 			smtpConfigured: checkSmtp()
 		};
 	};

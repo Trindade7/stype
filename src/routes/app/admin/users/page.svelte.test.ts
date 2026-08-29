@@ -2,6 +2,12 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/svelte';
 import AdminUsersPage from './+page.svelte';
+import { goto } from '$app/navigation';
+
+vi.mock('$app/navigation', () => ({
+	goto: vi.fn(),
+	invalidateAll: vi.fn()
+}));
 
 vi.mock('$app/forms', () => {
 	return {
@@ -1003,5 +1009,201 @@ describe('Admin Users Page', () => {
 		expect(
 			screen.getByText(/cannot delete the sole administrator/i)
 		).toBeInTheDocument();
+	});
+
+	describe('Pagination controls and navigation', () => {
+		it('renders persistent pagination controls beneath table and user count summary on single-page view', () => {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 1,
+						perPage: 25,
+						totalCount: 3,
+						totalPages: 1
+					}
+				} as any,
+				form: null
+			});
+
+			// Persistent pagination container
+			const paginationNav = screen.getByRole('navigation', { name: /pagination/i });
+			expect(paginationNav).toBeInTheDocument();
+
+			// User count summary
+			expect(screen.getByText('Showing 1 to 3 of 3 users')).toBeInTheDocument();
+
+			// On single-page view, both Previous and Next are disabled
+			const prevBtn = screen.getByRole('button', { name: /previous/i });
+			const nextBtn = screen.getByRole('button', { name: /next/i });
+			expect(prevBtn).toBeDisabled();
+			expect(nextBtn).toBeDisabled();
+		});
+
+		it('renders pagination controls on multi-page view with formatted range text and boundary button states', () => {
+			// Page 1 of 3 (total 60 users, 25 per page)
+			const { unmount } = render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 1,
+						perPage: 25,
+						totalCount: 60,
+						totalPages: 3
+					}
+				} as any,
+				form: null
+			});
+
+			expect(screen.getByText('Showing 1 to 25 of 60 users')).toBeInTheDocument();
+
+			const prevBtnPage1 = screen.getByRole('button', { name: /previous/i });
+			const nextBtnPage1 = screen.getByRole('button', { name: /next/i });
+			expect(prevBtnPage1).toBeDisabled();
+			expect(nextBtnPage1).not.toBeDisabled();
+
+			unmount();
+
+			// Final page (Page 3 of 3)
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 3,
+						perPage: 25,
+						totalCount: 60,
+						totalPages: 3
+					}
+				} as any,
+				form: null
+			});
+
+			expect(screen.getByText('Showing 51 to 60 of 60 users')).toBeInTheDocument();
+
+			const prevBtnPage3 = screen.getByRole('button', { name: /previous/i });
+			const nextBtnPage3 = screen.getByRole('button', { name: /next/i });
+			expect(prevBtnPage3).not.toBeDisabled();
+			expect(nextBtnPage3).toBeDisabled();
+		});
+
+		it('renders persistent pagination controls in zero-user view with "No users found" and disabled buttons', () => {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: [],
+					pagination: {
+						page: 1,
+						perPage: 25,
+						totalCount: 0,
+						totalPages: 1
+					}
+				} as any,
+				form: null
+			});
+
+			const paginationNav = screen.getByRole('navigation', { name: /pagination/i });
+			expect(paginationNav).toBeInTheDocument();
+
+			expect(screen.getByText('No users found')).toBeInTheDocument();
+
+			const prevBtn = screen.getByRole('button', { name: /previous/i });
+			const nextBtn = screen.getByRole('button', { name: /next/i });
+			expect(prevBtn).toBeDisabled();
+			expect(nextBtn).toBeDisabled();
+		});
+
+		it('navigates with ?page= parameter and noScroll: true when clicking page number or Next button', async () => {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 1,
+						perPage: 25,
+						totalCount: 60,
+						totalPages: 3
+					}
+				} as any,
+				form: null
+			});
+
+			const nextBtn = screen.getByRole('button', { name: /next/i });
+			await fireEvent.click(nextBtn);
+
+			expect(goto).toHaveBeenCalledWith(
+				expect.stringMatching(/[?&]page=2/),
+				expect.objectContaining({ noScroll: true, keepFocus: true })
+			);
+
+			// Direct page link click (page 3)
+			const page3Btn = screen.getByRole('button', { name: /page 3/i });
+			await fireEvent.click(page3Btn);
+
+			expect(goto).toHaveBeenCalledWith(
+				expect.stringMatching(/[?&]page=3/),
+				expect.objectContaining({ noScroll: true, keepFocus: true })
+			);
+		});
+
+		it('navigates to ?page=1 upon successful user creation', async () => {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 2,
+						perPage: 25,
+						totalCount: 50,
+						totalPages: 2
+					}
+				} as any,
+				form: null
+			});
+
+			const openButton = screen.getByRole('button', { name: /create user/i });
+			await fireEvent.click(openButton);
+
+			const submitButton = screen
+				.getAllByRole('button', { name: /create user/i })
+				.find((btn) => btn.getAttribute('type') === 'submit');
+			const form = submitButton!.closest('form')!;
+
+			await fireEvent.submit(form);
+
+			expect(goto).toHaveBeenCalledWith(
+				expect.stringMatching(/page=1/),
+				expect.objectContaining({ noScroll: true })
+			);
+		});
+
+		it('synchronizes URL with replaceState when server clamps out-of-bounds page parameter', () => {
+			const originalLocation = window.location;
+			delete (window as any).location;
+			window.location = new URL('http://localhost:5173/app/admin/users?page=5') as any;
+
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 4, // Server clamped page from 5 to 4
+						perPage: 25,
+						totalCount: 90,
+						totalPages: 4
+					}
+				} as any,
+				form: null
+			});
+
+			expect(goto).toHaveBeenCalledWith(
+				expect.stringMatching(/[?&]page=4/),
+				expect.objectContaining({ replaceState: true, noScroll: true, keepFocus: true })
+			);
+
+			(window as any).location = originalLocation;
+		});
 	});
 });
