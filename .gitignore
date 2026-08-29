@@ -30,3 +30,6 @@ vite.config.ts.timestamp-*
 *.sqlite-journal
 data/
 
+# Tauri
+src-tauri/target/
+
