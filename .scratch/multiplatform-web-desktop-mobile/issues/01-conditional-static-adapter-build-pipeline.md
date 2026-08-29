@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] When building with `STATIC_BUILD=1`, SvelteKit uses `@sveltejs/adapter-static` with an `index.html` fallback.
-- [ ] Running a static build produces a clean, standalone static asset directory without throwing errors on server routes.
-- [ ] Previewing or serving the static build allows a user to run typing tests, view history, inspect stats, and adjust settings in a browser without a backend server running.
-- [ ] When `STATIC_BUILD` is unset, the project builds with `@sveltejs/adapter-node` to support self-hosted server deployments.
-- [ ] Automated build verification tests assert that both static and node builds complete successfully without errors.
+- [x] When building with `STATIC_BUILD=1`, SvelteKit uses `@sveltejs/adapter-static` with an `index.html` fallback.
+- [x] Running a static build produces a clean, standalone static asset directory without throwing errors on server routes.
+- [x] Previewing or serving the static build allows a user to run typing tests, view history, inspect stats, and adjust settings in a browser without a backend server running.
+- [x] When `STATIC_BUILD` is unset, the project builds with `@sveltejs/adapter-node` to support self-hosted server deployments.
+- [x] Automated build verification tests assert that both static and node builds complete successfully without errors.
