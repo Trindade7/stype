@@ -50,6 +50,13 @@ describe('passage-utils', () => {
 			expect(getPassageIdFromUrl(new URLSearchParams('passageId=99'))).toBe(99);
 		});
 
+		it('extracts valid UUID passageId from URL or search string', () => {
+			const uuid = '123e4567-e89b-12d3-a456-426614174000';
+			expect(getPassageIdFromUrl(`https://example.com/?passageId=${uuid}`)).toBe(uuid);
+			expect(getPassageIdFromUrl(`/app?passageId=${uuid}`)).toBe(uuid);
+			expect(getPassageIdFromUrl(`?passageId=${uuid}`)).toBe(uuid);
+		});
+
 		it('returns null when passageId is missing, empty, or invalid', () => {
 			expect(getPassageIdFromUrl('https://example.com/')).toBeNull();
 			expect(getPassageIdFromUrl('?passageId=')).toBeNull();

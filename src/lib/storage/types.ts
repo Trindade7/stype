@@ -9,19 +9,23 @@ export interface GuestSettings {
 	zenMode: boolean;
 	theme: 'light' | 'dark' | 'system';
 	scrollMode: 'manual' | 'center' | 'step';
+	updatedAt?: string;
+	deletedAt?: string | null;
 }
 
 export interface GuestPassage {
-	id: number;
+	id: string | number;
 	text: string;
 	source: string | null;
 	createdAt?: string;
+	updatedAt?: string;
+	deletedAt?: string | null;
 	isCustom?: boolean;
 }
 
 export interface GuestTestRun {
-	id: number;
-	passageId: number;
+	id: string | number;
+	passageId: string | number;
 	mode: 'passage' | 'timed';
 	duration: number | null;
 	wpm: number;
@@ -34,25 +38,28 @@ export interface GuestTestRun {
 	timelineSnapshots: TimelineSnapshot[];
 	createdAt: string;
 	passage?: {
-		id: number;
+		id: string | number;
 		text: string;
 		source: string | null;
 	} | null;
 }
 
 export interface SaveCustomPassageInput {
-	id?: number;
+	id?: string | number;
 	text: string;
 	source?: string | null;
 	createdAt?: string;
+	updatedAt?: string;
+	deletedAt?: string | null;
 	isCustom?: boolean;
 }
 
 export interface SaveTestRunInput extends CompletedTestResult {
-	id?: number;
+	id?: string | number;
+	passageId: string | number;
 	createdAt?: string;
 	passage?: {
-		id: number;
+		id: string | number;
 		text: string;
 		source: string | null;
 	} | null;
@@ -67,16 +74,16 @@ export interface GuestData {
 export interface LocalStoreAdapter {
 	getSettings(): Promise<GuestSettings>;
 	saveSettings(updates: Partial<GuestSettings>): Promise<GuestSettings>;
-	getCustomPassages(): Promise<GuestPassage[]>;
+	getCustomPassages(includeDeleted?: boolean): Promise<GuestPassage[]>;
 	saveCustomPassage(input: SaveCustomPassageInput): Promise<GuestPassage>;
-	updateCustomPassage(id: number, input: { text: string; source?: string | null }): Promise<GuestPassage | null>;
-	deleteCustomPassage(id: number): Promise<boolean>;
+	updateCustomPassage(id: string | number, input: { text: string; source?: string | null }): Promise<GuestPassage | null>;
+	deleteCustomPassage(id: string | number): Promise<boolean>;
 	getTestRuns(): Promise<GuestTestRun[]>;
 	saveTestRun(result: SaveTestRunInput): Promise<GuestTestRun>;
 	clearTestRuns(): Promise<void>;
-	getAllPassages(): Promise<GuestPassage[]>;
-	getPassageById(id: number): Promise<GuestPassage | null>;
+	getAllPassages(includeDeleted?: boolean): Promise<GuestPassage[]>;
+	getPassageById(id: string | number, includeDeleted?: boolean): Promise<GuestPassage | null>;
 	getRandomPassage(lengthFilter?: PassageLength): Promise<GuestPassage | null>;
-	getGuestData(): Promise<GuestData>;
+	getGuestData(includeDeleted?: boolean): Promise<GuestData>;
 	clearGuestData(): Promise<void>;
 }

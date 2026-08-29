@@ -17,7 +17,7 @@
 	let passages = $state<GuestPassage[]>([]);
 	let isLoading = $state(true);
 	let isCreateOpen = $state(false);
-	let editingId = $state<number | null>(null);
+	let editingId = $state<string | number | null>(null);
 	let editText = $state('');
 	let editSource = $state('');
 	let newText = $state('');
@@ -84,7 +84,7 @@
 		await refreshPassages();
 	}
 
-	async function handleDelete(id: number) {
+	async function handleDelete(id: string | number) {
 		await localStore.deleteCustomPassage(id);
 		await refreshPassages();
 	}

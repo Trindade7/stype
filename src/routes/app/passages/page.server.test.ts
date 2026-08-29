@@ -40,8 +40,12 @@ describe('Passages Management Actions', () => {
 
 		const created = db.select().from(passages).where(eq(passages.userId, testUserId)).get();
 		expect(created).toBeDefined();
+		expect(created?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 		expect(created?.text).toBe('This is a test custom passage.');
 		expect(created?.source).toBe('Test Source');
+		expect(created?.createdAt).toBeDefined();
+		expect(created?.updatedAt).toBeDefined();
+		expect(created?.deletedAt).toBeNull();
 	});
 
 	it('should list user custom passages along with seeded ones', async () => {
@@ -94,9 +98,11 @@ describe('Passages Management Actions', () => {
 		const updated = db.select().from(passages).where(eq(passages.id, pId)).get();
 		expect(updated?.text).toBe('Updated Text');
 		expect(updated?.source).toBe('Updated Source');
+		expect(updated?.updatedAt).toBeDefined();
+		expect(updated?.deletedAt).toBeNull();
 	});
 
-	it('should delete a custom passage', async () => {
+	it('should soft delete a custom passage and exclude it from load', async () => {
 		const insertResult = await db.insert(passages).values({
 			text: 'To be deleted',
 			userId: testUserId,
@@ -120,7 +126,16 @@ describe('Passages Management Actions', () => {
 
 		expect(result).toEqual({ success: true });
 
-		const deleted = db.select().from(passages).where(eq(passages.id, pId)).get();
-		expect(deleted).toBeUndefined();
+		// Record is soft-deleted: still in table with deleted_at timestamp
+		const record = db.select().from(passages).where(eq(passages.id, pId)).get();
+		expect(record).toBeDefined();
+		expect(record?.deletedAt).toBeInstanceOf(Date);
+
+		// load excludes soft-deleted passages
+		const loadResult = (await load({
+			locals: { user: { id: testUserId, username: 'testuser' }, session: null }
+		} as any)) as { passages: (typeof passages.$inferSelect)[]; user: any };
+
+		expect(loadResult.passages.find((p) => p.id === pId)).toBeUndefined();
 	});
 });

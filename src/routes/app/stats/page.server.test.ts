@@ -49,7 +49,7 @@ describe('/app/stats page.server', () => {
 		}).run();
 
 		testDb.insert(passages).values({
-			id: 1,
+			id: 'p-1',
 			text: 'Test passage text',
 			source: 'Source',
 			userId: null,
@@ -58,9 +58,9 @@ describe('/app/stats page.server', () => {
 
 		testDb.insert(testRuns).values([
 			{
-				id: 1,
+				id: 'run-1',
 				userId,
-				passageId: 1,
+				passageId: 'p-1',
 				mode: 'passage',
 				duration: null,
 				wpm: 60,
@@ -74,9 +74,9 @@ describe('/app/stats page.server', () => {
 				createdAt: new Date('2025-01-01T10:00:00Z')
 			},
 			{
-				id: 2,
+				id: 'run-2',
 				userId,
-				passageId: 1,
+				passageId: 'p-1',
 				mode: 'timed',
 				duration: 30,
 				wpm: 80,
@@ -101,7 +101,7 @@ describe('/app/stats page.server', () => {
 		expect(result.runs).toHaveLength(2);
 		expect(result.runs[0]).toEqual(
 			expect.objectContaining({
-				id: 1,
+				id: 'run-1',
 				mode: 'passage',
 				wpm: 60,
 				accuracy: 95
@@ -109,7 +109,7 @@ describe('/app/stats page.server', () => {
 		);
 		expect(result.runs[1]).toEqual(
 			expect.objectContaining({
-				id: 2,
+				id: 'run-2',
 				mode: 'timed',
 				wpm: 80,
 				accuracy: 100

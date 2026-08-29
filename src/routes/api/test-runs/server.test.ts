@@ -30,7 +30,7 @@ describe('POST /api/test-runs', () => {
 		});
 
 		await db.insert(passages).values({
-			id: 1,
+			id: 'passage-1',
 			text: 'Test passage',
 			source: 'Test',
 			createdAt: new Date()
@@ -68,7 +68,7 @@ describe('POST /api/test-runs', () => {
 		];
 
 		const payload = {
-			passageId: 1,
+			passageId: 'passage-1',
 			wpm: 80,
 			accuracy: 95,
 			timeElapsed: 3,
@@ -91,6 +91,7 @@ describe('POST /api/test-runs', () => {
 
 		expect(response.status).toBe(200);
 		const run = await response.json();
+		expect(run.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 		expect(run.wpm).toBe(80);
 		expect(run.timelineSnapshots).toEqual(timelineSnapshots);
 
@@ -102,7 +103,7 @@ describe('POST /api/test-runs', () => {
 
 	it('returns 400 if timelineSnapshots is malformed', async () => {
 		const payload = {
-			passageId: 1,
+			passageId: 'passage-1',
 			wpm: 80,
 			accuracy: 95,
 			timeElapsed: 30,
@@ -124,5 +125,39 @@ describe('POST /api/test-runs', () => {
 		} as any);
 
 		expect(response.status).toBe(400);
+	});
+
+	it('saves client-provided UUID when supplied in payload', async () => {
+		const clientRunId = 'a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d';
+		const payload = {
+			id: clientRunId,
+			passageId: 'passage-1',
+			wpm: 90,
+			accuracy: 98,
+			timeElapsed: 10,
+			correctChars: 80,
+			incorrectChars: 2,
+			extraChars: 0,
+			missedChars: 0,
+			timelineSnapshots: []
+		};
+
+		const req = new Request('http://localhost/api/test-runs', {
+			method: 'POST',
+			body: JSON.stringify(payload)
+		});
+
+		const response = await POST({
+			request: req,
+			locals: { user: { id: 'user-1' }, session: {} }
+		} as any);
+
+		expect(response.status).toBe(200);
+		const run = await response.json();
+		expect(run.id).toBe(clientRunId);
+
+		const saved = await dbInstance.select().from(testRuns).where(eq(testRuns.id, clientRunId)).get();
+		expect(saved).toBeDefined();
+		expect(saved?.id).toBe(clientRunId);
 	});
 });

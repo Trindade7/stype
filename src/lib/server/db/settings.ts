@@ -36,7 +36,8 @@ export async function getUserSettings(
 		theme: DEFAULT_USER_SETTINGS.theme,
 		scrollMode: DEFAULT_USER_SETTINGS.scrollMode,
 		createdAt: now,
-		updatedAt: now
+		updatedAt: now,
+		deletedAt: null
 	};
 
 	db.insert(schema.userSettings)
@@ -49,7 +50,7 @@ export async function getUserSettings(
 export async function updateUserSettings(
 	db: BetterSQLite3Database<typeof schema>,
 	userId: string,
-	updates: Partial<Omit<UserSettings, 'userId' | 'createdAt' | 'updatedAt'>>
+	updates: Partial<Omit<UserSettings, 'userId' | 'createdAt'>>
 ): Promise<UserSettings> {
 	const current = await getUserSettings(db, userId);
 	const now = new Date();
@@ -61,7 +62,8 @@ export async function updateUserSettings(
 		zenMode: updates.zenMode ?? current.zenMode,
 		theme: updates.theme ?? current.theme,
 		scrollMode: updates.scrollMode ?? current.scrollMode,
-		updatedAt: now
+		updatedAt: updates.updatedAt ?? now,
+		deletedAt: updates.deletedAt !== undefined ? updates.deletedAt : current.deletedAt
 	};
 
 	db.update(schema.userSettings)

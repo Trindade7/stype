@@ -1,4 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
+import crypto from 'node:crypto';
 import { db } from '$lib/server/db';
 import { passages } from '$lib/server/db/schema';
 import { eq, or, isNull, and } from 'drizzle-orm';
@@ -12,7 +13,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const allPassages = db
 		.select()
 		.from(passages)
-		.where(or(isNull(passages.userId), eq(passages.userId, locals.user.id)))
+		.where(
+			and(
+				isNull(passages.deletedAt),
+				or(isNull(passages.userId), eq(passages.userId, locals.user.id))
+			)
+		)
 		.all();
 
 	return {
@@ -34,11 +40,15 @@ export const actions: Actions = {
 			return fail(400, { error: 'Text is required' });
 		}
 
+		const now = new Date();
 		await db.insert(passages).values({
+			id: crypto.randomUUID(),
 			text,
 			source: source && typeof source === 'string' ? source : null,
 			userId: locals.user.id,
-			createdAt: new Date()
+			createdAt: now,
+			updatedAt: now,
+			deletedAt: null
 		});
 
 		return { success: true };
@@ -52,20 +62,28 @@ export const actions: Actions = {
 		const text = data.get('text');
 		const source = data.get('source');
 
-		if (!id || !text || typeof text !== 'string') {
+		if (!id || typeof id !== 'string' || !text || typeof text !== 'string') {
 			return fail(400, { error: 'Invalid input' });
 		}
 
-		// check if the passage belongs to the user
-		const existing = db.select().from(passages).where(and(eq(passages.id, Number(id)), eq(passages.userId, locals.user.id))).get();
+		// check if the passage belongs to the user and is not deleted
+		const existing = db
+			.select()
+			.from(passages)
+			.where(and(eq(passages.id, id), eq(passages.userId, locals.user.id), isNull(passages.deletedAt)))
+			.get();
 		if (!existing) {
 			return fail(403, { error: 'Forbidden' });
 		}
 
-		await db.update(passages).set({
-			text,
-			source: source && typeof source === 'string' ? source : null
-		}).where(eq(passages.id, Number(id)));
+		await db
+			.update(passages)
+			.set({
+				text,
+				source: source && typeof source === 'string' ? source : null,
+				updatedAt: new Date()
+			})
+			.where(eq(passages.id, id));
 
 		return { success: true };
 	},
@@ -76,16 +94,27 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = data.get('id');
 
-		if (!id) {
+		if (!id || typeof id !== 'string') {
 			return fail(400, { error: 'Invalid input' });
 		}
 
-		const existing = db.select().from(passages).where(and(eq(passages.id, Number(id)), eq(passages.userId, locals.user.id))).get();
+		const existing = db
+			.select()
+			.from(passages)
+			.where(and(eq(passages.id, id), eq(passages.userId, locals.user.id), isNull(passages.deletedAt)))
+			.get();
 		if (!existing) {
 			return fail(403, { error: 'Forbidden' });
 		}
 
-		await db.delete(passages).where(eq(passages.id, Number(id)));
+		const now = new Date();
+		await db
+			.update(passages)
+			.set({
+				deletedAt: now,
+				updatedAt: now
+			})
+			.where(eq(passages.id, id));
 		return { success: true };
 	}
 };

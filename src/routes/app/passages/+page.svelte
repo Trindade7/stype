@@ -15,7 +15,7 @@
 	let { data, form } = $props();
 
 	let isCreateOpen = $state(false);
-	let editingId = $state<number | null>(null);
+	let editingId = $state<string | null>(null);
 	let currentPage = $state(1);
 
 	let paginatedPassages = $derived(data.passages.slice((currentPage - 1) * 10, currentPage * 10));

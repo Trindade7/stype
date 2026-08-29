@@ -23,7 +23,10 @@ describe('IndexedDbStoreAdapter', () => {
 	describe('Settings', () => {
 		it('returns default settings when store is newly initialized', async () => {
 			const settings = await adapter.getSettings();
-			expect(settings).toEqual(DEFAULT_GUEST_SETTINGS);
+			expect(settings.mode).toBe('passage');
+			expect(settings.duration).toBe(30);
+			expect(settings.updatedAt).toBeDefined();
+			expect(settings.deletedAt).toBeNull();
 		});
 
 		it('saves and merges partial settings updates', async () => {
@@ -37,6 +40,8 @@ describe('IndexedDbStoreAdapter', () => {
 			expect(updated.duration).toBe(60);
 			expect(updated.zenMode).toBe(true);
 			expect(updated.scrollMode).toBe('center');
+			expect(updated.updatedAt).toBeDefined();
+			expect(updated.deletedAt).toBeNull();
 
 			const fetched = await adapter.getSettings();
 			expect(fetched).toEqual(updated);
@@ -49,24 +54,26 @@ describe('IndexedDbStoreAdapter', () => {
 			expect(passages).toEqual([]);
 		});
 
-		it('saves a custom passage and generates id and timestamp', async () => {
+		it('saves a custom passage and generates UUID id and timestamp', async () => {
 			const created = await adapter.saveCustomPassage({
 				text: 'Custom IndexedDB test passage.',
 				source: 'IDB Unit Test'
 			});
 
-			expect(created.id).toBeDefined();
+			expect(created.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 			expect(created.text).toBe('Custom IndexedDB test passage.');
 			expect(created.source).toBe('IDB Unit Test');
 			expect(created.isCustom).toBe(true);
 			expect(created.createdAt).toBeDefined();
+			expect(created.updatedAt).toBeDefined();
+			expect(created.deletedAt).toBeNull();
 
 			const list = await adapter.getCustomPassages();
 			expect(list).toHaveLength(1);
 			expect(list[0]).toEqual(created);
 		});
 
-		it('updates a custom passage by id', async () => {
+		it('updates a custom passage by id and refreshes updatedAt', async () => {
 			const created = await adapter.saveCustomPassage({
 				text: 'Before edit',
 				source: 'Source 1'
@@ -80,6 +87,7 @@ describe('IndexedDbStoreAdapter', () => {
 			expect(updated).not.toBeNull();
 			expect(updated?.text).toBe('After edit');
 			expect(updated?.source).toBe('Source Updated');
+			expect(updated?.updatedAt).toBeDefined();
 
 			const list = await adapter.getCustomPassages();
 			expect(list[0].text).toBe('After edit');
@@ -90,7 +98,7 @@ describe('IndexedDbStoreAdapter', () => {
 			expect(res).toBeNull();
 		});
 
-		it('deletes a custom passage by id', async () => {
+		it('soft deletes a custom passage by marking with deletedAt', async () => {
 			const p1 = await adapter.saveCustomPassage({ text: 'One' });
 			const p2 = await adapter.saveCustomPassage({ text: 'Two' });
 
@@ -100,6 +108,13 @@ describe('IndexedDbStoreAdapter', () => {
 			const list = await adapter.getCustomPassages();
 			expect(list).toHaveLength(1);
 			expect(list[0].id).toBe(p2.id);
+
+			expect(await adapter.getPassageById(p1.id)).toBeNull();
+
+			const all = await adapter.getCustomPassages(true);
+			expect(all).toHaveLength(2);
+			const tombstone = all.find((p) => p.id === p1.id);
+			expect(tombstone?.deletedAt).toBeDefined();
 
 			const deletedAgain = await adapter.deleteCustomPassage(p1.id);
 			expect(deletedAgain).toBe(false);
@@ -144,6 +159,8 @@ describe('IndexedDbStoreAdapter', () => {
 
 			const runs = await adapter.getTestRuns();
 			expect(runs).toHaveLength(2);
+			expect(run1.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+			expect(run2.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 			expect(runs[0].id).toBe(run2.id);
 			expect(runs[0].wpm).toBe(92);
 			expect(runs[1].id).toBe(run1.id);

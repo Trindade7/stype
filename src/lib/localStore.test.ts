@@ -11,6 +11,7 @@ import {
 	updateCustomPassage,
 	deleteCustomPassage,
 	getAllPassages,
+	getPassageById,
 	getRandomPassage,
 	getGuestTestRuns,
 	saveGuestTestRun,
@@ -82,17 +83,19 @@ describe('localStore utility', () => {
 			expect(all[0].text).toBe(DEFAULT_PASSAGES[0].text);
 		});
 
-		it('saves a new custom passage with generated id and createdAt', async () => {
+		it('saves a new custom passage with generated UUID id, timestamps, and active state', async () => {
 			const custom = await saveCustomPassage({
 				text: 'Custom practice sentence for typing test.',
 				source: 'User Note'
 			});
 
-			expect(custom.id).toBeDefined();
+			expect(custom.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 			expect(custom.text).toBe('Custom practice sentence for typing test.');
 			expect(custom.source).toBe('User Note');
 			expect(custom.isCustom).toBe(true);
 			expect(custom.createdAt).toBeDefined();
+			expect(custom.updatedAt).toBeDefined();
+			expect(custom.deletedAt).toBeNull();
 
 			const customList = await getCustomPassages();
 			expect(customList).toHaveLength(1);
@@ -102,7 +105,7 @@ describe('localStore utility', () => {
 			expect(all.length).toBe(DEFAULT_PASSAGES.length + 1);
 		});
 
-		it('deletes a custom passage by id', async () => {
+		it('soft deletes a custom passage by setting deletedAt timestamp', async () => {
 			const passage1 = await saveCustomPassage({ text: 'Passage 1', source: 'Source 1' });
 			const passage2 = await saveCustomPassage({ text: 'Passage 2', source: 'Source 2' });
 
@@ -114,9 +117,16 @@ describe('localStore utility', () => {
 			const remaining = await getCustomPassages();
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].id).toBe(passage2.id);
+
+			expect(await getPassageById(passage1.id)).toBeNull();
+
+			const withTombstones = await getCustomPassages(true);
+			expect(withTombstones).toHaveLength(2);
+			const tombstone = withTombstones.find((p) => p.id === passage1.id);
+			expect(tombstone?.deletedAt).toBeDefined();
 		});
 
-		it('updates a custom passage by id', async () => {
+		it('updates a custom passage by id and refreshes updatedAt', async () => {
 			const passage = await saveCustomPassage({ text: 'Original text', source: 'Original source' });
 			const updated = await updateCustomPassage(passage.id, {
 				text: 'Updated text',
@@ -126,6 +136,7 @@ describe('localStore utility', () => {
 			expect(updated).not.toBeNull();
 			expect(updated?.text).toBe('Updated text');
 			expect(updated?.source).toBe('Updated source');
+			expect(updated?.updatedAt).toBeDefined();
 
 			const customList = await getCustomPassages();
 			expect(customList[0].text).toBe('Updated text');
@@ -217,7 +228,7 @@ describe('localStore utility', () => {
 
 			const saved = await saveGuestTestRun(completedResult);
 
-			expect(saved.id).toBeDefined();
+			expect(saved.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 			expect(saved.wpm).toBe(85);
 			expect(saved.accuracy).toBe(98);
 			expect(saved.passageId).toBe(passage.id);

@@ -43,7 +43,7 @@ export async function migrateFromLocalStorage(adapter: LocalStoreAdapter): Promi
 				for (const p of parsed) {
 					if (p && typeof p === 'object' && typeof p.text === 'string') {
 						await adapter.saveCustomPassage({
-							id: typeof p.id === 'number' ? p.id : undefined,
+							id: typeof p.id === 'number' || typeof p.id === 'string' ? p.id : undefined,
 							text: p.text,
 							source: p.source ?? null,
 							createdAt: typeof p.createdAt === 'string' ? p.createdAt : undefined,
@@ -67,9 +67,9 @@ export async function migrateFromLocalStorage(adapter: LocalStoreAdapter): Promi
 				// To preserve original order, iterate from oldest to newest if saving one-by-one or save in order
 				const runsToMigrate = [...parsed].reverse();
 				for (const r of runsToMigrate) {
-					if (r && typeof r === 'object' && typeof r.passageId === 'number') {
+					if (r && typeof r === 'object' && (typeof r.passageId === 'number' || typeof r.passageId === 'string')) {
 						await adapter.saveTestRun({
-							id: typeof r.id === 'number' ? r.id : undefined,
+							id: typeof r.id === 'number' || typeof r.id === 'string' ? r.id : undefined,
 							passageId: r.passageId,
 							mode: r.mode ?? 'passage',
 							duration: r.duration ?? null,

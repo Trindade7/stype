@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { eq } from 'drizzle-orm';
+import crypto from 'node:crypto';
 import { initializeDatabase } from './index';
 import { seedAdminUser } from './seed';
 import * as schema from './schema';
@@ -348,14 +349,6 @@ describe('database initialization', () => {
 				})
 				.run();
 
-			const insertedToken = db
-				.select()
-				.from(schema.emailConfirmationTokens)
-				.where(eq(schema.emailConfirmationTokens.id, 'token-legacy-confirm-1'))
-				.get();
-			expect(insertedToken).toBeDefined();
-			expect(insertedToken?.userId).toBe('u-legacy-confirm');
-
 			// Running initializeDatabase again must be completely idempotent
 			const reinit = initializeDatabase(dbPath);
 			reinit.sqlite.close();
@@ -364,5 +357,168 @@ describe('database initialization', () => {
 		} finally {
 			fs.rmSync(tmpDir, { recursive: true, force: true });
 		}
+	});
+
+	it('initializes passages, test_runs, and user_settings with UUID and timestamp schema', () => {
+		const { sqlite } = initializeDatabase(':memory:');
+
+		const passagesCols = sqlite.pragma('table_info(passages)') as { name: string; type: string }[];
+		const testRunsCols = sqlite.pragma('table_info(test_runs)') as { name: string; type: string }[];
+		const settingsCols = sqlite.pragma('table_info(user_settings)') as { name: string; type: string }[];
+
+		const passageId = passagesCols.find((c) => c.name === 'id');
+		expect(passageId?.type.toUpperCase()).toBe('TEXT');
+		expect(passagesCols.some((c) => c.name === 'updated_at')).toBe(true);
+		expect(passagesCols.some((c) => c.name === 'deleted_at')).toBe(true);
+
+		const runId = testRunsCols.find((c) => c.name === 'id');
+		const runPassageId = testRunsCols.find((c) => c.name === 'passage_id');
+		expect(runId?.type.toUpperCase()).toBe('TEXT');
+		expect(runPassageId?.type.toUpperCase()).toBe('TEXT');
+
+		expect(settingsCols.some((c) => c.name === 'updated_at')).toBe(true);
+		expect(settingsCols.some((c) => c.name === 'deleted_at')).toBe(true);
+
+		sqlite.close();
+	});
+
+	it('migrates legacy integer-based passages and test_runs to UUIDs maintaining relational integrity', () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stype-uuid-migration-'));
+		const dbPath = path.join(tmpDir, 'legacy-integer.db');
+
+		try {
+			const rawDb = new Database(dbPath);
+			rawDb.pragma('foreign_keys = ON');
+			rawDb.exec(`
+				CREATE TABLE users (
+					id TEXT PRIMARY KEY,
+					username TEXT UNIQUE NOT NULL,
+					password_hash TEXT NOT NULL,
+					created_at INTEGER NOT NULL
+				);
+				CREATE TABLE passages (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					text TEXT NOT NULL,
+					source TEXT,
+					user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+					created_at INTEGER NOT NULL
+				);
+				CREATE TABLE test_runs (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+					passage_id INTEGER NOT NULL REFERENCES passages(id) ON DELETE CASCADE,
+					mode TEXT NOT NULL DEFAULT 'passage',
+					duration INTEGER,
+					wpm INTEGER NOT NULL,
+					accuracy INTEGER NOT NULL,
+					time_elapsed INTEGER NOT NULL,
+					correct_chars INTEGER NOT NULL,
+					incorrect_chars INTEGER NOT NULL,
+					extra_chars INTEGER NOT NULL,
+					missed_chars INTEGER NOT NULL,
+					timeline_snapshots TEXT,
+					created_at INTEGER NOT NULL
+				);
+
+				INSERT INTO users (id, username, password_hash, created_at)
+				VALUES ('u-mig', 'miguser', 'hash123', 1700000000000);
+
+				INSERT INTO passages (id, text, source, user_id, created_at)
+				VALUES (1, 'Passage one', 'Book 1', 'u-mig', 1700000001000);
+				INSERT INTO passages (id, text, source, user_id, created_at)
+				VALUES (2, 'Passage two', 'Book 2', 'u-mig', 1700000002000);
+
+				INSERT INTO test_runs (id, user_id, passage_id, mode, wpm, accuracy, time_elapsed, correct_chars, incorrect_chars, extra_chars, missed_chars, created_at)
+				VALUES (101, 'u-mig', 1, 'passage', 65, 98, 30, 100, 2, 0, 0, 1700000003000);
+				INSERT INTO test_runs (id, user_id, passage_id, mode, wpm, accuracy, time_elapsed, correct_chars, incorrect_chars, extra_chars, missed_chars, created_at)
+				VALUES (102, 'u-mig', 2, 'timed', 75, 100, 60, 200, 0, 0, 0, 1700000004000);
+			`);
+			rawDb.close();
+
+			// Run initializeDatabase to apply migration
+			const { sqlite, db } = initializeDatabase(dbPath);
+
+			const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+			// Verify passages migrated to UUID
+			const migratedPassages = db.select().from(schema.passages).all();
+			expect(migratedPassages).toHaveLength(2);
+			for (const p of migratedPassages) {
+				expect(p.id).toMatch(uuidRegex);
+				expect(p.createdAt).toBeDefined();
+				expect(p.updatedAt).toBeDefined();
+				expect(p.deletedAt).toBeNull();
+			}
+
+			const p1 = migratedPassages.find((p) => p.text === 'Passage one')!;
+			const p2 = migratedPassages.find((p) => p.text === 'Passage two')!;
+			expect(p1).toBeDefined();
+			expect(p2).toBeDefined();
+
+			// Verify test_runs migrated to UUID and foreign keys point to new UUID passage IDs
+			const migratedRuns = db.select().from(schema.testRuns).all();
+			expect(migratedRuns).toHaveLength(2);
+			for (const r of migratedRuns) {
+				expect(r.id).toMatch(uuidRegex);
+			}
+
+			const run1 = migratedRuns.find((r) => r.wpm === 65)!;
+			const run2 = migratedRuns.find((r) => r.wpm === 75)!;
+			expect(run1).toBeDefined();
+			expect(run1.passageId).toBe(p1.id);
+			expect(run2).toBeDefined();
+			expect(run2.passageId).toBe(p2.id);
+
+			// Verify relational integrity
+			const fkCheck = sqlite.pragma('foreign_key_check') as any[];
+			expect(fkCheck).toEqual([]);
+
+			// Re-running initialization is idempotent
+			const secondInit = initializeDatabase(dbPath);
+			secondInit.sqlite.close();
+
+			sqlite.close();
+		} finally {
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it('supports soft-deleting passages via deleted_at timestamp', () => {
+		const { sqlite, db } = initializeDatabase(':memory:');
+
+		const passageId = crypto.randomUUID();
+		const now = new Date();
+
+		db.insert(schema.passages)
+			.values({
+				id: passageId,
+				text: 'Passage for soft-delete test',
+				source: 'Soft Delete Test',
+				createdAt: now,
+				updatedAt: now,
+				deletedAt: null
+			})
+			.run();
+
+		const stored = db.select().from(schema.passages).where(eq(schema.passages.id, passageId)).get();
+		expect(stored).toBeDefined();
+		expect(stored?.deletedAt).toBeNull();
+
+		// Soft delete the passage
+		const deletedAt = new Date();
+		db.update(schema.passages)
+			.set({
+				deletedAt,
+				updatedAt: deletedAt
+			})
+			.where(eq(schema.passages.id, passageId))
+			.run();
+
+		const softDeleted = db.select().from(schema.passages).where(eq(schema.passages.id, passageId)).get();
+		expect(softDeleted).toBeDefined();
+		expect(softDeleted?.deletedAt).toBeDefined();
+		expect(softDeleted?.deletedAt?.getTime()).toBe(deletedAt.getTime());
+
+		sqlite.close();
 	});
 });

@@ -7,7 +7,7 @@
 	import ResultSummary from './ResultSummary.svelte';
 
 	export interface CompletedTestResult {
-		passageId: number;
+		passageId: number | string;
 		mode: 'passage' | 'timed';
 		duration: number | null;
 		wpm: number;
@@ -31,7 +31,7 @@
 		onNextPassage,
 		onRestart
 	} = $props<{ 
-		passage: { id: number; text: string; source: string | null };
+		passage: { id: number | string; text: string; source: string | null };
 		initialMode?: 'passage' | 'timed';
 		initialDuration?: number;
 		initialZenMode?: boolean;

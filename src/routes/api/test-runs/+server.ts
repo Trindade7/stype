@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import crypto from 'node:crypto';
 import { db } from '$lib/server/db';
 import { testRuns } from '$lib/server/db/schema';
 import type { RequestHandler } from './$types';
@@ -10,8 +11,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const data = await request.json();
 
+	const passageId =
+		typeof data.passageId === 'number'
+			? String(data.passageId)
+			: typeof data.passageId === 'string'
+				? data.passageId.trim()
+				: '';
+
 	if (
-		typeof data.passageId !== 'number' ||
+		!passageId ||
 		typeof data.wpm !== 'number' ||
 		typeof data.accuracy !== 'number' ||
 		typeof data.timeElapsed !== 'number' ||
@@ -42,11 +50,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
+		const runId = typeof data.id === 'string' && data.id.trim() ? data.id.trim() : crypto.randomUUID();
 		const [run] = await db
 			.insert(testRuns)
 			.values({
+				id: runId,
 				userId: locals.user.id,
-				passageId: data.passageId,
+				passageId,
 				mode: data.mode ?? 'passage',
 				duration: data.duration ?? null,
 				wpm: data.wpm,
@@ -57,7 +67,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				extraChars: data.extraChars,
 				missedChars: data.missedChars,
 				timelineSnapshots: data.timelineSnapshots ?? [],
-				createdAt: new Date()
+				createdAt: data.createdAt ? new Date(data.createdAt) : new Date()
 			})
 			.returning();
 

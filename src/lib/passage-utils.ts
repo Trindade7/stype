@@ -37,7 +37,7 @@ export function filterPassagesByLength<T extends { text: string }>(
 
 export function getPassageIdFromUrl(
 	target?: string | URL | URLSearchParams | null
-): number | null {
+): string | number | null {
 	let searchParams: URLSearchParams | null = null;
 
 	if (target instanceof URLSearchParams) {
@@ -62,14 +62,23 @@ export function getPassageIdFromUrl(
 	const idStr = searchParams.get('passageId');
 	if (!idStr) return null;
 
-	if (!/^\d+$/.test(idStr.trim())) return null;
+	const trimmed = idStr.trim();
+	if (!trimmed) return null;
 
-	const parsed = parseInt(idStr.trim(), 10);
-	if (!Number.isFinite(parsed) || parsed <= 0) {
+	if (/^\d+$/.test(trimmed)) {
+		const parsed = parseInt(trimmed, 10);
+		if (Number.isFinite(parsed) && parsed > 0) {
+			return parsed;
+		}
 		return null;
 	}
 
-	return parsed;
+	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	if (uuidRegex.test(trimmed)) {
+		return trimmed;
+	}
+
+	return null;
 }
 
 export function clearPassageQuery(): void {

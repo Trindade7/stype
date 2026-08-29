@@ -19,6 +19,29 @@ const mockUser = {
 	createdAt: new Date()
 };
 
+const mockPassage = {
+	id: '10',
+	text: 'Dashboard typing passage',
+	source: 'Source',
+	userId: null,
+	createdAt: new Date(),
+	updatedAt: new Date(),
+	deletedAt: null
+};
+
+const mockSettings = {
+	userId: 'test-id',
+	mode: 'passage' as const,
+	duration: 30,
+	passageLength: 'all' as const,
+	zenMode: false,
+	theme: 'system' as const,
+	scrollMode: 'center' as const,
+	createdAt: new Date(),
+	updatedAt: new Date(),
+	deletedAt: null
+};
+
 describe('Main Page Content', () => {
 	afterEach(() => {
 		viewportLayout.reset();
@@ -30,17 +53,7 @@ describe('Main Page Content', () => {
 			data: {
 				user: mockUser,
 				passage: null as any,
-				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'center',
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
+				settings: mockSettings
 			}
 		});
 
@@ -53,18 +66,8 @@ describe('Main Page Content', () => {
 		render(Page, {
 			data: {
 				user: mockUser,
-				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
-				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'center',
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
+				passage: mockPassage,
+				settings: mockSettings
 			}
 		});
 
@@ -77,18 +80,8 @@ describe('Main Page Content', () => {
 		const { container } = render(Page, {
 			data: {
 				user: mockUser,
-				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
-				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'center',
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
+				passage: mockPassage,
+				settings: mockSettings
 			}
 		});
 
@@ -100,17 +93,10 @@ describe('Main Page Content', () => {
 		const { container } = render(Page, {
 			data: {
 				user: mockUser,
-				passage: { id: 10, text: 'Dashboard typing passage', source: 'Source', userId: null, createdAt: new Date() },
+				passage: mockPassage,
 				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'step',
-					createdAt: new Date(),
-					updatedAt: new Date()
+					...mockSettings,
+					scrollMode: 'step'
 				}
 			}
 		});
@@ -122,18 +108,8 @@ describe('Main Page Content', () => {
 		render(Page, {
 			data: {
 				user: mockUser,
-				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
-				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'center',
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
+				passage: { ...mockPassage, text: 'Hi' },
+				settings: mockSettings
 			}
 		});
 
@@ -153,18 +129,8 @@ describe('Main Page Content', () => {
 		render(Page, {
 			data: {
 				user: mockUser,
-				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
-				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'center',
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
+				passage: { ...mockPassage, text: 'Hi' },
+				settings: mockSettings
 			}
 		});
 
@@ -187,18 +153,8 @@ describe('Main Page Content', () => {
 		render(Page, {
 			data: {
 				user: mockUser,
-				passage: { id: 10, text: 'Hi', source: 'Unique Source Name', userId: null, createdAt: new Date() },
-				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'center',
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
+				passage: { ...mockPassage, text: 'Hi', source: 'Unique Source Name' },
+				settings: mockSettings
 			}
 		});
 
@@ -220,18 +176,8 @@ describe('Main Page Content', () => {
 		const { container } = render(Page, {
 			data: {
 				user: mockUser,
-				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
-				settings: {
-					userId: 'test-id',
-					mode: 'passage',
-					duration: 30,
-					passageLength: 'all',
-					zenMode: false,
-					theme: 'system',
-					scrollMode: 'center',
-					createdAt: new Date(),
-					updatedAt: new Date()
-				}
+				passage: { ...mockPassage, text: 'Hi' },
+				settings: mockSettings
 			}
 		});
 

@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import crypto from 'node:crypto';
 
 export type UserRole = 'admin' | 'user';
 
@@ -23,11 +24,19 @@ export const sessions = sqliteTable('sessions', {
 });
 
 export const passages = sqliteTable('passages', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
 	text: text('text').notNull(),
 	source: text('source'),
 	userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
-	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	deletedAt: integer('deleted_at', { mode: 'timestamp_ms' })
 });
 
 export interface TimelineSnapshot {
@@ -38,11 +47,13 @@ export interface TimelineSnapshot {
 }
 
 export const testRuns = sqliteTable('test_runs', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+	id: text('id')
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
 	userId: text('user_id')
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
-	passageId: integer('passage_id')
+	passageId: text('passage_id')
 		.notNull()
 		.references(() => passages.id, { onDelete: 'cascade' }),
 	mode: text('mode').$type<'passage' | 'timed'>().notNull().default('passage'),
@@ -55,7 +66,9 @@ export const testRuns = sqliteTable('test_runs', {
 	extraChars: integer('extra_chars').notNull(),
 	missedChars: integer('missed_chars').notNull(),
 	timelineSnapshots: text('timeline_snapshots', { mode: 'json' }).$type<TimelineSnapshot[]>(),
-	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date())
 });
 
 export const userSettings = sqliteTable('user_settings', {
@@ -68,8 +81,13 @@ export const userSettings = sqliteTable('user_settings', {
 	zenMode: integer('zen_mode', { mode: 'boolean' }).notNull().default(false),
 	theme: text('theme').$type<'light' | 'dark' | 'system'>().notNull().default('system'),
 	scrollMode: text('scroll_mode').$type<'manual' | 'center' | 'step'>().notNull().default('center'),
-	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-	updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull()
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	deletedAt: integer('deleted_at', { mode: 'timestamp_ms' })
 });
 
 export const passwordResetTokens = sqliteTable('password_reset_tokens', {

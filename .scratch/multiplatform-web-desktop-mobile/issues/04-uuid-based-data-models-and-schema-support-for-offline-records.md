@@ -4,10 +4,10 @@
 
 **Blocked by:** 02 — Asynchronous Local Store Adapter with IndexedDB and Migration.
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] Client storage and server SQLite schemas define `id` as a UUID string for Test Runs and Custom Passages.
-- [ ] Database migrations on the server upgrade existing integer-based records to UUIDs while maintaining relational integrity.
-- [ ] Custom Passages and Settings include `updated_at` and nullable `deleted_at` timestamps for tracking edits and deletions.
-- [ ] Deleting a Custom Passage in the client or server marks the record with a `deleted_at` timestamp rather than hard-deleting it immediately.
-- [ ] Database tests and client store tests verify UUID creation, timestamp updates, and soft-delete behavior across all record types.
+- [x] Client storage and server SQLite schemas define `id` as a UUID string for Test Runs and Custom Passages.
+- [x] Database migrations on the server upgrade existing integer-based records to UUIDs while maintaining relational integrity.
+- [x] Custom Passages and Settings include `updated_at` and nullable `deleted_at` timestamps for tracking edits and deletions.
+- [x] Deleting a Custom Passage in the client or server marks the record with a `deleted_at` timestamp rather than hard-deleting it immediately.
+- [x] Database tests and client store tests verify UUID creation, timestamp updates, and soft-delete behavior across all record types.

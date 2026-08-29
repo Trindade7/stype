@@ -16,7 +16,9 @@ export const DEFAULT_GUEST_SETTINGS: GuestSettings = {
 	passageLength: 'all',
 	zenMode: false,
 	theme: 'system',
-	scrollMode: 'center'
+	scrollMode: 'center',
+	updatedAt: new Date(0).toISOString(),
+	deletedAt: null
 };
 
 export const DEFAULT_PASSAGES: readonly GuestPassage[] = [
@@ -61,6 +63,35 @@ function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
 	return new Promise((resolve, reject) => {
 		request.onsuccess = () => resolve(request.result);
 		request.onerror = () => reject(request.error);
+	});
+}
+
+let lastRunTimestamp = 0;
+function getNextRunCreatedAt(specified?: string): string {
+	if (specified) return specified;
+	const now = Date.now();
+	const timestamp = now <= lastRunTimestamp ? lastRunTimestamp + 1 : now;
+	lastRunTimestamp = timestamp;
+	return new Date(timestamp).toISOString();
+}
+
+let lastPassageTimestamp = 0;
+function getNextPassageCreatedAt(specified?: string): string {
+	if (specified) return specified;
+	const now = Date.now();
+	const timestamp = now <= lastPassageTimestamp ? lastPassageTimestamp + 1 : now;
+	lastPassageTimestamp = timestamp;
+	return new Date(timestamp).toISOString();
+}
+
+function generateUuid(): string {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return crypto.randomUUID();
+	}
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+		const r = (Math.random() * 16) | 0;
+		const v = c === 'x' ? r : (r & 0x3) | 0x8;
+		return v.toString(16);
 	});
 }
 
@@ -142,7 +173,9 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 				passageLength: stored.passageLength ?? DEFAULT_GUEST_SETTINGS.passageLength,
 				zenMode: stored.zenMode ?? DEFAULT_GUEST_SETTINGS.zenMode,
 				theme: stored.theme ?? DEFAULT_GUEST_SETTINGS.theme,
-				scrollMode: stored.scrollMode ?? DEFAULT_GUEST_SETTINGS.scrollMode
+				scrollMode: stored.scrollMode ?? DEFAULT_GUEST_SETTINGS.scrollMode,
+				updatedAt: stored.updatedAt ?? DEFAULT_GUEST_SETTINGS.updatedAt,
+				deletedAt: stored.deletedAt ?? DEFAULT_GUEST_SETTINGS.deletedAt ?? null
 			};
 		} catch {
 			return { ...DEFAULT_GUEST_SETTINGS };
@@ -151,13 +184,16 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 
 	async saveSettings(updates: Partial<GuestSettings>): Promise<GuestSettings> {
 		const current = await this.getSettings();
+		const now = new Date().toISOString();
 		const merged: GuestSettings = {
 			mode: updates.mode ?? current.mode,
 			duration: updates.duration ?? current.duration,
 			passageLength: updates.passageLength ?? current.passageLength,
 			zenMode: updates.zenMode ?? current.zenMode,
 			theme: updates.theme ?? current.theme,
-			scrollMode: updates.scrollMode ?? current.scrollMode
+			scrollMode: updates.scrollMode ?? current.scrollMode,
+			updatedAt: updates.updatedAt ?? now,
+			deletedAt: updates.deletedAt !== undefined ? updates.deletedAt : (current.deletedAt ?? null)
 		};
 
 		const db = await this.getDb();
@@ -167,7 +203,7 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 		return merged;
 	}
 
-	async getCustomPassages(): Promise<GuestPassage[]> {
+	async getCustomPassages(includeDeleted = false): Promise<GuestPassage[]> {
 		try {
 			const db = await this.getDb();
 			const tx = db.transaction(STORE_PASSAGES, 'readonly');
@@ -175,28 +211,40 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 			const passages = await promisifyRequest(store.getAll());
 
 			if (!Array.isArray(passages)) return [];
-			return passages.filter(
-				(p): p is GuestPassage =>
-					typeof p === 'object' && p !== null && typeof p.id === 'number' && typeof p.text === 'string'
-			);
+			const valid = passages
+				.filter(
+					(p): p is GuestPassage =>
+						typeof p === 'object' &&
+						p !== null &&
+						(typeof p.id === 'string' || typeof p.id === 'number') &&
+						typeof p.text === 'string'
+				)
+				.filter((p) => includeDeleted || !p.deletedAt);
+
+			return valid.sort((a, b) => {
+				if (a.createdAt && b.createdAt) {
+					const timeDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+					if (timeDiff !== 0) return timeDiff;
+				}
+				return 0;
+			});
 		} catch {
 			return [];
 		}
 	}
 
 	async saveCustomPassage(input: SaveCustomPassageInput): Promise<GuestPassage> {
-		let newId = input.id;
-		if (newId === undefined) {
-			const current = await this.getCustomPassages();
-			const maxId = current.reduce((max, p) => Math.max(max, p.id), 7);
-			newId = Math.max(Date.now(), maxId + 1);
-		}
+		const newId = input.id !== undefined ? input.id : generateUuid();
+		const createdAt = getNextPassageCreatedAt(input.createdAt);
+		const updatedAt = input.updatedAt ?? createdAt;
 
 		const newPassage: GuestPassage = {
 			id: newId,
 			text: input.text.trim(),
 			source: input.source?.trim() || null,
-			createdAt: input.createdAt ?? new Date().toISOString(),
+			createdAt,
+			updatedAt,
+			deletedAt: input.deletedAt ?? null,
 			isCustom: input.isCustom ?? true
 		};
 
@@ -208,7 +256,7 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 	}
 
 	async updateCustomPassage(
-		id: number,
+		id: string | number,
 		input: { text: string; source?: string | null }
 	): Promise<GuestPassage | null> {
 		const db = await this.getDb();
@@ -216,42 +264,51 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 		const store = tx.objectStore(STORE_PASSAGES);
 		const existing = await promisifyRequest(store.get(id));
 
-		if (!existing) {
+		if (!existing || existing.deletedAt) {
 			return null;
 		}
 
+		const now = new Date().toISOString();
 		const updated: GuestPassage = {
 			...existing,
 			text: input.text.trim(),
-			source: input.source?.trim() || null
+			source: input.source?.trim() || null,
+			updatedAt: now
 		};
 
 		await promisifyRequest(store.put(updated));
 		return updated;
 	}
 
-	async deleteCustomPassage(id: number): Promise<boolean> {
+	async deleteCustomPassage(id: string | number): Promise<boolean> {
 		const db = await this.getDb();
 		const tx = db.transaction(STORE_PASSAGES, 'readwrite');
 		const store = tx.objectStore(STORE_PASSAGES);
 		const existing = await promisifyRequest(store.get(id));
 
-		if (!existing) {
+		if (!existing || existing.deletedAt) {
 			return false;
 		}
 
-		await promisifyRequest(store.delete(id));
+		const now = new Date().toISOString();
+		const updated: GuestPassage = {
+			...existing,
+			deletedAt: now,
+			updatedAt: now
+		};
+
+		await promisifyRequest(store.put(updated));
 		return true;
 	}
 
-	async getAllPassages(): Promise<GuestPassage[]> {
-		const custom = await this.getCustomPassages();
+	async getAllPassages(includeDeleted = false): Promise<GuestPassage[]> {
+		const custom = await this.getCustomPassages(includeDeleted);
 		return [...DEFAULT_PASSAGES, ...custom];
 	}
 
-	async getPassageById(id: number): Promise<GuestPassage | null> {
-		const all = await this.getAllPassages();
-		return all.find((p) => p.id === id) ?? null;
+	async getPassageById(id: string | number, includeDeleted = false): Promise<GuestPassage | null> {
+		const all = await this.getAllPassages(includeDeleted);
+		return all.find((p) => p.id === id || String(p.id) === String(id)) ?? null;
 	}
 
 	async getRandomPassage(lengthFilter: PassageLength = 'all'): Promise<GuestPassage | null> {
@@ -273,7 +330,10 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 
 			const valid = runs.filter(
 				(r): r is GuestTestRun =>
-					typeof r === 'object' && r !== null && typeof r.id === 'number' && typeof r.wpm === 'number'
+					typeof r === 'object' &&
+					r !== null &&
+					(typeof r.id === 'string' || typeof r.id === 'number') &&
+					typeof r.wpm === 'number'
 			);
 
 			// Newest runs first
@@ -282,7 +342,7 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 					const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 					if (timeDiff !== 0) return timeDiff;
 				}
-				return b.id - a.id;
+				return String(b.id).localeCompare(String(a.id));
 			});
 		} catch {
 			return [];
@@ -290,17 +350,13 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 	}
 
 	async saveTestRun(result: SaveTestRunInput): Promise<GuestTestRun> {
-		let newId = result.id;
-		if (newId === undefined) {
-			const currentRuns = await this.getTestRuns();
-			const maxId = currentRuns.reduce((max, r) => Math.max(max, r.id), 0);
-			newId = Math.max(Date.now(), maxId + 1);
-		}
+		const newId = result.id !== undefined ? result.id : generateUuid();
+		const pId = result.passageId;
 
 		let matchedPassage = result.passage;
 		if (matchedPassage === undefined) {
 			const allPassages = await this.getAllPassages();
-			const found = allPassages.find((p) => p.id === result.passageId);
+			const found = allPassages.find((p) => p.id === pId || String(p.id) === String(pId));
 			matchedPassage = found
 				? {
 						id: found.id,
@@ -312,7 +368,7 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 
 		const newRun: GuestTestRun = {
 			id: newId,
-			passageId: result.passageId,
+			passageId: pId,
 			mode: result.mode,
 			duration: result.duration,
 			wpm: result.wpm,
@@ -323,7 +379,7 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 			extraChars: result.extraChars,
 			missedChars: result.missedChars,
 			timelineSnapshots: result.timelineSnapshots ?? [],
-			createdAt: result.createdAt ?? new Date().toISOString(),
+			createdAt: getNextRunCreatedAt(result.createdAt),
 			passage: matchedPassage
 		};
 
@@ -345,10 +401,10 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 		}
 	}
 
-	async getGuestData(): Promise<GuestData> {
+	async getGuestData(includeDeleted = false): Promise<GuestData> {
 		const [settings, customPassages, testRuns] = await Promise.all([
 			this.getSettings(),
-			this.getCustomPassages(),
+			this.getCustomPassages(includeDeleted),
 			this.getTestRuns()
 		]);
 

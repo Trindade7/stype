@@ -38,10 +38,10 @@ export async function saveGuestSettings(updates: Partial<GuestSettings>): Promis
 	return adapter.saveSettings(updates);
 }
 
-export async function getCustomPassages(): Promise<GuestPassage[]> {
+export async function getCustomPassages(includeDeleted?: boolean): Promise<GuestPassage[]> {
 	const adapter = getDefaultAdapter();
 	await ensureMigrated(adapter);
-	return adapter.getCustomPassages();
+	return adapter.getCustomPassages(includeDeleted);
 }
 
 export async function saveCustomPassage(input: SaveCustomPassageInput): Promise<GuestPassage> {
@@ -51,7 +51,7 @@ export async function saveCustomPassage(input: SaveCustomPassageInput): Promise<
 }
 
 export async function updateCustomPassage(
-	id: number,
+	id: string | number,
 	input: { text: string; source?: string | null }
 ): Promise<GuestPassage | null> {
 	const adapter = getDefaultAdapter();
@@ -59,22 +59,22 @@ export async function updateCustomPassage(
 	return adapter.updateCustomPassage(id, input);
 }
 
-export async function deleteCustomPassage(id: number): Promise<boolean> {
+export async function deleteCustomPassage(id: string | number): Promise<boolean> {
 	const adapter = getDefaultAdapter();
 	await ensureMigrated(adapter);
 	return adapter.deleteCustomPassage(id);
 }
 
-export async function getAllPassages(): Promise<GuestPassage[]> {
+export async function getAllPassages(includeDeleted?: boolean): Promise<GuestPassage[]> {
 	const adapter = getDefaultAdapter();
 	await ensureMigrated(adapter);
-	return adapter.getAllPassages();
+	return adapter.getAllPassages(includeDeleted);
 }
 
-export async function getPassageById(id: number): Promise<GuestPassage | null> {
+export async function getPassageById(id: string | number, includeDeleted?: boolean): Promise<GuestPassage | null> {
 	const adapter = getDefaultAdapter();
 	await ensureMigrated(adapter);
-	return adapter.getPassageById(id);
+	return adapter.getPassageById(id, includeDeleted);
 }
 
 export async function getRandomPassage(lengthFilter: PassageLength = 'all'): Promise<GuestPassage | null> {
@@ -101,10 +101,10 @@ export async function clearGuestTestRuns(): Promise<void> {
 	return adapter.clearTestRuns();
 }
 
-export async function getGuestData(): Promise<GuestData> {
+export async function getGuestData(includeDeleted?: boolean): Promise<GuestData> {
 	const adapter = getDefaultAdapter();
 	await ensureMigrated(adapter);
-	return adapter.getGuestData();
+	return adapter.getGuestData(includeDeleted);
 }
 
 export async function clearGuestData(): Promise<void> {

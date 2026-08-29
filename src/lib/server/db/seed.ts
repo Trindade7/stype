@@ -74,7 +74,15 @@ export async function seedPassages(
 
 		const now = new Date();
 		db.insert(schema.passages)
-			.values(passagesToInsert.map(p => ({ ...p, createdAt: now })))
+			.values(
+				passagesToInsert.map((p) => ({
+					id: randomUUID(),
+					...p,
+					createdAt: now,
+					updatedAt: now,
+					deletedAt: null
+				}))
+			)
 			.run();
 	}
 }

@@ -42,7 +42,7 @@ describe('POST /app/api/sync', () => {
 		});
 
 		await db.insert(passages).values({
-			id: 1,
+			id: 'p-default',
 			text: 'Default Passage',
 			source: 'Test',
 			createdAt: new Date()
@@ -71,7 +71,7 @@ describe('POST /app/api/sync', () => {
 			},
 			customPassages: [
 				{
-					id: 999, // guest id
+					id: 'c1111111-1111-4111-8111-111111111111',
 					text: 'Custom text here',
 					source: 'me',
 					createdAt: new Date().toISOString()
@@ -79,8 +79,8 @@ describe('POST /app/api/sync', () => {
 			],
 			testRuns: [
 				{
-					id: 888, // guest id
-					passageId: 999,
+					id: 'r1111111-1111-4111-8111-111111111111',
+					passageId: 'c1111111-1111-4111-8111-111111111111',
 					mode: 'timed',
 					duration: 60,
 					wpm: 120,
@@ -93,7 +93,7 @@ describe('POST /app/api/sync', () => {
 					timelineSnapshots: [],
 					createdAt: new Date().toISOString(),
 					passage: {
-						id: 999,
+						id: 'c1111111-1111-4111-8111-111111111111',
 						text: 'Custom text here',
 						source: 'me'
 					}
@@ -154,5 +154,40 @@ describe('POST /app/api/sync', () => {
 		// Test runs should still be 1 (no duplicate run with same wpm and createdAt)
 		const runsAfter = await dbInstance.select().from(testRuns).all();
 		expect(runsAfter.length).toBe(1);
+	});
+
+	it('syncs soft-deleted custom passage tombstone', async () => {
+		const passageId = 'c2222222-2222-4222-8222-222222222222';
+		const deletedTimestamp = new Date().toISOString();
+
+		const payload = {
+			customPassages: [
+				{
+					id: passageId,
+					text: 'Tombstoned passage',
+					source: 'Tombstone',
+					createdAt: new Date(Date.now() - 10000).toISOString(),
+					updatedAt: deletedTimestamp,
+					deletedAt: deletedTimestamp
+				}
+			]
+		};
+
+		const req = new Request('http://localhost/app/api/sync', {
+			method: 'POST',
+			body: JSON.stringify(payload)
+		});
+
+		const response = await POST({
+			request: req,
+			locals: { user: { id: 'user-1' }, session: {} }
+		} as any);
+
+		expect(response.status).toBe(200);
+
+		const passage = await dbInstance.select().from(passages).where(eq(passages.id, passageId)).get();
+		expect(passage).toBeDefined();
+		expect(passage?.deletedAt).toBeDefined();
+		expect(passage?.deletedAt).toBeInstanceOf(Date);
 	});
 });
