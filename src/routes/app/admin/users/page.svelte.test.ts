@@ -190,7 +190,17 @@ describe('Admin Users Page', () => {
 		expect(screen.getByLabelText(/^username$/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
 		expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
-		expect(screen.getByLabelText(/^role$/i)).toBeInTheDocument();
+
+		// Role is rendered via shadcn Select component defaulting to "User"
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		expect(roleTrigger).toBeInTheDocument();
+		expect(roleTrigger).toHaveAttribute('data-slot', 'select-trigger');
+		expect(roleTrigger).toHaveTextContent('User');
+
+		const form = roleTrigger.closest('form');
+		const roleHiddenInput = form?.querySelector('input[name="role"]') as HTMLInputElement;
+		expect(roleHiddenInput).toBeInTheDocument();
+		expect(roleHiddenInput.value).toBe('user');
 	});
 
 	it('generates random secure password and populates field on button click', async () => {
@@ -247,12 +257,14 @@ describe('Admin Users Page', () => {
 		const nameInput = screen.getByLabelText(/^display name$/i) as HTMLInputElement;
 		const usernameInput = screen.getByLabelText(/^username$/i) as HTMLInputElement;
 		const emailInput = screen.getByLabelText(/^email$/i) as HTMLInputElement;
-		const roleSelect = screen.getByLabelText(/^role$/i) as HTMLSelectElement;
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		const roleHiddenInput = roleTrigger.closest('form')?.querySelector('input[name="role"]') as HTMLInputElement;
 
 		expect(nameInput.value).toBe('Conflicting Typist');
 		expect(usernameInput.value).toBe('janedoe');
 		expect(emailInput.value).toBe('jane@example.com');
-		expect(roleSelect.value).toBe('admin');
+		expect(roleTrigger).toHaveTextContent('Admin');
+		expect(roleHiddenInput.value).toBe('admin');
 	});
 
 	it('closes Create User dialog on Cancel click', async () => {
@@ -303,6 +315,61 @@ describe('Admin Users Page', () => {
 		expect(screen.queryByRole('heading', { level: 2, name: /create user/i })).not.toBeInTheDocument();
 	});
 
+	it('allows selecting role via keyboard interaction in Create User dialog', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		const createButton = screen.getByRole('button', { name: /create user/i });
+		await fireEvent.click(createButton);
+
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		expect(roleTrigger).toHaveTextContent('User');
+
+		roleTrigger.focus();
+		// Open the dropdown via keyboard
+		await fireEvent.keyDown(roleTrigger, { key: 'ArrowDown' });
+		const adminOption = await screen.findByRole('option', { name: /^admin$/i });
+		expect(adminOption).toBeInTheDocument();
+
+		// Move down and press Enter
+		await fireEvent.keyDown(roleTrigger, { key: 'ArrowDown' });
+		await fireEvent.keyDown(roleTrigger, { key: 'Enter' });
+
+		expect(roleTrigger).toHaveTextContent('Admin');
+		const roleHiddenInput = roleTrigger.closest('form')?.querySelector('input[name="role"]') as HTMLInputElement;
+		expect(roleHiddenInput.value).toBe('admin');
+	});
+
+	it('submits createUser form with selected role from dropdown', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		const openButton = screen.getByRole('button', { name: /create user/i });
+		await fireEvent.click(openButton);
+
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		await fireEvent.pointerDown(roleTrigger, { button: 0, pointerType: 'mouse' });
+
+		const adminOption = await screen.findByRole('option', { name: /^admin$/i });
+		await fireEvent.pointerUp(adminOption, { button: 0, pointerType: 'mouse' });
+
+		expect(roleTrigger).toHaveTextContent('Admin');
+
+		const form = roleTrigger.closest('form')!;
+		const formData = new FormData(form);
+		expect(formData.get('role')).toBe('admin');
+	});
+
 	it('renders an action menu for each user row with an Edit Details option', async () => {
 		render(AdminUsersPage, {
 			data: {
@@ -342,12 +409,16 @@ describe('Admin Users Page', () => {
 
 		const nameInput = screen.getByLabelText(/^display name$/i) as HTMLInputElement;
 		const emailInput = screen.getByLabelText(/^email$/i) as HTMLInputElement;
-		const roleSelect = screen.getByLabelText(/^role$/i) as HTMLSelectElement;
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		const roleHiddenInput = roleTrigger.closest('form')?.querySelector('input[name="role"]') as HTMLInputElement;
 		const verifiedSwitch = screen.getByRole('switch', { name: /email verified/i });
 
 		expect(nameInput.value).toBe('Jane Doe');
 		expect(emailInput.value).toBe('jane@example.com');
-		expect(roleSelect.value).toBe('user');
+		expect(roleTrigger).toBeInTheDocument();
+		expect(roleTrigger).toHaveAttribute('data-slot', 'select-trigger');
+		expect(roleTrigger).toHaveTextContent('User');
+		expect(roleHiddenInput.value).toBe('user');
 		expect(verifiedSwitch).toHaveAttribute('aria-checked', 'true');
 	});
 
@@ -447,12 +518,18 @@ describe('Admin Users Page', () => {
 		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
 		await fireEvent.click(editOption);
 
-		const roleSelect = screen.getByLabelText(/^role$/i) as HTMLSelectElement;
-		expect(roleSelect.value).toBe('admin');
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		expect(roleTrigger).toHaveTextContent('Admin');
 
-		// Change role to 'user'
-		await fireEvent.change(roleSelect, { target: { value: 'user' } });
-		expect(roleSelect.value).toBe('user');
+		// Change role to 'user' via Select dropdown
+		await fireEvent.pointerDown(roleTrigger, { button: 0, pointerType: 'mouse' });
+		const userOption = await screen.findByRole('option', { name: /^user$/i });
+		expect(userOption).toBeInTheDocument();
+		await fireEvent.pointerUp(userOption, { button: 0, pointerType: 'mouse' });
+		expect(roleTrigger).toHaveTextContent('User');
+
+		const roleHiddenInput = roleTrigger.closest('form')?.querySelector('input[name="role"]') as HTMLInputElement;
+		expect(roleHiddenInput.value).toBe('user');
 
 		// Click save changes
 		const saveButton = screen.getByRole('button', { name: /save changes|update user/i });
@@ -489,8 +566,10 @@ describe('Admin Users Page', () => {
 		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
 		await fireEvent.click(editOption);
 
-		const roleSelect = screen.getByLabelText(/^role$/i) as HTMLSelectElement;
-		await fireEvent.change(roleSelect, { target: { value: 'user' } });
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		await fireEvent.pointerDown(roleTrigger, { button: 0, pointerType: 'mouse' });
+		const userOption = await screen.findByRole('option', { name: /^user$/i });
+		await fireEvent.pointerUp(userOption, { button: 0, pointerType: 'mouse' });
 
 		const saveButton = screen.getByRole('button', { name: /save changes|update user/i });
 		await fireEvent.click(saveButton);
@@ -507,6 +586,74 @@ describe('Admin Users Page', () => {
 		expect(
 			screen.queryByText(/administrative privileges will be revoked immediately/i)
 		).not.toBeInTheDocument();
+	});
+
+	it('does not trigger self-demotion warning when administrator re-selects Admin role', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for admin/i });
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		await fireEvent.click(editOption);
+
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+
+		// Change role to 'user'
+		await fireEvent.pointerDown(roleTrigger, { button: 0, pointerType: 'mouse' });
+		const userOption = await screen.findByRole('option', { name: /^user$/i });
+		await fireEvent.pointerUp(userOption, { button: 0, pointerType: 'mouse' });
+		expect(roleTrigger).toHaveTextContent('User');
+
+		// Change role back to 'admin'
+		await fireEvent.pointerDown(roleTrigger, { button: 0, pointerType: 'mouse' });
+		const adminOption = await screen.findByRole('option', { name: /^admin$/i });
+		await fireEvent.pointerUp(adminOption, { button: 0, pointerType: 'mouse' });
+		expect(roleTrigger).toHaveTextContent('Admin');
+
+		const saveButton = screen.getByRole('button', { name: /save changes|update user/i });
+		await fireEvent.click(saveButton);
+
+		expect(
+			screen.queryByText(/administrative privileges will be revoked immediately/i)
+		).not.toBeInTheDocument();
+	});
+
+	it('allows selecting role via keyboard interaction in Edit User dialog', async () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: mockUsers
+			} as any,
+			form: null
+		});
+
+		const actionBtn = screen.getByRole('button', { name: /actions for janedoe/i });
+		await fireEvent.click(actionBtn);
+
+		const editOption = screen.getByRole('menuitem', { name: /edit details/i });
+		await fireEvent.click(editOption);
+
+		const roleTrigger = screen.getByRole('combobox', { name: /^role$/i });
+		expect(roleTrigger).toHaveTextContent('User');
+
+		roleTrigger.focus();
+		await fireEvent.keyDown(roleTrigger, { key: 'ArrowDown' });
+		const adminOption = await screen.findByRole('option', { name: /^admin$/i });
+		expect(adminOption).toBeInTheDocument();
+
+		await fireEvent.keyDown(roleTrigger, { key: 'ArrowDown' });
+		await fireEvent.keyDown(roleTrigger, { key: 'Enter' });
+
+		expect(roleTrigger).toHaveTextContent('Admin');
+		const roleHiddenInput = roleTrigger.closest('form')?.querySelector('input[name="role"]') as HTMLInputElement;
+		expect(roleHiddenInput.value).toBe('admin');
 	});
 
 	it('renders an action menu for each user row with a Reset Password option', async () => {

@@ -20,6 +20,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Select from '$lib/components/ui/select';
 	import { Switch } from '$lib/components/ui/switch';
 	import { generateRandomPassword } from '$lib/password-utils';
 
@@ -348,16 +349,21 @@
 
 					<div class="space-y-1.5">
 						<Label for="create-role">Role</Label>
-						<select
-							id="create-role"
-							name="role"
-							bind:value={formRole}
-							class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-							aria-invalid={formErrors?.role ? 'true' : undefined}
-						>
-							<option value="user">User</option>
-							<option value="admin">Admin</option>
-						</select>
+						<Select.Root type="single" name="role" bind:value={formRole}>
+							<Select.Trigger
+								id="create-role"
+								role="combobox"
+								aria-label="Role"
+								aria-invalid={formErrors?.role ? 'true' : undefined}
+								class="w-full justify-between"
+							>
+								{formRole === 'admin' ? 'Admin' : 'User'}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="user" label="User">User</Select.Item>
+								<Select.Item value="admin" label="Admin">Admin</Select.Item>
+							</Select.Content>
+						</Select.Root>
 						{#if formErrors?.role}
 							<p role="alert" class="text-xs text-destructive">{formErrors.role}</p>
 						{/if}
@@ -455,16 +461,21 @@
 
 					<div class="space-y-1.5">
 						<Label for="edit-role">Role</Label>
-						<select
-							id="edit-role"
-							name="role"
-							bind:value={editRole}
-							class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-							aria-invalid={editErrors?.role ? 'true' : undefined}
-						>
-							<option value="user">User</option>
-							<option value="admin">Admin</option>
-						</select>
+						<Select.Root type="single" name="role" bind:value={editRole}>
+							<Select.Trigger
+								id="edit-role"
+								role="combobox"
+								aria-label="Role"
+								aria-invalid={editErrors?.role ? 'true' : undefined}
+								class="w-full justify-between"
+							>
+								{editRole === 'admin' ? 'Admin' : 'User'}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="user" label="User">User</Select.Item>
+								<Select.Item value="admin" label="Admin">Admin</Select.Item>
+							</Select.Content>
+						</Select.Root>
 						{#if editErrors?.role}
 							<p role="alert" class="text-xs text-destructive">{editErrors.role}</p>
 						{/if}
