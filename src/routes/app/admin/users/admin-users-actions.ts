@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { error, fail, redirect, type RequestEvent } from '@sveltejs/kit';
-import { and, count, desc, eq, ne } from 'drizzle-orm';
+import { and, count, desc, eq, like, ne, or } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '$lib/server/db/schema';
 import { hashPassword } from '$lib/server/auth/password';
@@ -35,7 +35,17 @@ export function createAdminUsersPageLoad(
 			error(403, 'Forbidden');
 		}
 
-		const countResult = db.select({ count: count() }).from(schema.users).get();
+		const search = (url.searchParams.get('search') ?? '').trim();
+		const whereClause = search
+			? or(
+					like(schema.users.name, `%${search}%`),
+					like(schema.users.username, `%${search}%`),
+					like(schema.users.email, `%${search}%`)
+				)
+			: undefined;
+
+		const countQuery = db.select({ count: count() }).from(schema.users);
+		const countResult = whereClause ? countQuery.where(whereClause).get() : countQuery.get();
 		const totalCount = countResult?.count ?? 0;
 		const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -44,7 +54,7 @@ export function createAdminUsersPageLoad(
 		const page = isNaN(parsedPage) || parsedPage < 1 ? 1 : Math.min(parsedPage, totalPages);
 		const offset = (page - 1) * PAGE_SIZE;
 
-		const usersList = db
+		const usersQuery = db
 			.select({
 				id: schema.users.id,
 				username: schema.users.username,
@@ -54,7 +64,9 @@ export function createAdminUsersPageLoad(
 				emailConfirmed: schema.users.emailConfirmed,
 				createdAt: schema.users.createdAt
 			})
-			.from(schema.users)
+			.from(schema.users);
+
+		const usersList = (whereClause ? usersQuery.where(whereClause) : usersQuery)
 			.orderBy(desc(schema.users.createdAt))
 			.limit(PAGE_SIZE)
 			.offset(offset)
@@ -68,6 +80,7 @@ export function createAdminUsersPageLoad(
 				totalCount,
 				totalPages
 			},
+			search,
 			smtpConfigured: checkSmtp()
 		};
 	};

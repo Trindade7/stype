@@ -29,6 +29,42 @@
 	let { data, form }: { data: PageData; form?: ActionData } = $props();
 
 	let searchQuery = $state('');
+	let lastServerSearch = '';
+
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+	$effect.pre(() => {
+		if (data.search !== undefined && data.search !== lastServerSearch) {
+			lastServerSearch = data.search;
+			searchQuery = data.search;
+		}
+	});
+
+	$effect(() => {
+		return () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+		};
+	});
+
+	function handleSearchInput() {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			if (typeof window === 'undefined') return;
+			const currentUrl = new URL(window.location.href);
+			const trimmed = searchQuery.trim();
+			if (trimmed) {
+				currentUrl.searchParams.set('search', trimmed);
+			} else {
+				currentUrl.searchParams.delete('search');
+			}
+			currentUrl.searchParams.set('page', '1');
+			goto(`${currentUrl.pathname}?${currentUrl.searchParams.toString()}`, {
+				replaceState: true,
+				noScroll: true,
+				keepFocus: true
+			});
+		}, 300);
+	}
 	let isCreateDialogOpen = $state(false);
 	let formName = $state('');
 	let formUsername = $state('');
@@ -232,16 +268,6 @@
 	});
 
 	let users = $derived(data.users ?? []);
-	let filteredUsers = $derived(
-		users.filter((u) => {
-			if (!searchQuery.trim()) return true;
-			const q = searchQuery.toLowerCase().trim();
-			const matchName = u.name ? u.name.toLowerCase().includes(q) : false;
-			const matchUsername = u.username ? u.username.toLowerCase().includes(q) : false;
-			const matchEmail = u.email ? u.email.toLowerCase().includes(q) : false;
-			return matchName || matchUsername || matchEmail;
-		})
-	);
 </script>
 
 <svelte:head>
@@ -267,6 +293,7 @@
 				type="text"
 				placeholder="Search users by name, username, or email..."
 				bind:value={searchQuery}
+				oninput={handleSearchInput}
 				aria-label="Search users"
 				class="pl-9 h-9"
 			/>
@@ -844,14 +871,14 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#if filteredUsers.length === 0}
+				{#if users.length === 0}
 					<tr>
 						<td colspan="7" class="p-8 text-center text-muted-foreground">
 							No users found matching your search.
 						</td>
 					</tr>
 				{:else}
-					{#each filteredUsers as user (user.id)}
+					{#each users as user (user.id)}
 						<tr class="border-b border-border/50 hover:bg-muted/30 transition-colors">
 							<td class="py-3.5 px-4 font-medium">{user.name || '—'}</td>
 							<td class="py-3.5 px-4 font-mono text-xs">{user.username}</td>

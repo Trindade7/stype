@@ -361,6 +361,224 @@ describe('Admin Users Page Server Load and Actions', () => {
 
 			sqlite.close();
 		});
+
+		it('returns empty string for search property when no search parameter is supplied', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+			const event = createMockEvent({
+				user: { id: 'u-1', username: 'admin', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users'
+			});
+
+			const data = await loadFn(event as any);
+			expect(data).toHaveProperty('search', '');
+
+			sqlite.close();
+		});
+
+		it('filters users matching display name, username, or email case-insensitively', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+
+			db.insert(schema.users)
+				.values([
+					{
+						id: 'u-1',
+						username: 'alice',
+						email: 'alice@example.com',
+						name: 'Alice Wonder',
+						role: 'admin',
+						emailConfirmed: true,
+						passwordHash: 'hash1',
+						createdAt: new Date('2026-01-01T10:00:00Z')
+					},
+					{
+						id: 'u-2',
+						username: 'bob',
+						email: 'bob@example.com',
+						name: 'Robert Builder',
+						role: 'user',
+						emailConfirmed: false,
+						passwordHash: 'hash2',
+						createdAt: new Date('2026-01-02T10:00:00Z')
+					},
+					{
+						id: 'u-3',
+						username: 'carol',
+						email: 'captain@marvel.com',
+						name: 'Carol Danvers',
+						role: 'user',
+						emailConfirmed: true,
+						passwordHash: 'hash3',
+						createdAt: new Date('2026-01-03T10:00:00Z')
+					}
+				])
+				.run();
+
+			// Match by username
+			const eventUsername = createMockEvent({
+				user: { id: 'u-1', username: 'alice', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?search=alice'
+			});
+			const dataUsername = await loadFn(eventUsername as any);
+			expect(dataUsername.search).toBe('alice');
+			expect(dataUsername.users).toHaveLength(1);
+			expect(dataUsername.users[0].username).toBe('alice');
+
+			// Match by display name (case-insensitive substring)
+			const eventName = createMockEvent({
+				user: { id: 'u-1', username: 'alice', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?search=builder'
+			});
+			const dataName = await loadFn(eventName as any);
+			expect(dataName.search).toBe('builder');
+			expect(dataName.users).toHaveLength(1);
+			expect(dataName.users[0].username).toBe('bob');
+
+			// Match by email domain substring
+			const eventEmail = createMockEvent({
+				user: { id: 'u-1', username: 'alice', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?search=marvel'
+			});
+			const dataEmail = await loadFn(eventEmail as any);
+			expect(dataEmail.search).toBe('marvel');
+			expect(dataEmail.users).toHaveLength(1);
+			expect(dataEmail.users[0].username).toBe('carol');
+
+			sqlite.close();
+		});
+
+		it('recalculates totalCount and totalPages based on filtered dataset when search query is active', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+
+			const baseTime = new Date('2026-01-01T00:00:00Z').getTime();
+			const usersToInsert = [
+				...Array.from({ length: 30 }, (_, i) => ({
+					id: `tester-${i + 1}`,
+					username: `tester_${String(i + 1).padStart(2, '0')}`,
+					email: `tester${i + 1}@example.com`,
+					name: `QA Tester ${i + 1}`,
+					role: (i === 0 ? 'admin' : 'user') as schema.UserRole,
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date(baseTime + i * 1000)
+				})),
+				...Array.from({ length: 30 }, (_, i) => ({
+					id: `dev-${i + 1}`,
+					username: `dev_${String(i + 1).padStart(2, '0')}`,
+					email: `dev${i + 1}@example.com`,
+					name: `Software Engineer ${i + 1}`,
+					role: 'user' as schema.UserRole,
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date(baseTime + (i + 30) * 1000)
+				}))
+			];
+			db.insert(schema.users).values(usersToInsert).run();
+
+			// Unfiltered check
+			const eventAll = createMockEvent({
+				user: { id: 'tester-1', username: 'tester_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users'
+			});
+			const dataAll = await loadFn(eventAll as any);
+			expect(dataAll.pagination.totalCount).toBe(60);
+			expect(dataAll.pagination.totalPages).toBe(3);
+
+			// Filtered page 1: search=tester
+			const eventFilteredP1 = createMockEvent({
+				user: { id: 'tester-1', username: 'tester_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=1&search=tester'
+			});
+			const dataP1 = await loadFn(eventFilteredP1 as any);
+			expect(dataP1.pagination.totalCount).toBe(30);
+			expect(dataP1.pagination.totalPages).toBe(2);
+			expect(dataP1.pagination.page).toBe(1);
+			expect(dataP1.users).toHaveLength(25);
+			expect(dataP1.users.every((u) => u.username.includes('tester'))).toBe(true);
+
+			// Filtered page 2: search=tester
+			const eventFilteredP2 = createMockEvent({
+				user: { id: 'tester-1', username: 'tester_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=2&search=tester'
+			});
+			const dataP2 = await loadFn(eventFilteredP2 as any);
+			expect(dataP2.pagination.totalCount).toBe(30);
+			expect(dataP2.pagination.totalPages).toBe(2);
+			expect(dataP2.pagination.page).toBe(2);
+			expect(dataP2.users).toHaveLength(5);
+			expect(dataP2.users.every((u) => u.username.includes('tester'))).toBe(true);
+
+			sqlite.close();
+		});
+
+		it('clamps page parameter to filtered totalPages when page exceeds filtered bounds', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+
+			const baseTime = new Date('2026-01-01T00:00:00Z').getTime();
+			const usersToInsert = [
+				...Array.from({ length: 30 }, (_, i) => ({
+					id: `tester-${i + 1}`,
+					username: `tester_${String(i + 1).padStart(2, '0')}`,
+					email: `tester${i + 1}@example.com`,
+					name: `QA Tester ${i + 1}`,
+					role: (i === 0 ? 'admin' : 'user') as schema.UserRole,
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date(baseTime + i * 1000)
+				}))
+			];
+			db.insert(schema.users).values(usersToInsert).run();
+
+			// Requesting page 5 when filtered dataset only has 2 pages
+			const event = createMockEvent({
+				user: { id: 'tester-1', username: 'tester_01', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=5&search=tester'
+			});
+			const data = await loadFn(event as any);
+			expect(data.pagination.page).toBe(2);
+			expect(data.pagination.totalPages).toBe(2);
+			expect(data.pagination.totalCount).toBe(30);
+			expect(data.users).toHaveLength(5);
+
+			sqlite.close();
+		});
+
+		it('returns empty users array and clamps page to 1 when search query has zero matches', async () => {
+			const { db, sqlite } = initializeDatabase(':memory:');
+			const loadFn = createAdminUsersPageLoad(db);
+
+			db.insert(schema.users)
+				.values({
+					id: 'admin-1',
+					username: 'admin',
+					email: 'admin@stype.local',
+					name: 'System Admin',
+					role: 'admin',
+					emailConfirmed: true,
+					passwordHash: 'hash',
+					createdAt: new Date()
+				})
+				.run();
+
+			const event = createMockEvent({
+				user: { id: 'admin-1', username: 'admin', role: 'admin' },
+				url: 'http://localhost:5173/app/admin/users?page=3&search=nonexistent'
+			});
+			const data = await loadFn(event as any);
+			expect(data.search).toBe('nonexistent');
+			expect(data.users).toEqual([]);
+			expect(data.pagination).toEqual({
+				page: 1,
+				perPage: 25,
+				totalCount: 0,
+				totalPages: 1
+			});
+
+			sqlite.close();
+		});
 	});
 
 	describe('actions - createUser', () => {

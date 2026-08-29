@@ -141,39 +141,227 @@ describe('Admin Users Page', () => {
 		expect(pendingBadges.length).toBe(1);
 	});
 
-	it('filters users in real time matching display name, username, or email', async () => {
+	it('initializes search input value from data.search and renders server-provided user list', () => {
 		render(AdminUsersPage, {
 			data: {
 				user: mockUsers[0],
-				users: mockUsers
+				users: [mockUsers[1]],
+				search: 'janedoe',
+				pagination: {
+					page: 1,
+					perPage: 25,
+					totalCount: 1,
+					totalPages: 1
+				}
 			} as any,
 			form: null
 		});
 
-		const searchInput = screen.getByPlaceholderText(/search/i);
+		const searchInput = screen.getByPlaceholderText(/search/i) as HTMLInputElement;
 		expect(searchInput).toBeInTheDocument();
+		expect(searchInput.value).toBe('janedoe');
 
-		// Match by username
-		await fireEvent.input(searchInput, { target: { value: 'janedoe' } });
 		expect(screen.getByText('Jane Doe')).toBeInTheDocument();
 		expect(screen.queryByText('Admin User')).not.toBeInTheDocument();
-		expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
+		expect(screen.getByText('Showing 1 to 1 of 1 users')).toBeInTheDocument();
+	});
 
-		// Match by display name (case insensitive)
-		await fireEvent.input(searchInput, { target: { value: 'bob' } });
-		expect(screen.getByText('Bob Smith')).toBeInTheDocument();
-		expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
-		expect(screen.queryByText('Admin User')).not.toBeInTheDocument();
+	it('triggers debounced (300ms) navigation to ?page=1&search=... with replaceState, noScroll, and keepFocus when typing in search input', async () => {
+		vi.useFakeTimers();
+		try {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 1,
+						perPage: 25,
+						totalCount: 3,
+						totalPages: 1
+					}
+				} as any,
+				form: null
+			});
 
-		// Match by email domain
-		await fireEvent.input(searchInput, { target: { value: 'stype.local' } });
-		expect(screen.getByText('Admin User')).toBeInTheDocument();
-		expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
-		expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
+			const searchInput = screen.getByPlaceholderText(/search/i);
+			await fireEvent.input(searchInput, { target: { value: 'janedoe' } });
 
-		// No match displays empty state
-		await fireEvent.input(searchInput, { target: { value: 'nonexistentuser' } });
-		expect(screen.getByText(/no users found/i)).toBeInTheDocument();
+			// Before 300ms, goto should not have been called
+			expect(goto).not.toHaveBeenCalled();
+
+			await vi.advanceTimersByTimeAsync(299);
+			expect(goto).not.toHaveBeenCalled();
+
+			// At 300ms, goto is called
+			await vi.advanceTimersByTimeAsync(1);
+			expect(goto).toHaveBeenCalledTimes(1);
+			expect(goto).toHaveBeenCalledWith(
+				expect.stringMatching(/[?&]page=1(&.*)?search=janedoe|[?&]search=janedoe(&.*)?page=1/),
+				expect.objectContaining({
+					replaceState: true,
+					noScroll: true,
+					keepFocus: true
+				})
+			);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('resets page parameter to 1 when entering search query while viewing page 2 or later', async () => {
+		const originalLocation = window.location;
+		delete (window as any).location;
+		window.location = new URL('http://localhost:5173/app/admin/users?page=3') as any;
+
+		vi.useFakeTimers();
+		try {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					pagination: {
+						page: 3,
+						perPage: 25,
+						totalCount: 75,
+						totalPages: 3
+					}
+				} as any,
+				form: null
+			});
+
+			const searchInput = screen.getByPlaceholderText(/search/i);
+			await fireEvent.input(searchInput, { target: { value: 'bob' } });
+
+			await vi.advanceTimersByTimeAsync(300);
+
+			expect(goto).toHaveBeenCalledTimes(1);
+			expect(goto).toHaveBeenCalledWith(
+				expect.stringMatching(/[?&]page=1(&.*)?search=bob|[?&]search=bob(&.*)?page=1/),
+				expect.objectContaining({
+					replaceState: true,
+					noScroll: true,
+					keepFocus: true
+				})
+			);
+		} finally {
+			vi.useRealTimers();
+			(window as any).location = originalLocation;
+		}
+	});
+
+	it('clearing search query navigates to ?page=1 with search parameter removed', async () => {
+		const originalLocation = window.location;
+		delete (window as any).location;
+		window.location = new URL('http://localhost:5173/app/admin/users?page=2&search=bob') as any;
+
+		vi.useFakeTimers();
+		try {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					search: 'bob',
+					pagination: {
+						page: 2,
+						perPage: 25,
+						totalCount: 30,
+						totalPages: 2
+					}
+				} as any,
+				form: null
+			});
+
+			const searchInput = screen.getByPlaceholderText(/search/i);
+			expect((searchInput as HTMLInputElement).value).toBe('bob');
+
+			await fireEvent.input(searchInput, { target: { value: '' } });
+
+			await vi.advanceTimersByTimeAsync(300);
+
+			expect(goto).toHaveBeenCalledTimes(1);
+			const calledUrl = (goto as any).mock.calls[0][0];
+			expect(calledUrl).toMatch(/[?&]page=1/);
+			expect(calledUrl).not.toMatch(/search=/);
+			expect((goto as any).mock.calls[0][1]).toEqual(
+				expect.objectContaining({
+					replaceState: true,
+					noScroll: true,
+					keepFocus: true
+				})
+			);
+		} finally {
+			vi.useRealTimers();
+			(window as any).location = originalLocation;
+		}
+	});
+
+	it('preserves search parameter in URL when navigating across pages via pagination controls', async () => {
+		const originalLocation = window.location;
+		delete (window as any).location;
+		window.location = new URL('http://localhost:5173/app/admin/users?page=1&search=bob') as any;
+
+		try {
+			render(AdminUsersPage, {
+				data: {
+					user: mockUsers[0],
+					users: mockUsers,
+					search: 'bob',
+					pagination: {
+						page: 1,
+						perPage: 25,
+						totalCount: 50,
+						totalPages: 2
+					}
+				} as any,
+				form: null
+			});
+
+			const nextBtn = screen.getByRole('button', { name: /next/i });
+			await fireEvent.click(nextBtn);
+
+			expect(goto).toHaveBeenCalledTimes(1);
+			expect(goto).toHaveBeenCalledWith(
+				expect.stringMatching(/[?&]page=2(&.*)?search=bob|[?&]search=bob(&.*)?page=2/),
+				expect.objectContaining({
+					noScroll: true,
+					keepFocus: true
+				})
+			);
+		} finally {
+			(window as any).location = originalLocation;
+		}
+	});
+
+	it('renders "No users found" empty state and keeps disabled pagination controls visible for zero-result queries', () => {
+		render(AdminUsersPage, {
+			data: {
+				user: mockUsers[0],
+				users: [],
+				search: 'nonexistent',
+				pagination: {
+					page: 1,
+					perPage: 25,
+					totalCount: 0,
+					totalPages: 1
+				}
+			} as any,
+			form: null
+		});
+
+		// Table empty message
+		expect(screen.getByText('No users found matching your search.')).toBeInTheDocument();
+
+		// Pagination summary
+		expect(screen.getByText('No users found')).toBeInTheDocument();
+
+		// Pagination navigation element exists and controls are disabled
+		const paginationNav = screen.getByRole('navigation', { name: /pagination/i });
+		expect(paginationNav).toBeInTheDocument();
+
+		const prevBtn = screen.getByRole('button', { name: /previous/i });
+		const nextBtn = screen.getByRole('button', { name: /next/i });
+		expect(prevBtn).toBeDisabled();
+		expect(nextBtn).toBeDisabled();
 	});
 
 	it('opens Create User dialog with all required fields and role selection', async () => {
