@@ -1,11 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/svelte';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/svelte';
 import TypingEngine from './TypingEngine.svelte';
+import { viewportLayout } from '$lib/viewport';
 
 describe('TypingEngine', () => {
 	beforeEach(() => {
+		viewportLayout.reset();
 		cleanup();
 		vi.restoreAllMocks();
+	});
+
+	afterEach(() => {
+		viewportLayout.reset();
 	});
 
 	it('renders correctly with given passage', () => {
@@ -1269,6 +1275,68 @@ describe('TypingEngine', () => {
 				expect(btn).toHaveClass('hover:text-foreground', 'hover:bg-secondary');
 				expect(btn).not.toHaveClass('hover:text-zinc-300', 'hover:bg-zinc-800/50');
 			});
+		});
+
+		it('applies compact container gap and padding classes during compact typing mode on narrow viewports', async () => {
+			viewportLayout.setViewportDimensions(375, 667);
+			const passage = { id: 1, text: 'Hello compact', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			const rootContainer = container.firstElementChild as HTMLElement;
+			const input = container.querySelector('input') as HTMLInputElement;
+			const typingCard = input.parentElement as HTMLElement;
+
+			// On narrow viewport with input focused, compact mode is active
+			await waitFor(() => {
+				expect(rootContainer).toHaveClass('gap-2');
+				expect(rootContainer).not.toHaveClass('gap-4');
+				expect(typingCard).toHaveClass('p-3', 'sm:p-8');
+				expect(typingCard).not.toHaveClass('p-6');
+			});
+
+			// Blurring input restores normal spacing
+			await fireEvent.blur(input);
+
+			await waitFor(() => {
+				expect(rootContainer).toHaveClass('gap-4', 'sm:gap-6');
+				expect(rootContainer).not.toHaveClass('gap-2');
+				expect(typingCard).toHaveClass('p-6', 'sm:p-8');
+				expect(typingCard).not.toHaveClass('p-3');
+			});
+		});
+
+		it('updates viewportLayout when typing completes and resets on restart', async () => {
+			viewportLayout.setViewportDimensions(375, 667);
+			const passage = { id: 1, text: 'Hi', source: 'Test' };
+			const { container } = render(TypingEngine, { passage });
+
+			let state = { isCompact: false, isTestFinished: false };
+			const unsubscribe = viewportLayout.subscribe((s) => {
+				state = s;
+			});
+
+			await waitFor(() => {
+				expect(state.isCompact).toBe(true);
+			});
+
+			const input = container.querySelector('input') as HTMLInputElement;
+			await fireEvent.input(input, { target: { value: 'H' } });
+			await fireEvent.input(input, { target: { value: 'Hi' } });
+
+			await waitFor(() => {
+				expect(state.isTestFinished).toBe(true);
+				expect(state.isCompact).toBe(false);
+			});
+
+			// Pressing Escape or clicking retry resets test finished state
+			await fireEvent.keyDown(window, { key: 'Escape' });
+
+			await waitFor(() => {
+				expect(state.isTestFinished).toBe(false);
+				expect(state.isCompact).toBe(true);
+			});
+
+			unsubscribe();
 		});
 	});
 });

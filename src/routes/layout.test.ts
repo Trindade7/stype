@@ -1,11 +1,13 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import Layout from './+layout.svelte';
 import { createRawSnippet } from 'svelte';
+import { viewportLayout } from '$lib/viewport';
 
 describe('App Layout Shell', () => {
 	afterEach(() => {
+		viewportLayout.reset();
 		cleanup();
 		vi.restoreAllMocks();
 	});
@@ -236,5 +238,50 @@ describe('App Layout Shell', () => {
 
 		expect(screen.getByTestId('child')).toBeInTheDocument();
 		expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+	});
+
+	it('collapses authenticated shell header in compact typing mode and removes top margin from main container', async () => {
+		const childSnippet = createRawSnippet(() => ({
+			render: () => '<div data-testid="child">Authenticated Content</div>'
+		}));
+
+		const { container } = render(Layout, {
+			data: {
+				user: {
+					id: 'user-layout-compact',
+					username: 'compact-user',
+					email: 'compact@stype.local',
+					name: 'Compact User',
+					role: 'user',
+					emailConfirmed: true,
+					createdAt: new Date()
+				},
+				settings: null
+			},
+			children: childSnippet
+		});
+
+		const header = screen.getByRole('banner');
+		const main = container.querySelector('main') as HTMLElement;
+		expect(header).toHaveClass('translate-y-0');
+		expect(main).toHaveClass('mt-[69px]');
+
+		// Transition to compact mode on small viewport
+		viewportLayout.setViewportDimensions(375, 667);
+		viewportLayout.setTypingFocus(true);
+
+		await waitFor(() => {
+			expect(header).toHaveClass('-translate-y-full');
+			expect(header).toHaveAttribute('data-collapsed', 'true');
+			expect(main).toHaveClass('mt-0');
+		});
+
+		// Blurring input restores normal header and margin
+		viewportLayout.setTypingFocus(false);
+
+		await waitFor(() => {
+			expect(header).toHaveClass('translate-y-0');
+			expect(main).toHaveClass('mt-[69px]');
+		});
 	});
 });

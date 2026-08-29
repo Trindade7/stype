@@ -4,10 +4,10 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] On small viewports, focusing the typing input transitions the interface into a compact typing layout.
-- [ ] In compact mode, the top navigation header collapses out of view to maximize vertical room for the text passage and live HUD.
-- [ ] The typing container anchors to `100dvh` and adjusts dynamically to visual viewport height changes when on-screen virtual keyboards open or close.
-- [ ] Finishing a test run or blurring the typing input restores the header and returns the layout to normal padding.
-- [ ] Component tests verify that focus and blur events on narrow viewport sizes trigger header collapse and container resize classes correctly.
+- [x] On small viewports, focusing the typing input transitions the interface into a compact typing layout.
+- [x] In compact mode, the top navigation header collapses out of view to maximize vertical room for the text passage and live HUD.
+- [x] The typing container anchors to `100dvh` and adjusts dynamically to visual viewport height changes when on-screen virtual keyboards open or close.
+- [x] Finishing a test run or blurring the typing input restores the header and returns the layout to normal padding.
+- [x] Component tests verify that focus and blur events on narrow viewport sizes trigger header collapse and container resize classes correctly.

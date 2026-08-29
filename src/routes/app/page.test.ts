@@ -1,8 +1,9 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import Page from './+page.svelte';
 import { invalidateAll } from '$app/navigation';
+import { viewportLayout } from '$lib/viewport';
 
 vi.mock('$app/navigation', () => ({
 	invalidateAll: vi.fn()
@@ -20,6 +21,7 @@ const mockUser = {
 
 describe('Main Page Content', () => {
 	afterEach(() => {
+		viewportLayout.reset();
 		cleanup();
 	});
 
@@ -210,5 +212,43 @@ describe('Main Page Content', () => {
 
 		expect(screen.queryByText('Passage Complete')).not.toBeInTheDocument();
 		expect(screen.getByText('— Unique Source Name')).toBeInTheDocument();
+	});
+
+	it('transitions to compact layout with shrunk padding and 100dvh height when typing on narrow viewports', async () => {
+		viewportLayout.setViewportDimensions(375, 667);
+
+		const { container } = render(Page, {
+			data: {
+				user: mockUser,
+				passage: { id: 10, text: 'Hi', source: 'Source', userId: null, createdAt: new Date() },
+				settings: {
+					userId: 'test-id',
+					mode: 'passage',
+					duration: 30,
+					passageLength: 'all',
+					zenMode: false,
+					theme: 'system',
+					scrollMode: 'center',
+					createdAt: new Date(),
+					updatedAt: new Date()
+				}
+			}
+		});
+
+		const pageWrapper = container.firstElementChild as HTMLElement;
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+
+		await waitFor(() => {
+			expect(pageWrapper).toHaveClass('px-3', 'py-2', 'h-[100dvh]');
+			expect(pageWrapper).not.toHaveClass('px-6', 'py-6');
+		});
+
+		// Blur input
+		await fireEvent.blur(input);
+
+		await waitFor(() => {
+			expect(pageWrapper).toHaveClass('px-6', 'py-6', 'h-[calc(100dvh-69px)]');
+			expect(pageWrapper).not.toHaveClass('px-3', 'py-2');
+		});
 	});
 });

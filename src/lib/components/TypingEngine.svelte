@@ -3,6 +3,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import type { TestRun, TimelineSnapshot } from '$lib/server/db/schema';
 	import { calculateTargetScrollTop, applyScroll, type ScrollMode } from '$lib/scroll-utils';
+	import { viewportLayout } from '$lib/viewport';
 	import ResultSummary from './ResultSummary.svelte';
 
 	export interface CompletedTestResult {
@@ -224,10 +225,12 @@
 
 		if (typedText.length === chars.length) {
 			isFinished = true;
+			viewportLayout.setTestFinished(true);
 			clearInactivityTimer();
 			submitTestRun();
 		} else if (mode === 'timed' && timeElapsed >= timeLimit) {
 			isFinished = true;
+			viewportLayout.setTestFinished(true);
 			clearInactivityTimer();
 			submitTestRun();
 		} else if (startTime && !isFinished) {
@@ -248,6 +251,7 @@
 			captureSnapshots(elapsed);
 			if (mode === 'timed' && elapsed >= timeLimit) {
 				isFinished = true;
+				viewportLayout.setTestFinished(true);
 				clearInactivityTimer();
 				submitTestRun();
 				return;
@@ -259,6 +263,7 @@
 	function focusInput() {
 		inputEl?.focus();
 		isFocused = true;
+		viewportLayout.setTypingFocus(true);
 	}
 	
 	function resetScroll() {
@@ -279,11 +284,13 @@
 		isSaving = false;
 		timelineSnapshots = [];
 		lastCapturedSecond = 0;
+		viewportLayout.setTestFinished(false);
 		if (inputEl) {
 			inputEl.value = '';
 			inputEl.focus();
 		}
 		isFocused = true;
+		viewportLayout.setTypingFocus(true);
 		if (onRestart) {
 			onRestart();
 		}
@@ -429,6 +436,8 @@
 	onDestroy(() => {
 		clearInactivityTimer();
 		clearNoticeTimer();
+		viewportLayout.setTypingFocus(false);
+		viewportLayout.setTestFinished(false);
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('keydown', handleGlobalKeydown);
 			window.removeEventListener('focus', handleWindowFocus);
@@ -436,7 +445,7 @@
 	});
 </script>
 
-<div class="relative w-full max-w-4xl mx-auto flex flex-col gap-4 sm:gap-6 max-h-full min-h-0">
+<div class="relative w-full max-w-4xl mx-auto flex flex-col {$viewportLayout.isCompact ? 'gap-2' : 'gap-4 sm:gap-6'} max-h-full min-h-0">
 	<!-- Toolbar -->
 	<div 
 		data-testid="toolbar"
@@ -516,7 +525,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div 
-		class="relative rounded-xl bg-card p-6 sm:p-8 shadow-inner border transition-colors duration-200 flex flex-col min-h-0 max-h-full overflow-hidden shrink {isFocused ? 'border-border' : 'border-border/40'}"
+		class="relative rounded-xl bg-card {$viewportLayout.isCompact ? 'p-3 sm:p-8' : 'p-6 sm:p-8'} shadow-inner border transition-colors duration-200 flex flex-col min-h-0 max-h-full overflow-hidden shrink {isFocused ? 'border-border' : 'border-border/40'}"
 		onclick={focusInput}
 	>
 		{#if !isFinished}
@@ -544,8 +553,8 @@
 				autocapitalize="off"
 				spellcheck="false"
 				oninput={handleInput}
-				onfocus={() => { isFocused = true; }}
-				onblur={() => { isFocused = false; }}
+				onfocus={() => { isFocused = true; viewportLayout.setTypingFocus(true); }}
+				onblur={() => { isFocused = false; viewportLayout.setTypingFocus(false); }}
 				value={typedText}
 			/>
 

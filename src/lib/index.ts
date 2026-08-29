@@ -7,6 +7,7 @@ export { default as GuestHeader } from './components/GuestHeader.svelte';
 
 export * from './localStore';
 export * from './scroll-utils';
+export * from './viewport';
 
 export type { CompletedTestResult } from './components/TypingEngine.svelte';
 export type { HistoryRunItem } from './components/HistoryTable.svelte';

@@ -10,9 +10,11 @@ import {
 	DEFAULT_PASSAGES
 } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
+import { viewportLayout } from '$lib/viewport';
 
 describe('Guest Root Route (+page.svelte)', () => {
 	beforeEach(async () => {
+		viewportLayout.reset();
 		localStorage.clear();
 		resetMigrationStatus();
 		if (typeof indexedDB !== 'undefined') {
@@ -28,6 +30,7 @@ describe('Guest Root Route (+page.svelte)', () => {
 	});
 
 	afterEach(() => {
+		viewportLayout.reset();
 		cleanup();
 	});
 
@@ -273,5 +276,119 @@ describe('Guest Root Route (+page.svelte)', () => {
 		await fireEvent.keyDown(window, { key: 'Tab' });
 		expect(window.location.search).toBe('');
 		expect(await screen.findByText('— Random Next')).toBeInTheDocument();
+	});
+
+	it('transitions to compact layout with collapsed header and shrunk container padding when typing input focuses on narrow viewports', async () => {
+		viewportLayout.setViewportDimensions(375, 667);
+
+		const { container } = render(GuestPage);
+
+		const header = screen.getByRole('banner');
+		const main = container.querySelector('main') as HTMLElement;
+
+		await waitFor(() => {
+			expect(header).toHaveClass('-translate-y-full');
+			expect(header).toHaveAttribute('data-collapsed', 'true');
+			expect(main).toHaveClass('pt-2', 'pb-2', 'px-3');
+			expect(main).not.toHaveClass('pt-20', 'pb-6', 'px-6');
+		});
+	});
+
+	it('restores header and normal padding when typing input is blurred on narrow viewports', async () => {
+		viewportLayout.setViewportDimensions(375, 667);
+
+		const { container } = render(GuestPage);
+
+		const header = screen.getByRole('banner');
+		const main = container.querySelector('main') as HTMLElement;
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+
+		await waitFor(() => {
+			expect(header).toHaveClass('-translate-y-full');
+			expect(main).toHaveClass('pt-2', 'pb-2', 'px-3');
+		});
+
+		await fireEvent.blur(input);
+
+		await waitFor(() => {
+			expect(header).toHaveClass('translate-y-0');
+			expect(header).toHaveAttribute('data-collapsed', 'false');
+			expect(main).toHaveClass('pt-20', 'pb-6', 'px-6');
+			expect(main).not.toHaveClass('pt-2', 'pb-2', 'px-3');
+		});
+
+		await fireEvent.focus(input);
+
+		await waitFor(() => {
+			expect(header).toHaveClass('-translate-y-full');
+			expect(header).toHaveAttribute('data-collapsed', 'true');
+			expect(main).toHaveClass('pt-2', 'pb-2', 'px-3');
+		});
+	});
+
+	it('restores header and returns container to normal padding when test run completes on narrow viewports', async () => {
+		viewportLayout.setViewportDimensions(375, 667);
+
+		const testPassage = await saveCustomPassage({
+			text: 'Go',
+			source: 'Speed Test'
+		});
+		vi.spyOn(localStore, 'getRandomPassage').mockResolvedValue(testPassage);
+
+		const { container } = render(GuestPage);
+
+		await screen.findByText('— Speed Test');
+
+		const header = screen.getByRole('banner');
+		const main = container.querySelector('main') as HTMLElement;
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+
+		await waitFor(() => {
+			expect(header).toHaveClass('-translate-y-full');
+			expect(main).toHaveClass('pt-2', 'pb-2', 'px-3');
+		});
+
+		await fireEvent.input(input, { target: { value: 'G' } });
+		await fireEvent.input(input, { target: { value: 'Go' } });
+
+		expect(await screen.findByText('Passage Complete')).toBeInTheDocument();
+
+		await waitFor(() => {
+			expect(header).toHaveClass('translate-y-0');
+			expect(header).toHaveAttribute('data-collapsed', 'false');
+			expect(main).toHaveClass('pt-20', 'pb-6', 'px-6');
+			expect(main).not.toHaveClass('pt-2', 'pb-2', 'px-3');
+		});
+	});
+
+	it('does not activate compact mode when typing input focuses on desktop viewports', async () => {
+		viewportLayout.setViewportDimensions(1024, 768);
+
+		const { container } = render(GuestPage);
+
+		const header = screen.getByRole('banner');
+		const main = container.querySelector('main') as HTMLElement;
+
+		expect(header).toHaveClass('translate-y-0');
+		expect(main).toHaveClass('pt-20', 'pb-6', 'px-6');
+		expect(main).not.toHaveClass('pt-2', 'pb-2', 'px-3');
+	});
+
+	it('dynamically updates typing container height style when visual viewport changes', async () => {
+		viewportLayout.setViewportDimensions(375, 667);
+
+		const { container } = render(GuestPage);
+		const rootWrapper = container.firstElementChild as HTMLElement;
+
+		// Initial viewport height
+		expect(rootWrapper).toHaveClass('h-[100dvh]');
+		expect(rootWrapper.getAttribute('style')).toContain('667px');
+
+		// Virtual keyboard opens, shrinking visual viewport to 360px
+		viewportLayout.setViewportDimensions(375, 360);
+
+		await waitFor(() => {
+			expect(rootWrapper.getAttribute('style')).toContain('360px');
+		});
 	});
 });

@@ -4,9 +4,11 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/sv
 import GuestHeader from './GuestHeader.svelte';
 import { localStore, DEFAULT_GUEST_SETTINGS } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
+import { viewportLayout } from '$lib/viewport';
 
 describe('GuestHeader Component', () => {
 	beforeEach(async () => {
+		viewportLayout.reset();
 		localStorage.clear();
 		resetMigrationStatus();
 		if (typeof indexedDB !== 'undefined') {
@@ -22,6 +24,7 @@ describe('GuestHeader Component', () => {
 	});
 
 	afterEach(async () => {
+		viewportLayout.reset();
 		cleanup();
 		await new Promise((resolve) => setTimeout(resolve, 50));
 	});
@@ -130,5 +133,32 @@ describe('GuestHeader Component', () => {
 
 		const headerContainer = header.firstElementChild;
 		expect(headerContainer).toHaveClass('mx-auto', 'max-w-5xl', 'px-6');
+	});
+
+	it('collapses navigation header out of view in compact typing mode and restores when inactive', async () => {
+		render(GuestHeader);
+
+		const header = screen.getByRole('banner');
+		expect(header).toHaveClass('translate-y-0');
+		expect(header).not.toHaveClass('-translate-y-full');
+		expect(header).toHaveAttribute('data-collapsed', 'false');
+
+		// Transition to compact mode on small viewport
+		viewportLayout.setViewportDimensions(375, 667);
+		viewportLayout.setTypingFocus(true);
+
+		await waitFor(() => {
+			expect(header).toHaveClass('-translate-y-full');
+			expect(header).toHaveAttribute('data-collapsed', 'true');
+		});
+
+		// Blur typing input restores navigation header
+		viewportLayout.setTypingFocus(false);
+
+		await waitFor(() => {
+			expect(header).toHaveClass('translate-y-0');
+			expect(header).not.toHaveClass('-translate-y-full');
+			expect(header).toHaveAttribute('data-collapsed', 'false');
+		});
 	});
 });

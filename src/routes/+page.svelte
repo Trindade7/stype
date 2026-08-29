@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import TypingEngine from '$lib/components/TypingEngine.svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
 	import {
@@ -10,9 +10,17 @@
 		type GuestSettings
 	} from '$lib/localStore';
 	import { getPassageIdFromUrl, clearPassageQuery, filterPassagesByLength } from '$lib/passage-utils';
+	import { viewportLayout } from '$lib/viewport';
 
 	let settings = $state<GuestSettings>(DEFAULT_GUEST_SETTINGS);
 	let currentPassage = $state<GuestPassage | null>(resolveFallbackPassage());
+	let cleanupViewport: (() => void) | null = null;
+
+	let rootStyle = $derived(
+		$viewportLayout.visualViewportHeight
+			? `height: ${$viewportLayout.visualViewportHeight}px; max-height: ${$viewportLayout.visualViewportHeight}px;`
+			: 'height: 100dvh;'
+	);
 
 	function resolveFallbackPassage(): GuestPassage | null {
 		const targetId = getPassageIdFromUrl();
@@ -39,11 +47,16 @@
 	}
 
 	onMount(async () => {
+		cleanupViewport = viewportLayout.initViewportController();
 		settings = await localStore.getSettings();
 		const resolved = await resolvePassage(settings.passageLength);
 		if (resolved) {
 			currentPassage = resolved;
 		}
+	});
+
+	onDestroy(() => {
+		cleanupViewport?.();
 	});
 </script>
 
@@ -51,10 +64,16 @@
 	<title>Stype — Minimalist Typing Test</title>
 </svelte:head>
 
-<div class="flex h-screen h-[100dvh] flex-col overflow-hidden bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+<div
+	class="flex h-screen h-[100dvh] flex-col overflow-hidden bg-background text-foreground selection:bg-primary selection:text-primary-foreground"
+	style={rootStyle}
+>
 	<GuestHeader />
 
-	<main class="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col items-center px-6 pt-20 pb-6 overflow-hidden">
+	<main
+		class="mx-auto flex w-full max-w-5xl flex-1 min-h-0 flex-col items-center overflow-hidden transition-all duration-200 {$viewportLayout.isCompact ? 'pt-2 pb-2 px-3' : 'pt-20 pb-6 px-6'}"
+		data-compact={$viewportLayout.isCompact ? 'true' : 'false'}
+	>
 		{#if currentPassage}
 			<TypingEngine
 				passage={currentPassage}

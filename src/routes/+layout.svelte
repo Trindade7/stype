@@ -20,8 +20,10 @@
 	} from '@hugeicons/core-free-icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { buttonVariants } from '$lib/components/ui/button';
+	import { viewportLayout } from '$lib/viewport';
 
 	let { data, children } = $props();
+	let isCompact = $derived($viewportLayout.isCompact);
 
 	async function handleThemeChange(newTheme: 'light' | 'dark' | 'system') {
 		setMode(newTheme);
@@ -59,7 +61,10 @@
 
 {#if data.user && data.user.emailConfirmed}
 	<div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-		<header class="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+		<header
+			class="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-200 {isCompact ? '-translate-y-full pointer-events-none opacity-0' : 'translate-y-0 opacity-100'}"
+			data-collapsed={isCompact ? 'true' : 'false'}
+		>
 			<div class="mx-auto flex max-w-5xl items-center justify-between sm:justify-start px-6 py-4">
 				<div class="flex sm:w-1/3 items-center gap-3">
 					<a href="/app" class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary transition-colors hover:bg-secondary/80">
@@ -169,7 +174,7 @@
 				</div>
 			</div>
 		</header>
-		<main class="flex-1 mt-[69px] flex flex-col min-h-0">
+		<main class="flex-1 {isCompact ? 'mt-0' : 'mt-[69px]'} flex flex-col min-h-0 transition-all duration-200">
 			{@render children()}
 		</main>
 	</div>

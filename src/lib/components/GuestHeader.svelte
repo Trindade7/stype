@@ -16,7 +16,9 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { setMode } from 'mode-watcher';
 	import { localStore } from '$lib/localStore';
+	import { viewportLayout } from '$lib/viewport';
 
+	let isCompact = $derived($viewportLayout.isCompact);
 	let isMobileMenuOpen = $state(false);
 
 	async function handleThemeChange(newTheme: 'light' | 'dark' | 'system') {
@@ -30,7 +32,10 @@
 	}
 </script>
 
-<header class="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+<header
+	class="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-200 {isCompact ? '-translate-y-full pointer-events-none opacity-0' : 'translate-y-0 opacity-100'}"
+	data-collapsed={isCompact ? 'true' : 'false'}
+>
 	<div class="mx-auto flex max-w-5xl items-center justify-between sm:justify-start px-6 py-4">
 		<div class="flex sm:w-1/3 items-center gap-3">
 			<a href="/" class="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary transition-colors hover:bg-secondary/80">
