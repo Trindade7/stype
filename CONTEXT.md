@@ -1,6 +1,6 @@
 # Stype
 
-A lightweight browser-based typing test application for practicing and tracking typing speed and accuracy.
+A lightweight typing test application for web, desktop, and mobile for practicing and tracking typing speed and accuracy.
 
 ## Language
 
@@ -86,8 +86,12 @@ An unauthenticated user interacting with the static SPA, whose test history and 
 _Avoid_: Anonymous user, visitor, local user
 
 **Local Store**:
-The client-side storage mechanism (e.g., localStorage or IndexedDB) used to save a Guest's `Test Run`s and `Settings` while they are unauthenticated.
+The client-side storage mechanism on a device used to save a typist's `Test Run`s, `Custom Passage`s, and `Settings`, whether operating as a Guest or an authenticated User.
 _Avoid_: Offline cache, local database
+
+**Sync**:
+The background process of reconciling local test runs, custom passages, and settings on a client device with a remote user account.
+_Avoid_: Replication, upload, backup, cloud sync
 
 **Component Props Strategy**:
 Shared UI components (like HUD and History tables) receive their data entirely via props. They do not know whether they are rendering Guest data (from Local Store) or User data (from the database).
