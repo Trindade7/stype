@@ -65,6 +65,21 @@ export interface SaveTestRunInput extends CompletedTestResult {
 	} | null;
 }
 
+export interface SyncAccountUser {
+	id: string;
+	username: string;
+	email?: string | null;
+	name?: string | null;
+	role?: string;
+}
+
+export interface SyncAccount {
+	serverUrl: string;
+	token: string;
+	user: SyncAccountUser;
+	lastSyncedAt?: string | null;
+}
+
 export interface GuestData {
 	settings: GuestSettings;
 	customPassages: GuestPassage[];
@@ -86,4 +101,7 @@ export interface LocalStoreAdapter {
 	getRandomPassage(lengthFilter?: PassageLength): Promise<GuestPassage | null>;
 	getGuestData(includeDeleted?: boolean): Promise<GuestData>;
 	clearGuestData(): Promise<void>;
+	getSyncAccount(): Promise<SyncAccount | null>;
+	saveSyncAccount(account: SyncAccount): Promise<void>;
+	clearSyncAccount(): Promise<void>;
 }

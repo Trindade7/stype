@@ -11,7 +11,8 @@ import {
 	type GuestData,
 	type LocalStoreAdapter,
 	type SaveCustomPassageInput,
-	type SaveTestRunInput
+	type SaveTestRunInput,
+	type SyncAccount
 } from './storage';
 
 export type {
@@ -21,7 +22,8 @@ export type {
 	GuestData,
 	LocalStoreAdapter,
 	SaveCustomPassageInput,
-	SaveTestRunInput
+	SaveTestRunInput,
+	SyncAccount
 };
 
 export { DEFAULT_GUEST_SETTINGS, DEFAULT_PASSAGES, STORAGE_KEYS };
@@ -113,6 +115,24 @@ export async function clearGuestData(): Promise<void> {
 	return adapter.clearGuestData();
 }
 
+export async function getSyncAccount(): Promise<SyncAccount | null> {
+	const adapter = getDefaultAdapter();
+	await ensureMigrated(adapter);
+	return adapter.getSyncAccount();
+}
+
+export async function saveSyncAccount(account: SyncAccount): Promise<void> {
+	const adapter = getDefaultAdapter();
+	await ensureMigrated(adapter);
+	return adapter.saveSyncAccount(account);
+}
+
+export async function clearSyncAccount(): Promise<void> {
+	const adapter = getDefaultAdapter();
+	await ensureMigrated(adapter);
+	return adapter.clearSyncAccount();
+}
+
 export const localStore = {
 	getSettings: getGuestSettings,
 	saveSettings: saveGuestSettings,
@@ -127,5 +147,8 @@ export const localStore = {
 	saveTestRun: saveGuestTestRun,
 	clearTestRuns: clearGuestTestRuns,
 	getGuestData,
-	clearGuestData
+	clearGuestData,
+	getSyncAccount,
+	saveSyncAccount,
+	clearSyncAccount
 };

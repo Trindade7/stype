@@ -11,6 +11,7 @@
 	} from '$lib/localStore';
 	import { getPassageIdFromUrl, clearPassageQuery, filterPassagesByLength } from '$lib/passage-utils';
 	import { viewportLayout } from '$lib/viewport';
+	import { syncController } from '$lib/sync';
 
 	let settings = $state<GuestSettings>(DEFAULT_GUEST_SETTINGS);
 	let currentPassage = $state<GuestPassage | null>(resolveFallbackPassage());
@@ -81,8 +82,12 @@
 				initialDuration={settings.duration}
 				initialZenMode={settings.zenMode}
 				initialScrollMode={settings.scrollMode}
-				onSave={(result) => {
-					return localStore.saveTestRun(result) as any;
+				onSave={async (result) => {
+					const saved = await localStore.saveTestRun(result);
+					if (syncController.getState().account) {
+						syncController.sync().catch(() => {});
+					}
+					return saved as any;
 				}}
 				onNextPassage={() => {
 					loadNextPassage();

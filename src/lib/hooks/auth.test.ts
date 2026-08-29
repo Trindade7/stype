@@ -8,7 +8,11 @@ import { createSession, SESSION_COOKIE_NAME } from '../server/auth/session';
 import { createAuthHandle } from './auth';
 
 describe('auth server hook', () => {
-	function createMockEvent(urlPath: string, cookieValue?: string): {
+	function createMockEvent(
+		urlPath: string,
+		cookieValue?: string,
+		headers?: Record<string, string>
+	): {
 		event: RequestEvent;
 		deletedCookies: string[];
 	} {
@@ -22,9 +26,12 @@ describe('auth server hook', () => {
 		};
 
 		const url = new URL(`http://localhost${urlPath}`);
+		const reqHeaders = new Headers(headers);
+		const request = new Request(url.toString(), { headers: reqHeaders });
 
 		const event = {
 			url,
+			request,
 			cookies,
 			locals: {}
 		} as unknown as RequestEvent;
@@ -257,6 +264,33 @@ describe('auth server hook', () => {
 				location: '/app'
 			});
 		}
+	});
+
+	it('authenticates valid session via Authorization Bearer header on api routes', async () => {
+		const { db } = initializeDatabase(':memory:');
+		await seedAdminUser(db);
+
+		const admin = db.select().from(schema.users).where(eq(schema.users.username, 'admin')).get()!;
+		const session = await createSession(db, admin.id);
+
+		const handle = createAuthHandle(db);
+		const { event } = createMockEvent('/api/sync', undefined, {
+			Authorization: `Bearer ${session.id}`
+		});
+
+		let resolveCalled = false;
+		const resolve = async () => {
+			resolveCalled = true;
+			return new Response(JSON.stringify({ ok: true }), {
+				headers: { 'Content-Type': 'application/json' }
+			});
+		};
+
+		const response = await handle({ event, resolve });
+		expect(resolveCalled).toBe(true);
+		expect(event.locals.user).toBeDefined();
+		expect(event.locals.user?.username).toBe('admin');
+		expect(event.locals.session?.id).toBe(session.id);
 	});
 
 	it('allows authenticated user to access api routes without redirecting', async () => {

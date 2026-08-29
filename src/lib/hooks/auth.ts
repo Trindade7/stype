@@ -17,7 +17,10 @@ export function createAuthHandle(
 	options?: AuthHandleOptions
 ): Handle {
 	return async ({ event, resolve }) => {
-		const sessionId = event.cookies.get(SESSION_COOKIE_NAME);
+		const cookieSessionId = event.cookies.get(SESSION_COOKIE_NAME);
+		const authHeader = event.request?.headers?.get('authorization');
+		const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined;
+		const sessionId = cookieSessionId || bearerToken;
 
 		if (!sessionId) {
 			event.locals.user = null;
@@ -28,7 +31,9 @@ export function createAuthHandle(
 				event.locals.session = session;
 				event.locals.user = user;
 			} else {
-				event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+				if (cookieSessionId) {
+					event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+				}
 				event.locals.session = null;
 				event.locals.user = null;
 			}

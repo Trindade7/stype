@@ -403,6 +403,33 @@ describe('localStore utility', () => {
 		});
 	});
 
+	describe('Sync Account', () => {
+		it('returns null when no sync account is linked', async () => {
+			const account = await localStore.getSyncAccount();
+			expect(account).toBeNull();
+		});
+
+		it('saves, retrieves, and clears sync account', async () => {
+			const mockAccount = {
+				serverUrl: 'https://stype.example.com',
+				token: 'test-session-token-xyz',
+				user: {
+					id: 'user-uuid-1',
+					username: 'typist',
+					email: 'typist@example.com'
+				},
+				lastSyncedAt: '2026-01-01T00:00:00.000Z'
+			};
+
+			await localStore.saveSyncAccount(mockAccount);
+			const retrieved = await localStore.getSyncAccount();
+			expect(retrieved).toEqual(mockAccount);
+
+			await localStore.clearSyncAccount();
+			expect(await localStore.getSyncAccount()).toBeNull();
+		});
+	});
+
 	describe('localStore object wrapper', () => {
 		it('exposes all methods on the localStore namespace object as async functions', async () => {
 			expect(await localStore.getSettings()).toEqual(DEFAULT_GUEST_SETTINGS);

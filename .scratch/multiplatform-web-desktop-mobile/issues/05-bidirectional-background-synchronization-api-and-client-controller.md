@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] Client interface provides an account linking dialog allowing typists to enter a server URL and user credentials.
-- [ ] Successful authentication retrieves and securely stores an API session token on the client.
-- [ ] Background sync pushes pending local Test Runs to the `/api/sync` endpoint and receives new server runs, merging them idempotently by UUID.
-- [ ] Custom Passages synchronize bidirectionally, applying updates according to the newest `updated_at` timestamp and propagating soft deletes across devices.
-- [ ] Settings resolve conflicts using last-write-wins based on `updated_at`.
-- [ ] Network failures during sync fail gracefully without interrupting typing, and retry automatically upon reconnect.
-- [ ] API endpoint tests verify batch sync payloads, conflict resolution rules, and tombstone propagation.
+- [x] Client interface provides an account linking dialog allowing typists to enter a server URL and user credentials.
+- [x] Successful authentication retrieves and securely stores an API session token on the client.
+- [x] Background sync pushes pending local Test Runs to the `/api/sync` endpoint and receives new server runs, merging them idempotently by UUID.
+- [x] Custom Passages synchronize bidirectionally, applying updates according to the newest `updated_at` timestamp and propagating soft deletes across devices.
+- [x] Settings resolve conflicts using last-write-wins based on `updated_at`.
+- [x] Network failures during sync fail gracefully without interrupting typing, and retry automatically upon reconnect.
+- [x] API endpoint tests verify batch sync payloads, conflict resolution rules, and tombstone propagation.

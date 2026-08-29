@@ -161,4 +161,16 @@ describe('GuestHeader Component', () => {
 			expect(header).toHaveAttribute('data-collapsed', 'false');
 		});
 	});
+
+	it('opens account linking dialog when clicking Link Account button', async () => {
+		render(GuestHeader);
+
+		const linkAccountBtn = screen.getByRole('button', { name: /link server account|link account/i });
+		expect(linkAccountBtn).toBeInTheDocument();
+
+		await fireEvent.click(linkAccountBtn);
+
+		expect(await screen.findByRole('heading', { name: /link server account/i })).toBeInTheDocument();
+		expect(screen.getByLabelText(/server url/i)).toBeInTheDocument();
+	});
 });

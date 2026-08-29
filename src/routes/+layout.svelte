@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { ModeWatcher, setMode } from 'mode-watcher';
 	import { localStore } from '$lib/localStore';
+	import { syncController } from '$lib/sync';
 	import favicon from '$lib/assets/favicon.svg';
 	import '../app.css';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
@@ -40,7 +41,15 @@
 		}
 	}
 
+	let cleanupSync: (() => void) | null = null;
+
 	onMount(async () => {
+		await syncController.init();
+		cleanupSync = syncController.initBackgroundSync();
+		if (syncController.getState().account) {
+			syncController.sync().catch(() => {});
+		}
+
 		if (data.settings?.theme) {
 			setMode(data.settings.theme);
 		} else if (!data.user) {
@@ -49,6 +58,10 @@
 				setMode(guestSettings.theme);
 			}
 		}
+	});
+
+	onDestroy(() => {
+		cleanupSync?.();
 	});
 </script>
 

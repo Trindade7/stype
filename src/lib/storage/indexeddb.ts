@@ -5,7 +5,8 @@ import type {
 	GuestData,
 	LocalStoreAdapter,
 	SaveCustomPassageInput,
-	SaveTestRunInput
+	SaveTestRunInput,
+	SyncAccount
 } from './types';
 import type { CompletedTestResult } from '../components/TypingEngine.svelte';
 import { filterPassagesByLength, type PassageLength } from '../passage-utils';
@@ -101,6 +102,7 @@ export interface IndexedDbOptions {
 }
 
 const SETTINGS_KEY = 'guest_settings';
+const SYNC_ACCOUNT_KEY = 'sync_account';
 const STORE_SETTINGS = 'settings';
 const STORE_PASSAGES = 'custom_passages';
 const STORE_TEST_RUNS = 'test_runs';
@@ -428,6 +430,37 @@ export class IndexedDbStoreAdapter implements LocalStoreAdapter {
 				promisifyRequest(passagesStore.clear()),
 				promisifyRequest(runsStore.clear())
 			]);
+		} catch {
+			// Ignore if db unavailable
+		}
+	}
+
+	async getSyncAccount(): Promise<SyncAccount | null> {
+		try {
+			const db = await this.getDb();
+			const tx = db.transaction(STORE_SETTINGS, 'readonly');
+			const store = tx.objectStore(STORE_SETTINGS);
+			const stored = await promisifyRequest(store.get(SYNC_ACCOUNT_KEY));
+			if (!stored || typeof stored !== 'object') return null;
+			return stored as SyncAccount;
+		} catch {
+			return null;
+		}
+	}
+
+	async saveSyncAccount(account: SyncAccount): Promise<void> {
+		const db = await this.getDb();
+		const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+		const store = tx.objectStore(STORE_SETTINGS);
+		await promisifyRequest(store.put(account, SYNC_ACCOUNT_KEY));
+	}
+
+	async clearSyncAccount(): Promise<void> {
+		try {
+			const db = await this.getDb();
+			const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+			const store = tx.objectStore(STORE_SETTINGS);
+			await promisifyRequest(store.delete(SYNC_ACCOUNT_KEY));
 		} catch {
 			// Ignore if db unavailable
 		}

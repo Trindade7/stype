@@ -10,16 +10,23 @@
 		Time02Icon,
 		Chart01Icon,
 		Book01Icon,
-		Settings02Icon
+		Settings02Icon,
+		CloudIcon
 	} from '@hugeicons/core-free-icons';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { setMode } from 'mode-watcher';
 	import { localStore } from '$lib/localStore';
 	import { viewportLayout } from '$lib/viewport';
+	import { syncController } from '$lib/sync';
+	import AccountLinkingDialog from '$lib/components/AccountLinkingDialog.svelte';
 
 	let isCompact = $derived($viewportLayout.isCompact);
 	let isMobileMenuOpen = $state(false);
+	let isAccountDialogOpen = $state(false);
+
+	const syncState = $derived($syncController);
+	const isLinked = $derived(!!syncState.account);
 
 	async function handleThemeChange(newTheme: 'light' | 'dark' | 'system') {
 		setMode(newTheme);
@@ -90,6 +97,19 @@
 				</DropdownMenu.Root>
 			</div>
 
+			<!-- Desktop Link Account / Sync Button -->
+			<div class="hidden sm:flex">
+				<button
+					type="button"
+					class={buttonVariants({ variant: isLinked ? 'secondary' : 'outline', size: 'sm' }) + " gap-1.5"}
+					onclick={() => (isAccountDialogOpen = true)}
+					aria-label="Link server account"
+				>
+					<HugeiconsIcon icon={CloudIcon} size={16} />
+					<span>{isLinked ? 'Sync' : 'Link Account'}</span>
+				</button>
+			</div>
+
 			<!-- Desktop Log in Button -->
 			<div class="hidden sm:flex">
 				<a href="/app/login" class={buttonVariants({ variant: 'outline', size: 'sm' }) + " gap-2"}>
@@ -152,6 +172,12 @@
 						</DropdownMenu.Item>
 
 						<DropdownMenu.Separator />
+						<DropdownMenu.Item class="w-full cursor-pointer p-0" onclick={() => { closeMobileMenu(); isAccountDialogOpen = true; }}>
+							<button type="button" class="w-full flex items-center px-2 py-1.5 font-medium text-left">
+								<HugeiconsIcon icon={CloudIcon} size={16} class="mr-2" />
+								{isLinked ? 'Sync Account' : 'Link Server Account'}
+							</button>
+						</DropdownMenu.Item>
 						<DropdownMenu.Item class="w-full cursor-pointer p-0" onclick={closeMobileMenu}>
 							<a href="/app/login" class="w-full flex items-center px-2 py-1.5 font-medium">
 								<HugeiconsIcon icon={LogInIcon} size={16} class="mr-2" />
@@ -164,3 +190,5 @@
 		</div>
 	</div>
 </header>
+
+<AccountLinkingDialog bind:open={isAccountDialogOpen} />

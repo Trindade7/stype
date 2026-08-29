@@ -5,7 +5,8 @@ import type {
 	GuestData,
 	LocalStoreAdapter,
 	SaveCustomPassageInput,
-	SaveTestRunInput
+	SaveTestRunInput,
+	SyncAccount
 } from './types';
 import type { CompletedTestResult } from '../components/TypingEngine.svelte';
 import { filterPassagesByLength, type PassageLength } from '../passage-utils';
@@ -44,6 +45,7 @@ export class MemoryStoreAdapter implements LocalStoreAdapter {
 	private settings: GuestSettings = { ...DEFAULT_GUEST_SETTINGS };
 	private customPassages: GuestPassage[] = [];
 	private testRuns: GuestTestRun[] = [];
+	private syncAccount: SyncAccount | null = null;
 
 	async getSettings(): Promise<GuestSettings> {
 		return { ...this.settings };
@@ -91,7 +93,12 @@ export class MemoryStoreAdapter implements LocalStoreAdapter {
 			isCustom: input.isCustom ?? true
 		};
 
-		this.customPassages.push(newPassage);
+		const existingIndex = this.customPassages.findIndex((p) => p.id === newId || String(p.id) === String(newId));
+		if (existingIndex !== -1) {
+			this.customPassages[existingIndex] = newPassage;
+		} else {
+			this.customPassages.push(newPassage);
+		}
 		return { ...newPassage };
 	}
 
@@ -208,5 +215,17 @@ export class MemoryStoreAdapter implements LocalStoreAdapter {
 		this.settings = { ...DEFAULT_GUEST_SETTINGS };
 		this.customPassages = [];
 		this.testRuns = [];
+	}
+
+	async getSyncAccount(): Promise<SyncAccount | null> {
+		return this.syncAccount ? { ...this.syncAccount } : null;
+	}
+
+	async saveSyncAccount(account: SyncAccount): Promise<void> {
+		this.syncAccount = { ...account };
+	}
+
+	async clearSyncAccount(): Promise<void> {
+		this.syncAccount = null;
 	}
 }
