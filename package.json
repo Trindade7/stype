@@ -7,7 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"build:static": "STATIC_BUILD=1 vite build",
-		"build:tauri": "pnpm build:static && tauri build",
+		"build:tauri": "NO_STRIP=1 pnpm build:static && NO_STRIP=1 tauri build",
 		"tauri": "tauri",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
