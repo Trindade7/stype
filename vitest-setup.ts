@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import 'fake-indexeddb/auto';
+import { afterAll } from 'vitest';
 
 if (typeof Element !== 'undefined') {
 	if (!Element.prototype.hasPointerCapture) {
@@ -15,3 +16,19 @@ if (typeof Element !== 'undefined') {
 		Element.prototype.scrollIntoView = () => {};
 	}
 }
+
+afterAll(() => {
+	// Guard against trailing timeouts (such as bits-ui body-scroll-lock cleanup)
+	// accessing global `document` after the jsdom environment has been torn down.
+	setTimeout(() => {
+		if (typeof globalThis.document === 'undefined') {
+			(globalThis as any).document = {
+				body: {
+					setAttribute: () => {},
+					style: { removeProperty: () => {} }
+				}
+			};
+		}
+	}, 0);
+});
+

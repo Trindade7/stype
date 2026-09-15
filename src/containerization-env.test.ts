@@ -153,4 +153,20 @@ describe('Production Containerization and Environment Template', () => {
 			expect(content).toContain('restart: unless-stopped');
 		});
 	});
+
+	describe('.dockerignore', () => {
+		const dockerignorePath = join(projectRoot, '.dockerignore');
+
+		it('exists at the project root', () => {
+			expect(existsSync(dockerignorePath)).toBe(true);
+		});
+
+		it('ignores heavy directories and secrets from the build context', () => {
+			const content = readFileSync(dockerignorePath, 'utf-8');
+			expect(content).toContain('node_modules');
+			expect(content).toContain('src-tauri');
+			expect(content).toContain('.git');
+			expect(content).toContain('.env');
+		});
+	});
 });

@@ -1,0 +1,13 @@
+node_modules
+src-tauri
+.git
+.gitignore
+build
+.svelte-kit
+data
+.scratch
+.vscode
+.ignore-proj
+.env
+.env.*
+!.env.example
