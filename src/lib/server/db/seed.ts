@@ -13,13 +13,16 @@ export async function seedAdminUser(
 		.where(eq(schema.users.username, 'admin'))
 		.get();
 
+	const initialPassword = process.env.INITIAL_ADMIN_PASSWORD || 'admin123';
+	const initialEmail = process.env.INITIAL_ADMIN_EMAIL || 'admin@stype.local';
+
 	if (!existingAdmin) {
-		const passwordHash = await hashPassword('admin123');
+		const passwordHash = await hashPassword(initialPassword);
 		db.insert(schema.users)
 			.values({
 				id: randomUUID(),
 				username: 'admin',
-				email: 'admin@stype.local',
+				email: initialEmail,
 				name: 'Admin',
 				role: 'admin',
 				emailConfirmed: true,
@@ -30,7 +33,7 @@ export async function seedAdminUser(
 	} else if (!existingAdmin.email || !existingAdmin.name || existingAdmin.role !== 'admin' || !existingAdmin.emailConfirmed) {
 		db.update(schema.users)
 			.set({
-				email: existingAdmin.email ?? 'admin@stype.local',
+				email: existingAdmin.email ?? initialEmail,
 				name: existingAdmin.name ?? 'Admin',
 				role: 'admin',
 				emailConfirmed: true
