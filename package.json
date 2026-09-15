@@ -2,6 +2,23 @@
 	"name": "stype",
 	"private": true,
 	"version": "0.0.1",
+	"description": "A lightweight typing test application for web, desktop, and mobile for practicing and tracking typing speed and accuracy.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Trindade7/stype.git"
+	},
+	"keywords": [
+		"typing-test",
+		"wpm",
+		"speed-typing",
+		"svelte",
+		"sveltekit",
+		"tauri",
+		"offline-first",
+		"self-hosted",
+		"sqlite"
+	],
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
