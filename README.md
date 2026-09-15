@@ -1,5 +1,7 @@
 # Stype
 
+> **Disclaimer.** This project is primarily an app to test how well LLM models and a few agent skills perform. The current version was built using Gemini 3.7 and 3.8.
+
 A lightweight typing test application for web, desktop, and mobile for practicing and tracking typing speed and accuracy.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

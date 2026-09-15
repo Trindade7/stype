@@ -45,6 +45,11 @@ describe('Documentation Suite', () => {
 		// Official tagline
 		expect(content).toContain(pkg.description);
 
+		// Project disclaimer
+		expect(content).toMatch(/disclaimer/i);
+		expect(content).toMatch(/llm models/i);
+		expect(content).toMatch(/gemini 3\.7 and 3\.8/i);
+
 		// Core features
 		expect(content).toMatch(/passage and timed modes/i);
 		expect(content).toMatch(/offline guest mode/i);
