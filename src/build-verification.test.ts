@@ -142,6 +142,21 @@ describe('Build Verification Pipeline', () => {
 				expect(res.headers.get('content-type')).toContain('application/javascript');
 			}
 		});
+
+		it('does not register server_loads on the root layout node in the static client bundle', () => {
+			const entryDir = join(buildDir, '_app', 'immutable', 'entry');
+			const appFile = readdirSync(entryDir).find((f) => f.startsWith('app.') && f.endsWith('.js'));
+			expect(appFile).toBeDefined();
+
+			const content = readFileSync(join(entryDir, appFile!), 'utf-8');
+			// In SvelteKit, server_loads lists node indices that execute server load functions.
+			// Node 0 is the root layout (+layout). If node 0 is in server_loads, the static SPA
+			// will request /__data.json on initial load, causing a 404 HTML fallback and SyntaxError white screen.
+			const match = content.match(/,\s*([A-Za-z0-9_$]+)\s*=\s*\[([0-9,\s]*)\][\s\S]*\b\1\s+as\s+server_loads\b/);
+			expect(match).not.toBeNull();
+			const loadedNodes = match![2].split(',').map((s) => s.trim()).filter(Boolean);
+			expect(loadedNodes).not.toContain('0');
+		});
 	});
 
 	describe('Default Node Server Build (STATIC_BUILD unset)', () => {
@@ -166,6 +181,97 @@ describe('Build Verification Pipeline', () => {
 			expect(existsSync(join(buildDir, 'index.js'))).toBe(true);
 			expect(existsSync(join(buildDir, 'handler.js'))).toBe(true);
 			expect(existsSync(join(buildDir, 'env.js'))).toBe(true);
+		});
+	});
+
+	describe('Open Source Readiness and Deployment Artifacts', () => {
+		it('includes an MIT LICENSE file with copyright holder', () => {
+			const licensePath = join(projectRoot, 'LICENSE');
+			expect(existsSync(licensePath)).toBe(true);
+			const licenseContent = readFileSync(licensePath, 'utf-8');
+			expect(licenseContent).toContain('MIT License');
+			expect(licenseContent).toContain('Copyright (c) 2025 Trindade Jose');
+		});
+
+		it('configures open source package metadata in package.json', () => {
+			const pkgPath = join(projectRoot, 'package.json');
+			const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+			expect(pkg.license).toBe('MIT');
+			expect(pkg.private).toBe(true);
+			expect(pkg.description).toBeDefined();
+			expect(pkg.repository).toBeDefined();
+			expect(pkg.repository.url).toContain('Trindade7/stype');
+		});
+
+		it('provides an exhaustive .env.example configuration template', () => {
+			const envPath = join(projectRoot, '.env.example');
+			expect(existsSync(envPath)).toBe(true);
+			const envContent = readFileSync(envPath, 'utf-8');
+			const expectedVars = [
+				'PORT',
+				'HOST',
+				'ORIGIN',
+				'DATABASE_URL',
+				'INITIAL_ADMIN_PASSWORD',
+				'INITIAL_ADMIN_EMAIL',
+				'SMTP_HOST',
+				'SMTP_PORT',
+				'SMTP_USER',
+				'SMTP_PASS',
+				'SMTP_FROM',
+				'SMTP_SECURE'
+			];
+			for (const v of expectedVars) {
+				expect(envContent).toContain(v);
+			}
+		});
+
+		it('provides a multi-stage production Dockerfile and docker-compose.yml', () => {
+			const dockerfilePath = join(projectRoot, 'Dockerfile');
+			expect(existsSync(dockerfilePath)).toBe(true);
+			const dockerfileContent = readFileSync(dockerfilePath, 'utf-8');
+			expect(dockerfileContent).toContain('AS builder');
+			expect(dockerfileContent).toContain('AS runner');
+			expect(dockerfileContent).toContain('USER node');
+			expect(dockerfileContent).toContain('EXPOSE 3000');
+			expect(dockerfileContent).toContain('/app/data');
+
+			const composePath = join(projectRoot, 'docker-compose.yml');
+			expect(existsSync(composePath)).toBe(true);
+			const composeContent = readFileSync(composePath, 'utf-8');
+			expect(composeContent).toContain('services:');
+			expect(composeContent).toContain('stype:');
+			expect(composeContent).toContain('./data:/app/data');
+		});
+
+		it('provides complete documentation with valid cross-references', () => {
+			const docFiles = [
+				'README.md',
+				'docs/deployment.md',
+				'docs/installation.md',
+				'docs/development.md'
+			];
+
+			for (const file of docFiles) {
+				const filePath = join(projectRoot, file);
+				expect(existsSync(filePath)).toBe(true);
+				const content = readFileSync(filePath, 'utf-8');
+				expect(content.length).toBeGreaterThan(100);
+
+				// Verify local relative markdown links exist
+				const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+				let match;
+				while ((match = linkRegex.exec(content)) !== null) {
+					const href = match[2];
+					if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('#') || href.startsWith('mailto:')) {
+						continue;
+					}
+					const targetClean = href.split('#')[0];
+					if (!targetClean) continue;
+					const resolvedTarget = resolve(join(projectRoot, file, '..'), targetClean);
+					expect(existsSync(resolvedTarget)).toBe(true);
+				}
+			}
 		});
 	});
 });
