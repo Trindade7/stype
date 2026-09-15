@@ -1,0 +1,24 @@
+services:
+  stype:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stype
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - ORIGIN=${ORIGIN:-http://localhost:3000}
+      - DATABASE_URL=/app/data/stype.db
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD:-admin123}
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL:-admin@stype.local}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@stype.local}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+    volumes:
+      - ./data:/app/data
