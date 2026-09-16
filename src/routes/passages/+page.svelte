@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -13,6 +13,7 @@
 	import { PlusIcon, Edit01Icon, Delete01Icon } from '@hugeicons/core-free-icons';
 	import { getPassageLength } from '$lib/passage-utils';
 	import { localStore, type GuestPassage } from '$lib/localStore';
+	import { syncController } from '$lib/sync';
 
 	let passages = $state<GuestPassage[]>([]);
 	let isLoading = $state(true);
@@ -24,6 +25,7 @@
 	let newSource = $state('');
 	let createError = $state<string | null>(null);
 	let currentPage = $state(1);
+	let cleanupListener: (() => void) | null = null;
 
 	async function refreshPassages() {
 		passages = await localStore.getAllPassages();
@@ -32,6 +34,15 @@
 	onMount(async () => {
 		await refreshPassages();
 		isLoading = false;
+		cleanupListener = syncController.onDataChange(async (evt) => {
+			if (evt.type === 'customPassages' || evt.type === 'all') {
+				await refreshPassages();
+			}
+		});
+	});
+
+	onDestroy(() => {
+		cleanupListener?.();
 	});
 
 	let paginatedPassages = $derived(passages.slice((currentPage - 1) * 10, currentPage * 10));

@@ -9,6 +9,7 @@ import {
 	DEFAULT_PASSAGES
 } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
+import { syncController } from '$lib/sync';
 
 describe('Guest Passages Route (/passages/+page.svelte)', () => {
 	beforeEach(async () => {
@@ -215,5 +216,26 @@ describe('Guest Passages Route (/passages/+page.svelte)', () => {
 
 		expect(screen.getByTestId('passages-loading')).toBeInTheDocument();
 		expect(screen.getByText(/loading passages/i)).toBeInTheDocument();
+	});
+
+	it('updates passages list dynamically when real-time custom passage update is received without page reload', async () => {
+		render(GuestPassagesPage);
+
+		expect(await screen.findByText(DEFAULT_PASSAGES[0].text)).toBeInTheDocument();
+		expect(screen.queryByText('Realtime incoming passage text')).not.toBeInTheDocument();
+
+		await saveCustomPassage({
+			id: 'realtime-p-99',
+			text: 'Realtime incoming passage text',
+			source: 'Realtime Device'
+		});
+
+		(syncController as any).notifyDataChange({
+			type: 'customPassages',
+			data: [{ id: 'realtime-p-99', text: 'Realtime incoming passage text' }]
+		});
+
+		expect(await screen.findByText('Realtime incoming passage text')).toBeInTheDocument();
+		expect(screen.getByText('Realtime Device')).toBeInTheDocument();
 	});
 });

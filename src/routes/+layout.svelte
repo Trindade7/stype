@@ -42,10 +42,22 @@
 	}
 
 	let cleanupSync: (() => void) | null = null;
+	let cleanupSyncListener: (() => void) | null = null;
 
 	onMount(async () => {
 		await syncController.init();
 		cleanupSync = syncController.initBackgroundSync();
+		cleanupSyncListener = syncController.onDataChange(async (evt) => {
+			if (evt.type === 'settings' || evt.type === 'all') {
+				if (!data.user) {
+					const guestSettings = await localStore.getSettings();
+					if (guestSettings?.theme) {
+						setMode(guestSettings.theme);
+					}
+				}
+			}
+		});
+
 		if (syncController.getState().account) {
 			syncController.sync().catch(() => {});
 		}
@@ -62,6 +74,7 @@
 
 	onDestroy(() => {
 		cleanupSync?.();
+		cleanupSyncListener?.();
 	});
 </script>
 

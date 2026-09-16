@@ -9,6 +9,7 @@ import {
 	DEFAULT_PASSAGES
 } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
+import { syncController } from '$lib/sync';
 
 describe('Guest Stats Route (/stats/+page.svelte)', () => {
 	beforeEach(async () => {
@@ -128,5 +129,38 @@ describe('Guest Stats Route (/stats/+page.svelte)', () => {
 
 		expect(screen.getByTestId('stats-loading')).toBeInTheDocument();
 		expect(screen.getByText(/loading stats/i)).toBeInTheDocument();
+	});
+
+	it('updates stats dynamically when real-time test run update is received without page reload', async () => {
+		await clearGuestTestRuns();
+		render(GuestStatsPage);
+
+		expect(await screen.findByText('Tests Completed')).toBeInTheDocument();
+		expect(screen.getByText('0')).toBeInTheDocument();
+
+		const passage = DEFAULT_PASSAGES[0];
+		await saveGuestTestRun({
+			id: 'realtime-stats-run',
+			passageId: passage.id,
+			mode: 'passage',
+			duration: null,
+			wpm: 120,
+			accuracy: 100,
+			timeElapsed: 20,
+			correctChars: 60,
+			incorrectChars: 0,
+			extraChars: 0,
+			missedChars: 0,
+			timelineSnapshots: []
+		});
+
+		(syncController as any).notifyDataChange({
+			type: 'testRuns',
+			data: [{ id: 'realtime-stats-run', wpm: 120 }]
+		});
+
+		expect(await screen.findByText('1')).toBeInTheDocument();
+		expect(screen.getAllByText('120 WPM')).toHaveLength(2);
+		expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
 	});
 });

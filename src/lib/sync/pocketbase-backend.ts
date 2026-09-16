@@ -143,6 +143,9 @@ export class PocketBaseSyncBackend implements SyncBackend {
 	async logout(account: SyncAccount): Promise<void> {
 		const pb = this.getClient(account.serverUrl);
 		pb.authStore.clear();
+		try {
+			pb.realtime?.unsubscribe().catch?.(() => {});
+		} catch {}
 	}
 
 	async supports(serverUrl: string): Promise<boolean> {
@@ -407,5 +410,149 @@ export class PocketBaseSyncBackend implements SyncBackend {
 
 	async uploadLocalChanges(account: SyncAccount, payload: SyncPayload): Promise<void> {
 		await this.sync(account, payload);
+	}
+
+	subscribe(
+		account: SyncAccount,
+		onUpdate: (data: Partial<SyncResponse>) => void,
+		onError?: (error: unknown) => void,
+		onConnect?: () => void
+	): () => void {
+		const serverUrl = account.serverUrl.trim().replace(/\/+$/, '');
+		const pb = this.getClient(serverUrl);
+
+		if (account.token && pb.authStore.token !== account.token) {
+			pb.authStore.save(account.token, account.user as any);
+		}
+
+		let unsubscribed = false;
+		const unsubFns: Array<() => Promise<void> | void> = [];
+
+		const handleSettingsEvent = (e: any) => {
+			if (unsubscribed || !e?.record) return;
+			const r = e.record;
+			const guestSettings: GuestSettings = {
+				mode: r.mode || 'passage',
+				duration: r.duration ?? 60,
+				passageLength: r.passage_length || 'all',
+				zenMode: !!r.zen_mode,
+				theme: r.theme || 'system',
+				scrollMode: r.scroll_mode || 'manual',
+				updatedAt: r.updated || r.created || new Date().toISOString(),
+				deletedAt: r.deleted_at || (e.action === 'delete' ? new Date().toISOString() : null)
+			};
+			onUpdate({ settings: guestSettings });
+		};
+
+		const handlePassagesEvent = (e: any) => {
+			if (unsubscribed || !e?.record) return;
+			const r = e.record;
+			const passage: GuestPassage = {
+				id: r.client_id || r.id,
+				text: r.text,
+				source: r.source || null,
+				createdAt: r.created,
+				updatedAt: r.updated || r.created,
+				deletedAt: e.action === 'delete' ? (r.deleted_at || new Date().toISOString()) : (r.deleted_at || null),
+				isCustom: true
+			};
+			onUpdate({ customPassages: [passage] });
+		};
+
+		const handleRunsEvent = (e: any) => {
+			if (unsubscribed || !e?.record) return;
+			const r = e.record;
+			const testRun: GuestTestRun = {
+				id: r.client_id || r.id,
+				passageId: r.passage_id,
+				mode: r.mode || 'passage',
+				duration: r.duration ?? null,
+				wpm: r.wpm,
+				accuracy: r.accuracy,
+				timeElapsed: r.time_elapsed,
+				correctChars: r.correct_chars,
+				incorrectChars: r.incorrect_chars,
+				extraChars: r.extra_chars,
+				missedChars: r.missed_chars,
+				timelineSnapshots: r.timeline_snapshots || [],
+				createdAt: r.created_at || r.created,
+				passage: r.passage || null
+			};
+			onUpdate({ testRuns: [testRun] });
+		};
+
+		// Subscribe to collections
+		Promise.all([
+			pb.collection('settings').subscribe('*', handleSettingsEvent),
+			pb.collection('custom_passages').subscribe('*', handlePassagesEvent),
+			pb.collection('test_runs').subscribe('*', handleRunsEvent)
+		])
+			.then((unsubs) => {
+				if (unsubscribed) {
+					unsubs.forEach((u) => {
+						try {
+							if (typeof u === 'function') u();
+						} catch {}
+					});
+				} else {
+					unsubFns.push(...unsubs);
+				}
+			})
+			.catch((err) => {
+				if (!unsubscribed && onError) {
+					onError(err);
+				}
+			});
+
+		// Subscribe to PB_CONNECT for reconnect detection
+		if (pb.realtime?.subscribe) {
+			pb.realtime
+				.subscribe('PB_CONNECT', () => {
+					if (!unsubscribed && onConnect) {
+						onConnect();
+					}
+				})
+				.then((u) => {
+					if (unsubscribed) {
+						try {
+							if (typeof u === 'function') u();
+						} catch {}
+					} else {
+						unsubFns.push(u);
+					}
+				})
+				.catch(() => {});
+		}
+
+		// Hook into PB disconnect
+		const originalOnDisconnect = (pb.realtime as any)?.onDisconnect;
+		if (pb.realtime) {
+			(pb.realtime as any).onDisconnect = (activeSubscriptions: any) => {
+				if (typeof originalOnDisconnect === 'function') {
+					originalOnDisconnect(activeSubscriptions);
+				}
+				if (!unsubscribed && onError) {
+					onError(new Error('PocketBase realtime disconnected'));
+				}
+			};
+		}
+
+		return () => {
+			unsubscribed = true;
+			if (pb.realtime) {
+				(pb.realtime as any).onDisconnect = originalOnDisconnect;
+			}
+			unsubFns.forEach((u) => {
+				try {
+					if (typeof u === 'function') u();
+				} catch {}
+			});
+			try {
+				pb.collection('settings').unsubscribe('*').catch?.(() => {});
+				pb.collection('custom_passages').unsubscribe('*').catch?.(() => {});
+				pb.collection('test_runs').unsubscribe('*').catch?.(() => {});
+				pb.realtime?.unsubscribe('PB_CONNECT').catch?.(() => {});
+			} catch {}
+		};
 	}
 }

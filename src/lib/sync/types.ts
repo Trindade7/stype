@@ -59,7 +59,9 @@ export interface SyncBackend {
 	uploadLocalChanges?(account: SyncAccount, payload: SyncPayload): Promise<void>;
 	subscribe?(
 		account: SyncAccount,
-		onUpdate: (data: Partial<SyncResponse>) => void
+		onUpdate: (data: Partial<SyncResponse>) => void,
+		onError?: (error: unknown) => void,
+		onConnect?: () => void
 	): () => void;
 	supports?(serverUrl: string): Promise<boolean> | boolean;
 }

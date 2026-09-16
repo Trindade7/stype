@@ -1,15 +1,30 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import HistoryTable from '$lib/components/HistoryTable.svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
 	import { localStore, type GuestTestRun } from '$lib/localStore';
+	import { syncController } from '$lib/sync';
 
 	let runs = $state<GuestTestRun[]>([]);
 	let isLoading = $state(true);
+	let cleanupListener: (() => void) | null = null;
 
-	onMount(async () => {
+	async function loadRuns() {
 		runs = await localStore.getTestRuns();
 		isLoading = false;
+	}
+
+	onMount(async () => {
+		await loadRuns();
+		cleanupListener = syncController.onDataChange(async (evt) => {
+			if (evt.type === 'testRuns' || evt.type === 'all') {
+				await loadRuns();
+			}
+		});
+	});
+
+	onDestroy(() => {
+		cleanupListener?.();
 	});
 </script>
 

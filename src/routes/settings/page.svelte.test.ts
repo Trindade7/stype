@@ -4,6 +4,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/sv
 import GuestSettingsPage from './+page.svelte';
 import { localStore, saveGuestSettings, getGuestSettings, DEFAULT_GUEST_SETTINGS } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
+import { syncController } from '$lib/sync';
 
 describe('Guest Settings Route (/settings/+page.svelte)', () => {
 	beforeEach(async () => {
@@ -105,5 +106,34 @@ describe('Guest Settings Route (/settings/+page.svelte)', () => {
 
 		expect(screen.getByTestId('settings-loading')).toBeInTheDocument();
 		expect(screen.getByText(/loading settings/i)).toBeInTheDocument();
+	});
+
+	it('updates settings form dynamically when real-time settings update is received without page reload', async () => {
+		render(GuestSettingsPage);
+
+		const passageRadio = await screen.findByRole('radio', { name: /passage mode/i });
+		expect(passageRadio).toHaveAttribute('aria-checked', 'true');
+
+		// Live sync receives newer remote settings
+		await saveGuestSettings({
+			mode: 'timed',
+			duration: 15,
+			zenMode: true,
+			theme: 'dark',
+			scrollMode: 'step',
+			updatedAt: '2026-03-01T12:00:00.000Z'
+		});
+
+		(syncController as any).notifyDataChange({
+			type: 'settings',
+			data: { mode: 'timed', zenMode: true }
+		});
+
+		await waitFor(() => {
+			const timedRadio = screen.getByRole('radio', { name: /timed mode/i });
+			expect(timedRadio).toHaveAttribute('aria-checked', 'true');
+			const zenSwitch = screen.getByRole('switch', { name: /zen mode/i });
+			expect(zenSwitch).toHaveAttribute('aria-checked', 'true');
+		});
 	});
 });

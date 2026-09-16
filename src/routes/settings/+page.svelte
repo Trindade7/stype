@@ -1,17 +1,32 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import SettingsForm from '$lib/components/SettingsForm.svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
 	import { localStore, DEFAULT_GUEST_SETTINGS, type GuestSettings } from '$lib/localStore';
+	import { syncController } from '$lib/sync';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { Settings02Icon } from '@hugeicons/core-free-icons';
 
 	let settings = $state<GuestSettings>(DEFAULT_GUEST_SETTINGS);
 	let isLoading = $state(true);
+	let cleanupListener: (() => void) | null = null;
 
-	onMount(async () => {
+	async function loadSettings() {
 		settings = await localStore.getSettings();
 		isLoading = false;
+	}
+
+	onMount(async () => {
+		await loadSettings();
+		cleanupListener = syncController.onDataChange(async (evt) => {
+			if (evt.type === 'settings' || evt.type === 'all') {
+				await loadSettings();
+			}
+		});
+	});
+
+	onDestroy(() => {
+		cleanupListener?.();
 	});
 </script>
 

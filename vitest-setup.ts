@@ -17,6 +17,38 @@ if (typeof Element !== 'undefined') {
 	}
 }
 
+if (typeof globalThis.EventSource === 'undefined') {
+	class MockEventSource {
+		url: string;
+		readyState = 1;
+		onopen: ((e: any) => void) | null = null;
+		onmessage: ((e: any) => void) | null = null;
+		onerror: ((e: any) => void) | null = null;
+		private listeners: Record<string, Function[]> = {};
+
+		constructor(url: string) {
+			this.url = url;
+		}
+
+		addEventListener(type: string, listener: Function) {
+			this.listeners[type] = this.listeners[type] || [];
+			this.listeners[type].push(listener);
+		}
+
+		removeEventListener(type: string, listener: Function) {
+			if (this.listeners[type]) {
+				this.listeners[type] = this.listeners[type].filter((fn) => fn !== listener);
+			}
+		}
+
+		close() {
+			this.readyState = 2;
+		}
+	}
+
+	(globalThis as any).EventSource = MockEventSource;
+}
+
 afterAll(async () => {
 	// Guard against trailing timeouts (such as bits-ui body-scroll-lock cleanup)
 	// accessing global `document` after the jsdom environment has been torn down.

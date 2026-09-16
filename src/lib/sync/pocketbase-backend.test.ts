@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { SyncAccount } from '$lib/storage/types';
 import {
 	PocketBaseSyncBackend,
 	isPocketBaseHost,
@@ -695,6 +696,266 @@ describe('PocketBaseSyncBackend', () => {
 			const payload = { testRuns: [] };
 			await backend.uploadLocalChanges(mockAccount, payload);
 			expect(syncSpy).toHaveBeenCalledWith(mockAccount, payload);
+		});
+	});
+
+	describe('subscribe', () => {
+		const mockAccount: SyncAccount = {
+			serverUrl: 'http://localhost:8090',
+			token: 'test-token-xyz',
+			user: { id: 'u-sub-1', username: 'subuser' },
+			lastSyncedAt: null,
+			backend: 'pocketbase'
+		};
+
+		it('establishes subscriptions on settings, custom_passages, and test_runs collections', async () => {
+			const client = backend.getClient(mockAccount.serverUrl);
+			const settingsSub = vi.spyOn(client.collection('settings'), 'subscribe').mockResolvedValue(async () => {});
+			const passagesSub = vi.spyOn(client.collection('custom_passages'), 'subscribe').mockResolvedValue(async () => {});
+			const runsSub = vi.spyOn(client.collection('test_runs'), 'subscribe').mockResolvedValue(async () => {});
+
+			const onUpdate = vi.fn();
+			const cleanup = backend.subscribe(mockAccount, onUpdate);
+
+			expect(typeof cleanup).toBe('function');
+			expect(settingsSub).toHaveBeenCalledWith('*', expect.any(Function));
+			expect(passagesSub).toHaveBeenCalledWith('*', expect.any(Function));
+			expect(runsSub).toHaveBeenCalledWith('*', expect.any(Function));
+		});
+
+		it('transforms incoming test_runs event and calls onUpdate', async () => {
+			const client = backend.getClient(mockAccount.serverUrl);
+			let runListener: (e: any) => void = () => {};
+			vi.spyOn(client.collection('test_runs'), 'subscribe').mockImplementation(async (_topic, cb) => {
+				runListener = cb;
+				return async () => {};
+			});
+			vi.spyOn(client.collection('settings'), 'subscribe').mockResolvedValue(async () => {});
+			vi.spyOn(client.collection('custom_passages'), 'subscribe').mockResolvedValue(async () => {});
+
+			const onUpdate = vi.fn();
+			backend.subscribe(mockAccount, onUpdate);
+
+			runListener({
+				action: 'create',
+				record: {
+					id: 'rec_run_999',
+					client_id: 'client-run-uuid-1',
+					passage_id: '1',
+					mode: 'timed',
+					duration: 60,
+					wpm: 88,
+					accuracy: 97,
+					time_elapsed: 60,
+					correct_chars: 400,
+					incorrect_chars: 10,
+					extra_chars: 2,
+					missed_chars: 1,
+					timeline_snapshots: [{ second: 1, wpm: 80, rawWpm: 85, errors: 0 }],
+					created: '2026-03-01 12:00:00.000Z',
+					passage: { text: 'Test passage' }
+				}
+			});
+
+			expect(onUpdate).toHaveBeenCalledTimes(1);
+			expect(onUpdate).toHaveBeenCalledWith({
+				testRuns: [
+					{
+						id: 'client-run-uuid-1',
+						passageId: '1',
+						mode: 'timed',
+						duration: 60,
+						wpm: 88,
+						accuracy: 97,
+						timeElapsed: 60,
+						correctChars: 400,
+						incorrectChars: 10,
+						extraChars: 2,
+						missedChars: 1,
+						timelineSnapshots: [{ second: 1, wpm: 80, rawWpm: 85, errors: 0 }],
+						createdAt: '2026-03-01 12:00:00.000Z',
+						passage: { text: 'Test passage' }
+					}
+				]
+			});
+		});
+
+		it('transforms incoming custom_passages event and calls onUpdate with tombstones when deleted', async () => {
+			const client = backend.getClient(mockAccount.serverUrl);
+			let passageListener: (e: any) => void = () => {};
+			vi.spyOn(client.collection('custom_passages'), 'subscribe').mockImplementation(async (_topic, cb) => {
+				passageListener = cb;
+				return async () => {};
+			});
+			vi.spyOn(client.collection('settings'), 'subscribe').mockResolvedValue(async () => {});
+			vi.spyOn(client.collection('test_runs'), 'subscribe').mockResolvedValue(async () => {});
+
+			const onUpdate = vi.fn();
+			backend.subscribe(mockAccount, onUpdate);
+
+			// Test update action
+			passageListener({
+				action: 'update',
+				record: {
+					id: 'rec_p_1',
+					client_id: 'client-p-1',
+					text: 'Updated custom passage text',
+					source: 'Remote device',
+					created: '2026-03-01 10:00:00.000Z',
+					updated: '2026-03-01 10:05:00.000Z',
+					deleted_at: null
+				}
+			});
+
+			expect(onUpdate).toHaveBeenCalledWith({
+				customPassages: [
+					{
+						id: 'client-p-1',
+						text: 'Updated custom passage text',
+						source: 'Remote device',
+						createdAt: '2026-03-01 10:00:00.000Z',
+						updatedAt: '2026-03-01 10:05:00.000Z',
+						deletedAt: null,
+						isCustom: true
+					}
+				]
+			});
+
+			// Test delete action
+			passageListener({
+				action: 'delete',
+				record: {
+					id: 'rec_p_1',
+					client_id: 'client-p-1',
+					text: 'Updated custom passage text',
+					source: 'Remote device',
+					created: '2026-03-01 10:00:00.000Z',
+					updated: '2026-03-01 10:10:00.000Z',
+					deleted_at: '2026-03-01 10:10:00.000Z'
+				}
+			});
+
+			expect(onUpdate).toHaveBeenLastCalledWith({
+				customPassages: [
+					expect.objectContaining({
+						id: 'client-p-1',
+						deletedAt: expect.any(String),
+						isCustom: true
+					})
+				]
+			});
+		});
+
+		it('transforms incoming settings event and calls onUpdate', async () => {
+			const client = backend.getClient(mockAccount.serverUrl);
+			let settingsListener: (e: any) => void = () => {};
+			vi.spyOn(client.collection('settings'), 'subscribe').mockImplementation(async (_topic, cb) => {
+				settingsListener = cb;
+				return async () => {};
+			});
+			vi.spyOn(client.collection('custom_passages'), 'subscribe').mockResolvedValue(async () => {});
+			vi.spyOn(client.collection('test_runs'), 'subscribe').mockResolvedValue(async () => {});
+
+			const onUpdate = vi.fn();
+			backend.subscribe(mockAccount, onUpdate);
+
+			settingsListener({
+				action: 'update',
+				record: {
+					id: 'rec_set_1',
+					mode: 'timed',
+					duration: 30,
+					passage_length: 'short',
+					zen_mode: true,
+					theme: 'dark',
+					scroll_mode: 'step',
+					created: '2026-03-01 09:00:00.000Z',
+					updated: '2026-03-01 09:30:00.000Z',
+					deleted_at: null
+				}
+			});
+
+			expect(onUpdate).toHaveBeenCalledWith({
+				settings: {
+					mode: 'timed',
+					duration: 30,
+					passageLength: 'short',
+					zenMode: true,
+					theme: 'dark',
+					scrollMode: 'step',
+					updatedAt: '2026-03-01 09:30:00.000Z',
+					deletedAt: null
+				}
+			});
+		});
+
+		it('unsubscribes from collections when returned cleanup function is invoked', async () => {
+			const client = backend.getClient(mockAccount.serverUrl);
+			const unsubSettingsMock = vi.fn();
+			const unsubPassagesMock = vi.fn();
+			const unsubRunsMock = vi.fn();
+
+			vi.spyOn(client.collection('settings'), 'subscribe').mockResolvedValue(unsubSettingsMock);
+			vi.spyOn(client.collection('custom_passages'), 'subscribe').mockResolvedValue(unsubPassagesMock);
+			vi.spyOn(client.collection('test_runs'), 'subscribe').mockResolvedValue(unsubRunsMock);
+
+			const unsubSettingsCol = vi.spyOn(client.collection('settings'), 'unsubscribe').mockResolvedValue(undefined as any);
+			const unsubPassagesCol = vi.spyOn(client.collection('custom_passages'), 'unsubscribe').mockResolvedValue(undefined as any);
+			const unsubRunsCol = vi.spyOn(client.collection('test_runs'), 'unsubscribe').mockResolvedValue(undefined as any);
+
+			const cleanup = backend.subscribe(mockAccount, vi.fn());
+			// Allow promises to resolve
+			await Promise.resolve();
+
+			cleanup();
+
+			expect(unsubSettingsCol).toHaveBeenCalledWith('*');
+			expect(unsubPassagesCol).toHaveBeenCalledWith('*');
+			expect(unsubRunsCol).toHaveBeenCalledWith('*');
+		});
+
+		it('notifies onError when subscription setup fails or disconnect occurs', async () => {
+			const client = backend.getClient(mockAccount.serverUrl);
+			vi.spyOn(client.collection('settings'), 'subscribe').mockRejectedValue(new Error('Connection refused'));
+			vi.spyOn(client.collection('custom_passages'), 'subscribe').mockResolvedValue(async () => {});
+			vi.spyOn(client.collection('test_runs'), 'subscribe').mockResolvedValue(async () => {});
+
+			const onError = vi.fn();
+			backend.subscribe(mockAccount, vi.fn(), onError);
+
+			await new Promise((r) => setTimeout(r, 10));
+
+			expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Connection refused' }));
+
+			// Test realtime onDisconnect
+			const onErrorDisconnect = vi.fn();
+			backend.subscribe(mockAccount, vi.fn(), onErrorDisconnect);
+			(client.realtime as any).onDisconnect?.();
+			expect(onErrorDisconnect).toHaveBeenCalledWith(
+				expect.objectContaining({ message: expect.stringMatching(/disconnected/i) })
+			);
+		});
+
+		it('notifies onConnect when PB_CONNECT event is received', async () => {
+			const client = backend.getClient(mockAccount.serverUrl);
+			let connectListener: (e: any) => void = () => {};
+			vi.spyOn(client.realtime, 'subscribe').mockImplementation(async (topic, cb) => {
+				if (topic === 'PB_CONNECT') {
+					connectListener = cb;
+				}
+				return async () => {};
+			});
+			vi.spyOn(client.collection('settings'), 'subscribe').mockResolvedValue(async () => {});
+			vi.spyOn(client.collection('custom_passages'), 'subscribe').mockResolvedValue(async () => {});
+			vi.spyOn(client.collection('test_runs'), 'subscribe').mockResolvedValue(async () => {});
+
+			const onConnect = vi.fn();
+			backend.subscribe(mockAccount, vi.fn(), vi.fn(), onConnect);
+
+			// Simulate PocketBase PB_CONNECT event
+			connectListener({ clientId: 'pb-client-123' });
+
+			expect(onConnect).toHaveBeenCalledTimes(1);
 		});
 	});
 });

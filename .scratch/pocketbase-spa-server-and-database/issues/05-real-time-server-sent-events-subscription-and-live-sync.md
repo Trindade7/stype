@@ -4,11 +4,11 @@
 
 **Blocked by:** 04 — PocketBase Bidirectional Data Synchronization.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Linking to a PocketBase server establishes a Server-Sent Events subscription on collections.
-- [ ] Incoming real-time events for new test runs merge into local storage and update history views without page reloads.
-- [ ] Incoming updates for custom passages and settings apply to local storage and update the active interface.
-- [ ] Network drops trigger automatic reconnect attempts and fall back to polling until reconnection succeeds.
-- [ ] Unlinking an account or closing the session cleanly terminates the event subscription.
-- [ ] Automated tests verify event listener setup, record updates on event reception, and subscription cleanup.
+- [x] Linking to a PocketBase server establishes a Server-Sent Events subscription on collections.
+- [x] Incoming real-time events for new test runs merge into local storage and update history views without page reloads.
+- [x] Incoming updates for custom passages and settings apply to local storage and update the active interface.
+- [x] Network drops trigger automatic reconnect attempts and fall back to polling until reconnection succeeds.
+- [x] Unlinking an account or closing the session cleanly terminates the event subscription.
+- [x] Automated tests verify event listener setup, record updates on event reception, and subscription cleanup.

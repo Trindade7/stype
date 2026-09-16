@@ -1014,5 +1014,353 @@ describe('SyncController', () => {
 			expect(remainingRuns[0].id).toBe('history-run-1');
 		});
 	});
+
+	describe('real-time SSE subscription and live sync', () => {
+		let mockSubBackend: SyncBackend;
+		let subscribeSpy: any;
+		let unsubscribeSpy: any;
+		let triggerUpdate: (data: Partial<SyncResponse>) => Promise<void> | void;
+		let triggerError: (err: unknown) => void;
+		let triggerConnect: () => void;
+
+		beforeEach(() => {
+			unsubscribeSpy = vi.fn();
+			subscribeSpy = vi.fn().mockImplementation((account, onUpdate, onError, onConnect) => {
+				triggerUpdate = onUpdate;
+				triggerError = onError;
+				triggerConnect = onConnect;
+				return unsubscribeSpy;
+			});
+
+			mockSubBackend = {
+				name: 'mock-sse',
+				login: vi.fn().mockResolvedValue({
+					serverUrl: 'https://pb.example.com',
+					token: 'sub-token-123',
+					user: { id: 'u-1', username: 'sse-user' },
+					lastSyncedAt: null,
+					backend: 'mock-sse'
+				}),
+				logout: vi.fn().mockResolvedValue(undefined),
+				sync: vi.fn().mockResolvedValue({
+					success: true,
+					syncedAt: '2026-03-01T12:00:00.000Z',
+					testRuns: [],
+					customPassages: []
+				}),
+				subscribe: subscribeSpy
+			};
+		});
+
+		it('establishes SSE subscription when linking account to a backend that supports subscribe', async () => {
+			const sseController = new SyncController({ adapter: memoryAdapter, backend: mockSubBackend });
+			await sseController.linkAccount('https://pb.example.com', 'sse-user', 'pw123');
+
+			expect(mockSubBackend.subscribe).toHaveBeenCalledTimes(1);
+			expect(mockSubBackend.subscribe).toHaveBeenCalledWith(
+				expect.objectContaining({ serverUrl: 'https://pb.example.com', token: 'sub-token-123' }),
+				expect.any(Function),
+				expect.any(Function),
+				expect.any(Function)
+			);
+			sseController.destroy();
+		});
+
+		it('establishes SSE subscription on init() if account is already stored with backend supporting subscribe', async () => {
+			await memoryAdapter.saveSyncAccount({
+				serverUrl: 'https://pb.example.com',
+				token: 'stored-token',
+				user: { id: 'u-1', username: 'sse-user' },
+				lastSyncedAt: null,
+				backend: 'mock-sse'
+			});
+
+			const sseController = new SyncController({ adapter: memoryAdapter, backend: mockSubBackend });
+			await sseController.init();
+
+			expect(mockSubBackend.subscribe).toHaveBeenCalledTimes(1);
+			sseController.destroy();
+		});
+
+		it('incoming real-time test run merges into local storage and notifies data listeners without duplicates', async () => {
+			const sseController = new SyncController({ adapter: memoryAdapter, backend: mockSubBackend });
+			await sseController.linkAccount('https://pb.example.com', 'sse-user', 'pw123');
+
+			const listener = vi.fn();
+			sseController.onDataChange(listener);
+
+			// Trigger incoming test run event
+			const remoteRun = {
+				id: 'live-run-101',
+				passageId: 'default',
+				mode: 'timed' as const,
+				duration: 30,
+				wpm: 105,
+				accuracy: 99,
+				timeElapsed: 30,
+				correctChars: 250,
+				incorrectChars: 1,
+				extraChars: 0,
+				missedChars: 0,
+				timelineSnapshots: [],
+				createdAt: '2026-03-01T12:00:00.000Z'
+			};
+
+			await triggerUpdate({ testRuns: [remoteRun] });
+
+			// Verify merged into local storage
+			const localRuns = await memoryAdapter.getTestRuns();
+			expect(localRuns).toHaveLength(1);
+			expect(localRuns[0].id).toBe('live-run-101');
+			expect(localRuns[0].wpm).toBe(105);
+
+			// Verify onDataChange was notified
+			expect(listener).toHaveBeenCalledWith({
+				type: 'testRuns',
+				data: expect.arrayContaining([expect.objectContaining({ id: 'live-run-101' })])
+			});
+
+			// Receiving the same run again should not duplicate it
+			await triggerUpdate({ testRuns: [remoteRun] });
+			const runsAfterDuplicate = await memoryAdapter.getTestRuns();
+			expect(runsAfterDuplicate).toHaveLength(1);
+
+			sseController.destroy();
+		});
+
+		it('incoming real-time custom passage update merges into local storage and notifies listeners', async () => {
+			const sseController = new SyncController({ adapter: memoryAdapter, backend: mockSubBackend });
+			await sseController.linkAccount('https://pb.example.com', 'sse-user', 'pw123');
+
+			const listener = vi.fn();
+			sseController.onDataChange(listener);
+
+			const remotePassage = {
+				id: 'live-p-1',
+				text: 'Real-time custom passage content',
+				source: 'Device B',
+				createdAt: '2026-03-01T10:00:00.000Z',
+				updatedAt: '2026-03-01T10:00:00.000Z',
+				deletedAt: null,
+				isCustom: true
+			};
+
+			await triggerUpdate({ customPassages: [remotePassage] });
+
+			const localPassages = await memoryAdapter.getCustomPassages();
+			expect(localPassages).toHaveLength(1);
+			expect(localPassages[0].text).toBe('Real-time custom passage content');
+
+			expect(listener).toHaveBeenCalledWith({
+				type: 'customPassages',
+				data: expect.arrayContaining([expect.objectContaining({ id: 'live-p-1' })])
+			});
+
+			// Now receive soft delete tombstone
+			const tombstonedPassage = {
+				...remotePassage,
+				updatedAt: '2026-03-01T10:05:00.000Z',
+				deletedAt: '2026-03-01T10:05:00.000Z'
+			};
+
+			await triggerUpdate({ customPassages: [tombstonedPassage] });
+
+			// Non-deleted passages should now be empty
+			const activePassages = await memoryAdapter.getCustomPassages(false);
+			expect(activePassages).toHaveLength(0);
+
+			// Including deleted passages should show tombstone
+			const allPassages = await memoryAdapter.getCustomPassages(true);
+			expect(allPassages).toHaveLength(1);
+			expect(allPassages[0].deletedAt).toBe('2026-03-01T10:05:00.000Z');
+
+			sseController.destroy();
+		});
+
+		it('incoming real-time settings update merges into local storage and notifies listeners', async () => {
+			const sseController = new SyncController({ adapter: memoryAdapter, backend: mockSubBackend });
+			await sseController.linkAccount('https://pb.example.com', 'sse-user', 'pw123');
+
+			// Current local settings
+			await memoryAdapter.saveSettings({
+				mode: 'passage',
+				duration: 60,
+				theme: 'light',
+				updatedAt: '2026-03-01T09:00:00.000Z'
+			});
+
+			const listener = vi.fn();
+			sseController.onDataChange(listener);
+
+			// Incoming settings with newer timestamp
+			const remoteSettings = {
+				mode: 'timed' as const,
+				duration: 15,
+				passageLength: 'short' as const,
+				zenMode: true,
+				theme: 'dark' as const,
+				scrollMode: 'step' as const,
+				updatedAt: '2026-03-01T09:30:00.000Z',
+				deletedAt: null
+			};
+
+			await triggerUpdate({ settings: remoteSettings });
+
+			const saved = await memoryAdapter.getSettings();
+			expect(saved.mode).toBe('timed');
+			expect(saved.duration).toBe(15);
+			expect(saved.theme).toBe('dark');
+
+			expect(listener).toHaveBeenCalledWith({
+				type: 'settings',
+				data: expect.objectContaining({ theme: 'dark', mode: 'timed' })
+			});
+
+			sseController.destroy();
+		});
+
+		it('network drop triggers automatic reconnect attempts and falls back to polling until reconnection succeeds', async () => {
+			vi.useFakeTimers();
+			try {
+				const sseController = new SyncController({
+					adapter: memoryAdapter,
+					backend: mockSubBackend,
+					pollIntervalMs: 5000
+				});
+				await sseController.linkAccount('https://pb.example.com', 'sse-user', 'pw123');
+				for (let i = 0; i < 10; i++) await Promise.resolve();
+
+				expect(sseController.getState().status).toBe('idle');
+				(mockSubBackend.sync as any).mockClear();
+
+				// Trigger network drop / disconnect error
+				triggerError(new Error('Connection lost'));
+
+				// Controller transitions to offline or error
+				expect(sseController.getState().status).toBe('offline');
+
+				// Advancing timer triggers fallback polling
+				await vi.advanceTimersByTimeAsync(5000);
+				expect(mockSubBackend.sync).toHaveBeenCalledTimes(1);
+
+				await vi.advanceTimersByTimeAsync(5000);
+				expect(mockSubBackend.sync).toHaveBeenCalledTimes(2);
+
+				// Now reconnection succeeds
+				triggerConnect();
+				for (let i = 0; i < 10; i++) await Promise.resolve();
+
+				// Status transitions back to idle and runs catch-up sync
+				expect(sseController.getState().status).toBe('idle');
+
+				(mockSubBackend.sync as any).mockClear();
+				// Since reconnection succeeded, fallback polling stops
+				await vi.advanceTimersByTimeAsync(5000);
+				// Poll timer should not be firing fallback polls anymore
+				expect(mockSubBackend.sync).toHaveBeenCalledTimes(0);
+
+				sseController.destroy();
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it('unlinking account terminates SSE subscription and stops polling', async () => {
+			const sseController = new SyncController({ adapter: memoryAdapter, backend: mockSubBackend });
+			await sseController.linkAccount('https://pb.example.com', 'sse-user', 'pw123');
+
+			expect(unsubscribeSpy).not.toHaveBeenCalled();
+
+			await sseController.unlinkAccount();
+
+			expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+			expect(sseController.getState().account).toBeNull();
+
+			sseController.destroy();
+		});
+
+		it('destroy() terminates SSE subscription and cleans up', async () => {
+			const sseController = new SyncController({ adapter: memoryAdapter, backend: mockSubBackend });
+			await sseController.linkAccount('https://pb.example.com', 'sse-user', 'pw123');
+
+			expect(unsubscribeSpy).not.toHaveBeenCalled();
+
+			sseController.destroy();
+
+			expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+		});
+
+		it('integrates with PocketBaseSyncBackend to receive live updates and cleanup on unlink', async () => {
+			const pbBackend = new PocketBaseSyncBackend();
+			const serverUrl = 'http://localhost:8090';
+			const client = pbBackend.getClient(serverUrl);
+
+			let runListener: any = null;
+			const settingsSub = vi.spyOn(client.collection('settings'), 'subscribe').mockResolvedValue(async () => {});
+			const passagesSub = vi.spyOn(client.collection('custom_passages'), 'subscribe').mockResolvedValue(async () => {});
+			const runsSub = vi.spyOn(client.collection('test_runs'), 'subscribe').mockImplementation(async (_topic, cb) => {
+				runListener = cb;
+				return async () => {};
+			});
+
+			const settingsUnsub = vi.spyOn(client.collection('settings'), 'unsubscribe').mockResolvedValue(undefined as any);
+			const passagesUnsub = vi.spyOn(client.collection('custom_passages'), 'unsubscribe').mockResolvedValue(undefined as any);
+			const runsUnsub = vi.spyOn(client.collection('test_runs'), 'unsubscribe').mockResolvedValue(undefined as any);
+
+			const pbController = new SyncController({ adapter: memoryAdapter, backend: pbBackend });
+
+			const existingAccount: SyncAccount = {
+				serverUrl,
+				token: 'test-pb-token',
+				user: { id: 'pb-u-10', username: 'pbusr' },
+				lastSyncedAt: null,
+				backend: 'pocketbase'
+			};
+			await memoryAdapter.saveSyncAccount(existingAccount);
+
+			await pbController.init();
+
+			// Verify collections subscribed
+			expect(settingsSub).toHaveBeenCalledWith('*', expect.any(Function));
+			expect(passagesSub).toHaveBeenCalledWith('*', expect.any(Function));
+			expect(runsSub).toHaveBeenCalledWith('*', expect.any(Function));
+
+			// Simulate incoming PB test run event
+			expect(runListener).toBeTypeOf('function');
+			runListener({
+				action: 'create',
+				record: {
+					id: 'rec_pb_run',
+					client_id: 'pb-live-run-1',
+					passage_id: '1',
+					mode: 'timed',
+					duration: 60,
+					wpm: 112,
+					accuracy: 98,
+					time_elapsed: 60,
+					correct_chars: 420,
+					incorrect_chars: 5,
+					extra_chars: 0,
+					missed_chars: 0,
+					timeline_snapshots: [],
+					created: '2026-03-01 14:00:00.000Z'
+				}
+			});
+
+			// Allow async processing
+			for (let i = 0; i < 5; i++) await Promise.resolve();
+
+			const runs = await memoryAdapter.getTestRuns();
+			expect(runs.some((r) => r.id === 'pb-live-run-1' && r.wpm === 112)).toBe(true);
+
+			// Unlink and verify unsubscribe cleanup
+			await pbController.unlinkAccount();
+			expect(settingsUnsub).toHaveBeenCalledWith('*');
+			expect(passagesUnsub).toHaveBeenCalledWith('*');
+			expect(runsUnsub).toHaveBeenCalledWith('*');
+
+			pbController.destroy();
+		});
+	});
 });
 

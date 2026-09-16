@@ -4,6 +4,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/svelte';
 import GuestHistoryPage from './+page.svelte';
 import { localStore, saveGuestTestRun, clearGuestTestRuns, DEFAULT_PASSAGES } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
+import { syncController } from '$lib/sync';
 
 describe('Guest History Route (/history/+page.svelte)', () => {
 	beforeEach(async () => {
@@ -84,5 +85,39 @@ describe('Guest History Route (/history/+page.svelte)', () => {
 
 		expect(screen.getByTestId('history-loading')).toBeInTheDocument();
 		expect(screen.getByText(/loading test history/i)).toBeInTheDocument();
+	});
+
+	it('updates history table dynamically when real-time test run update is received without page reload', async () => {
+		await clearGuestTestRuns();
+		render(GuestHistoryPage);
+
+		expect(await screen.findByText('No test runs found matching your filters.')).toBeInTheDocument();
+
+		// Save a test run into local storage as live sync does
+		const passage = DEFAULT_PASSAGES[0];
+		await saveGuestTestRun({
+			id: 'realtime-run-125',
+			passageId: passage.id,
+			mode: 'passage',
+			duration: null,
+			wpm: 125,
+			accuracy: 99,
+			timeElapsed: 25,
+			correctChars: 120,
+			incorrectChars: 1,
+			extraChars: 0,
+			missedChars: 0,
+			timelineSnapshots: []
+		});
+
+		// Notify data change from sync controller
+		(syncController as any).notifyDataChange({
+			type: 'testRuns',
+			data: [{ id: 'realtime-run-125', wpm: 125 }]
+		});
+
+		// History table should now update dynamically without page reload
+		expect(await screen.findByText('125 WPM')).toBeInTheDocument();
+		expect(screen.getByText('• 99% Acc')).toBeInTheDocument();
 	});
 });

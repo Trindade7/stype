@@ -11,6 +11,7 @@ import {
 } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
 import { viewportLayout } from '$lib/viewport';
+import { syncController } from '$lib/sync';
 
 describe('Guest Root Route (+page.svelte)', () => {
 	beforeEach(async () => {
@@ -389,6 +390,34 @@ describe('Guest Root Route (+page.svelte)', () => {
 
 		await waitFor(() => {
 			expect(rootWrapper.getAttribute('style')).toContain('360px');
+		});
+	});
+
+	it('updates active interface settings dynamically when incoming real-time settings change', async () => {
+		await saveGuestSettings({
+			mode: 'passage',
+			duration: 60
+		});
+
+		render(GuestPage);
+
+		// Initially passage mode
+		expect(screen.getByRole('button', { name: /^passage$/i })).toHaveClass('bg-secondary');
+
+		// Remote update changes to timed mode 15s
+		await saveGuestSettings({
+			mode: 'timed',
+			duration: 15
+		});
+
+		(syncController as any).notifyDataChange({
+			type: 'settings',
+			data: { mode: 'timed', duration: 15 }
+		});
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: /^timed$/i })).toHaveClass('bg-secondary');
+			expect(screen.getByRole('button', { name: '15s' })).toHaveClass('bg-secondary');
 		});
 	});
 });

@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import GuestHeader from '$lib/components/GuestHeader.svelte';
 	import PerformanceChart from '$lib/components/PerformanceChart.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { localStore, type GuestTestRun } from '$lib/localStore';
+	import { syncController } from '$lib/sync';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { 
 		Chart01Icon,
@@ -14,10 +15,24 @@
 
 	let runs = $state<GuestTestRun[]>([]);
 	let isLoading = $state(true);
+	let cleanupListener: (() => void) | null = null;
 
-	onMount(async () => {
+	async function loadRuns() {
 		runs = await localStore.getTestRuns();
 		isLoading = false;
+	}
+
+	onMount(async () => {
+		await loadRuns();
+		cleanupListener = syncController.onDataChange(async (evt) => {
+			if (evt.type === 'testRuns' || evt.type === 'all') {
+				await loadRuns();
+			}
+		});
+	});
+
+	onDestroy(() => {
+		cleanupListener?.();
 	});
 
 	let stats = $derived.by(() => {

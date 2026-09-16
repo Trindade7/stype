@@ -16,6 +16,7 @@
 	let settings = $state<GuestSettings>(DEFAULT_GUEST_SETTINGS);
 	let currentPassage = $state<GuestPassage | null>(resolveFallbackPassage());
 	let cleanupViewport: (() => void) | null = null;
+	let cleanupSyncListener: (() => void) | null = null;
 
 	let rootStyle = $derived(
 		$viewportLayout.visualViewportHeight
@@ -54,10 +55,27 @@
 		if (resolved) {
 			currentPassage = resolved;
 		}
+
+		cleanupSyncListener = syncController.onDataChange(async (evt) => {
+			if (evt.type === 'settings' || evt.type === 'all') {
+				settings = await localStore.getSettings();
+			}
+			if (evt.type === 'customPassages' || evt.type === 'all') {
+				if (currentPassage) {
+					const updated = await localStore.getPassageById(currentPassage.id);
+					if (updated) {
+						currentPassage = updated;
+					} else {
+						currentPassage = await resolvePassage(settings.passageLength);
+					}
+				}
+			}
+		});
 	});
 
 	onDestroy(() => {
 		cleanupViewport?.();
+		cleanupSyncListener?.();
 	});
 </script>
 

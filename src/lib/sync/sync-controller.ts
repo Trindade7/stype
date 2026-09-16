@@ -7,6 +7,7 @@ import type {
 	SyncState,
 	SyncResult,
 	SyncBackend,
+	SyncResponse,
 	RegisterCredentials
 } from './types';
 
@@ -16,10 +17,16 @@ export interface SyncControllerOptions {
 	pollIntervalMs?: number;
 }
 
+export interface DataChangeEvent {
+	type: 'testRuns' | 'customPassages' | 'settings' | 'all';
+	data?: any;
+}
+
 export class SyncController implements Readable<SyncState> {
 	private adapter: LocalStoreAdapter;
 	private backend: SyncBackend;
 	private hasCustomBackend: boolean;
+	private pollIntervalMs: number;
 	private stateStore = writable<SyncState>({
 		status: 'idle',
 		account: null,
@@ -29,13 +36,17 @@ export class SyncController implements Readable<SyncState> {
 
 	private isSyncing = false;
 	private pollTimer: ReturnType<typeof setInterval> | null = null;
+	private fallbackPollTimer: ReturnType<typeof setInterval> | null = null;
 	private onlineListener: (() => void) | null = null;
+	private subscriptionCleanup: (() => void) | null = null;
+	private dataChangeListeners = new Set<(event: DataChangeEvent) => void>();
 
 	constructor(options: SyncControllerOptions = {}) {
 		this.adapter = options.adapter ?? getDefaultAdapter();
 		this.hasCustomBackend = !!options.backend;
 		this.backend = options.backend ?? new NodeSyncBackend();
-		if (options.pollIntervalMs && options.pollIntervalMs > 0) {
+		this.pollIntervalMs = options.pollIntervalMs ?? 5000;
+		if (options.pollIntervalMs && options.pollIntervalMs > 0 && typeof this.backend.subscribe !== 'function') {
 			this.pollTimer = setInterval(() => {
 				this.sync().catch(() => {});
 			}, options.pollIntervalMs);
@@ -65,6 +76,169 @@ export class SyncController implements Readable<SyncState> {
 	setBackend(backend: SyncBackend): void {
 		this.backend = backend;
 		this.hasCustomBackend = true;
+	}
+
+	onDataChange(callback: (event: DataChangeEvent) => void): () => void {
+		this.dataChangeListeners.add(callback);
+		return () => {
+			this.dataChangeListeners.delete(callback);
+		};
+	}
+
+	private notifyDataChange(event: DataChangeEvent): void {
+		for (const listener of this.dataChangeListeners) {
+			try {
+				listener(event);
+			} catch (err) {
+				console.error('Error in onDataChange listener:', err);
+			}
+		}
+	}
+
+	private startSubscription(account: SyncAccount): void {
+		this.stopSubscription();
+		if (typeof this.backend.subscribe !== 'function') return;
+
+		this.subscriptionCleanup = this.backend.subscribe(
+			account,
+			(data) => this.handleIncomingUpdate(data),
+			(err) => {
+				this.handleSubscriptionError(err);
+			},
+			() => {
+				this.handleSubscriptionConnect();
+			}
+		);
+	}
+
+	private stopSubscription(): void {
+		if (this.subscriptionCleanup) {
+			try {
+				this.subscriptionCleanup();
+			} catch {}
+			this.subscriptionCleanup = null;
+		}
+		this.stopFallbackPolling();
+	}
+
+	private startFallbackPolling(): void {
+		if (this.fallbackPollTimer) return;
+		const interval = this.pollIntervalMs > 0 ? this.pollIntervalMs : 5000;
+		this.fallbackPollTimer = setInterval(() => {
+			this.sync().catch(() => {});
+		}, interval);
+	}
+
+	private stopFallbackPolling(): void {
+		if (this.fallbackPollTimer) {
+			clearInterval(this.fallbackPollTimer);
+			this.fallbackPollTimer = null;
+		}
+	}
+
+	private handleSubscriptionError(err: unknown): void {
+		const isOffline =
+			(typeof navigator !== 'undefined' && navigator.onLine === false) ||
+			err instanceof TypeError ||
+			(err instanceof Error &&
+				/network|offline|failed to fetch|econnrefused|connection lost|disconnected/i.test(err.message));
+		const errorMsg = err instanceof Error ? err.message : 'Real-time connection error';
+
+		this.stateStore.update((s) => ({
+			...s,
+			status: isOffline ? 'offline' : 'error',
+			lastError: errorMsg
+		}));
+
+		this.startFallbackPolling();
+	}
+
+	private handleSubscriptionConnect(): void {
+		this.stopFallbackPolling();
+		this.stateStore.update((s) => ({
+			...s,
+			status: 'idle',
+			lastError: null
+		}));
+		this.sync().catch(() => {});
+	}
+
+	private async handleIncomingUpdate(data: Partial<SyncResponse>): Promise<void> {
+		const account = await this.adapter.getSyncAccount();
+		if (!account) return;
+
+		let hasChanges = false;
+
+		// 1. Settings
+		if (data.settings) {
+			const localSettings = await this.adapter.getSettings();
+			const serverUpdated = new Date(data.settings.updatedAt || 0).getTime();
+			const localUpdated = new Date(localSettings.updatedAt || 0).getTime();
+			if (serverUpdated > localUpdated) {
+				await this.adapter.saveSettings(data.settings);
+				hasChanges = true;
+				this.notifyDataChange({ type: 'settings', data: data.settings });
+			}
+		}
+
+		// 2. Custom Passages
+		if (Array.isArray(data.customPassages) && data.customPassages.length > 0) {
+			const updatedPassages: any[] = [];
+			for (const serverP of data.customPassages) {
+				const localP = await this.adapter.getPassageById(serverP.id, true);
+				if (!localP) {
+					await this.adapter.saveCustomPassage(serverP);
+					updatedPassages.push(serverP);
+				} else {
+					const serverUpdated = new Date(serverP.updatedAt || 0).getTime();
+					const localUpdated = new Date(localP.updatedAt || 0).getTime();
+					if (serverUpdated >= localUpdated) {
+						await this.adapter.saveCustomPassage(serverP);
+						updatedPassages.push(serverP);
+					}
+				}
+			}
+			if (updatedPassages.length > 0) {
+				hasChanges = true;
+				this.notifyDataChange({ type: 'customPassages', data: updatedPassages });
+			}
+		}
+
+		// 3. Test Runs
+		if (Array.isArray(data.testRuns) && data.testRuns.length > 0) {
+			const localRuns = await this.adapter.getTestRuns();
+			const localIdSet = new Set(localRuns.map((r) => String(r.id)));
+			const localKeySet = new Set(
+				localRuns.map((r) => `${new Date(r.createdAt).getTime()}-${r.wpm}`)
+			);
+
+			const newRuns: any[] = [];
+			for (const serverRun of data.testRuns) {
+				const runId = String(serverRun.id);
+				const runKey = `${new Date(serverRun.createdAt).getTime()}-${serverRun.wpm}`;
+				if (!localIdSet.has(runId) && !localKeySet.has(runKey)) {
+					await this.adapter.saveTestRun(serverRun);
+					localIdSet.add(runId);
+					localKeySet.add(runKey);
+					newRuns.push(serverRun);
+				}
+			}
+			if (newRuns.length > 0) {
+				hasChanges = true;
+				this.notifyDataChange({ type: 'testRuns', data: newRuns });
+			}
+		}
+
+		if (hasChanges || data.syncedAt) {
+			const syncedAt = data.syncedAt || new Date().toISOString();
+			account.lastSyncedAt = syncedAt;
+			await this.adapter.saveSyncAccount(account);
+			this.stateStore.update((s) => ({
+				...s,
+				account,
+				lastSyncedAt: syncedAt
+			}));
+		}
 	}
 
 	getAdapter(): LocalStoreAdapter {
@@ -100,6 +274,10 @@ export class SyncController implements Readable<SyncState> {
 			account,
 			lastSyncedAt: account?.lastSyncedAt ?? null
 		}));
+
+		if (account && typeof this.backend.subscribe === 'function') {
+			this.startSubscription(account);
+		}
 	}
 
 	async linkAccount(rawServerUrl: string, identifier: string, password: string): Promise<SyncAccount> {
@@ -124,6 +302,10 @@ export class SyncController implements Readable<SyncState> {
 			lastError: null,
 			lastSyncedAt: null
 		}));
+
+		if (typeof this.backend.subscribe === 'function') {
+			this.startSubscription(account);
+		}
 
 		// Trigger initial background sync
 		this.sync().catch(() => {});
@@ -171,6 +353,10 @@ export class SyncController implements Readable<SyncState> {
 			lastSyncedAt: null
 		}));
 
+		if (typeof this.backend.subscribe === 'function') {
+			this.startSubscription(account);
+		}
+
 		// Trigger initial background sync
 		this.sync().catch(() => {});
 
@@ -178,6 +364,8 @@ export class SyncController implements Readable<SyncState> {
 	}
 
 	async unlinkAccount(): Promise<void> {
+		this.stopSubscription();
+
 		const account = await this.adapter.getSyncAccount();
 		if (account) {
 			try {
@@ -281,6 +469,10 @@ export class SyncController implements Readable<SyncState> {
 			account.lastSyncedAt = syncedAt;
 			await this.adapter.saveSyncAccount(account);
 
+			if (passagesSynced > 0 || runsSynced > 0) {
+				this.notifyDataChange({ type: 'all' });
+			}
+
 			this.stateStore.update((s) => ({
 				...s,
 				account,
@@ -337,6 +529,7 @@ export class SyncController implements Readable<SyncState> {
 	}
 
 	destroy(): void {
+		this.stopSubscription();
 		if (this.pollTimer) {
 			clearInterval(this.pollTimer);
 			this.pollTimer = null;
@@ -345,6 +538,7 @@ export class SyncController implements Readable<SyncState> {
 			window.removeEventListener('online', this.onlineListener);
 			this.onlineListener = null;
 		}
+		this.dataChangeListeners.clear();
 	}
 }
 
