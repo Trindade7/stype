@@ -243,5 +243,460 @@ describe('PocketBaseSyncBackend', () => {
 			expect(defaultUrl).toBe('');
 		});
 	});
+
+	describe('sync', () => {
+		const mockAccount = {
+			serverUrl: 'http://localhost:8090',
+			token: 'test-user-token',
+			user: {
+				id: 'u-typist-1',
+				username: 'typist1',
+				email: 'typist1@stype.io',
+				name: 'Test Typist',
+				role: 'user'
+			},
+			lastSyncedAt: '2026-01-01T00:00:00.000Z',
+			backend: 'pocketbase'
+		};
+
+		it('uploads local test runs to test_runs collection using client_id and merges server runs', async () => {
+			const serverUrl = 'http://localhost:8090';
+			const createdRuns: any[] = [];
+
+			const remoteRun = {
+				id: 'rec_run_server',
+				client_id: 'server-run-99',
+				user: 'u-typist-1',
+				passage_id: 'passage-1',
+				mode: 'timed',
+				duration: 60,
+				wpm: 120,
+				accuracy: 98,
+				time_elapsed: 60,
+				correct_chars: 580,
+				incorrect_chars: 5,
+				extra_chars: 2,
+				missed_chars: 1,
+				timeline_snapshots: [],
+				created_at: '2026-01-02T10:00:00.000Z',
+				created: '2026-01-02 10:00:00.000Z',
+				updated: '2026-01-02 10:00:00.000Z',
+				passage: { id: 'passage-1', text: 'Server passage text', source: 'Web' }
+			};
+
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+
+				if (url.includes('/api/collections/settings/records')) {
+					return new Response(JSON.stringify({ items: [] }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				if (url.includes('/api/collections/custom_passages/records')) {
+					return new Response(JSON.stringify({ items: [] }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				if (url.includes('/api/collections/test_runs/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [remoteRun] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'POST') {
+						const body = JSON.parse(init.body);
+						createdRuns.push(body);
+						return new Response(
+							JSON.stringify({
+								id: 'rec_run_new',
+								...body,
+								created: '2026-01-02 12:00:00.000Z',
+								updated: '2026-01-02 12:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+				return new Response('Not found', { status: 404 });
+			});
+
+			const payload = {
+				testRuns: [
+					{
+						id: 'local-run-1',
+						passageId: 'p-1',
+						mode: 'timed' as const,
+						duration: 30,
+						wpm: 110,
+						accuracy: 99,
+						timeElapsed: 30,
+						correctChars: 275,
+						incorrectChars: 2,
+						extraChars: 0,
+						missedChars: 0,
+						timelineSnapshots: [],
+						createdAt: '2026-01-02T11:00:00.000Z',
+						passage: { id: 'p-1', text: 'Passage one', source: null }
+					}
+				]
+			};
+
+			const response = await backend.sync(mockAccount, payload);
+
+			expect(response.success).toBe(true);
+			expect(createdRuns.length).toBe(1);
+			expect(createdRuns[0]).toMatchObject({
+				user: 'u-typist-1',
+				client_id: 'local-run-1',
+				passage_id: 'p-1',
+				mode: 'timed',
+				duration: 30,
+				wpm: 110,
+				accuracy: 99,
+				time_elapsed: 30,
+				correct_chars: 275,
+				incorrect_chars: 2,
+				extra_chars: 0,
+				missed_chars: 0
+			});
+
+			expect(response.testRuns).toHaveLength(2);
+			expect(response.testRuns?.some((r) => r.id === 'local-run-1')).toBe(true);
+			expect(response.testRuns?.some((r) => r.id === 'server-run-99')).toBe(true);
+		});
+
+		it('synchronizes settings using Last-Write-Wins based on updated timestamp', async () => {
+			let updatedSettingsBody: any = null;
+
+			const remoteSettings = {
+				id: 'rec_settings_1',
+				user: 'u-typist-1',
+				mode: 'timed',
+				duration: 30,
+				passage_length: 'short',
+				zen_mode: false,
+				theme: 'light',
+				scroll_mode: 'manual',
+				deleted_at: null,
+				created: '2026-01-01 10:00:00.000Z',
+				updated: '2026-01-01 10:00:00.000Z'
+			};
+
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+
+				if (url.includes('/api/collections/settings/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [remoteSettings] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'PATCH') {
+						updatedSettingsBody = JSON.parse(init.body);
+						return new Response(
+							JSON.stringify({
+								...remoteSettings,
+								...updatedSettingsBody,
+								updated: '2026-01-02 15:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+				if (url.includes('/api/collections/custom_passages/records') || url.includes('/api/collections/test_runs/records')) {
+					return new Response(JSON.stringify({ items: [] }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return new Response('Not found', { status: 404 });
+			});
+
+			// Local settings are newer: 14:00 > 10:00
+			const payload = {
+				settings: {
+					mode: 'timed' as const,
+					duration: 60,
+					passageLength: 'medium' as const,
+					zenMode: true,
+					theme: 'dark' as const,
+					scrollMode: 'step' as const,
+					updatedAt: '2026-01-02T14:00:00.000Z'
+				}
+			};
+
+			const response = await backend.sync(mockAccount, payload);
+
+			expect(response.success).toBe(true);
+			expect(updatedSettingsBody).toMatchObject({
+				mode: 'timed',
+				duration: 60,
+				passage_length: 'medium',
+				zen_mode: true,
+				theme: 'dark',
+				scroll_mode: 'step'
+			});
+			expect(response.settings?.duration).toBe(60);
+			expect(response.settings?.theme).toBe('dark');
+		});
+
+		it('server settings win when server has more recent timestamp', async () => {
+			let patchCalled = false;
+
+			const remoteSettings = {
+				id: 'rec_settings_1',
+				user: 'u-typist-1',
+				mode: 'passage',
+				duration: 120,
+				passage_length: 'long',
+				zen_mode: true,
+				theme: 'system',
+				scroll_mode: 'center',
+				deleted_at: null,
+				created: '2026-01-03 10:00:00.000Z',
+				updated: '2026-01-03 10:00:00.000Z'
+			};
+
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+				if (url.includes('/api/collections/settings/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [remoteSettings] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'PATCH') {
+						patchCalled = true;
+						return new Response('{}', { status: 200 });
+					}
+				}
+				return new Response(JSON.stringify({ items: [] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			});
+
+			// Local settings are older: Jan 2 < Jan 3
+			const payload = {
+				settings: {
+					mode: 'timed' as const,
+					duration: 30,
+					passageLength: 'short' as const,
+					zenMode: false,
+					theme: 'light' as const,
+					scrollMode: 'manual' as const,
+					updatedAt: '2026-01-02T10:00:00.000Z'
+				}
+			};
+
+			const response = await backend.sync(mockAccount, payload);
+
+			expect(patchCalled).toBe(false);
+			expect(response.settings?.duration).toBe(120);
+			expect(response.settings?.passageLength).toBe('long');
+		});
+
+		it('creates settings on PocketBase when none exist yet', async () => {
+			let createdSettingsBody: any = null;
+
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+				if (url.includes('/api/collections/settings/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'POST') {
+						createdSettingsBody = JSON.parse(init.body);
+						return new Response(
+							JSON.stringify({
+								id: 'rec_settings_new',
+								...createdSettingsBody,
+								created: '2026-01-01 10:00:00.000Z',
+								updated: '2026-01-01 10:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+				return new Response(JSON.stringify({ items: [] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			});
+
+			const payload = {
+				settings: {
+					mode: 'passage' as const,
+					duration: 60,
+					passageLength: 'medium' as const,
+					zenMode: false,
+					theme: 'system' as const,
+					scrollMode: 'manual' as const
+				}
+			};
+
+			const response = await backend.sync(mockAccount, payload);
+
+			expect(response.success).toBe(true);
+			expect(createdSettingsBody).toMatchObject({
+				user: 'u-typist-1',
+				mode: 'passage',
+				duration: 60,
+				passage_length: 'medium'
+			});
+			expect(response.settings?.mode).toBe('passage');
+		});
+
+		it('synchronizes custom passages bidirectionally and propagates soft delete tombstones', async () => {
+			let createdPassageBody: any = null;
+			let patchedPassageBody: any = null;
+
+			const remotePassageToTombstone = {
+				id: 'rec_p_1',
+				client_id: 'local-p-1',
+				user: 'u-typist-1',
+				text: 'Passage to delete',
+				source: 'Book',
+				deleted_at: null,
+				created: '2026-01-01 10:00:00.000Z',
+				updated: '2026-01-01 10:00:00.000Z'
+			};
+
+			const remotePassageFromServer = {
+				id: 'rec_p_server',
+				client_id: 'device2-p',
+				user: 'u-typist-1',
+				text: 'Created on another device',
+				source: 'Web',
+				deleted_at: null,
+				created: '2026-01-02 12:00:00.000Z',
+				updated: '2026-01-02 12:00:00.000Z'
+			};
+
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+				if (url.includes('/api/collections/custom_passages/records')) {
+					if (method === 'GET') {
+						return new Response(
+							JSON.stringify({ items: [remotePassageToTombstone, remotePassageFromServer] }),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+					if (method === 'POST') {
+						createdPassageBody = JSON.parse(init.body);
+						return new Response(
+							JSON.stringify({
+								id: 'rec_p_new',
+								...createdPassageBody,
+								created: '2026-01-02 15:00:00.000Z',
+								updated: '2026-01-02 15:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+					if (method === 'PATCH') {
+						patchedPassageBody = JSON.parse(init.body);
+						return new Response(
+							JSON.stringify({
+								...remotePassageToTombstone,
+								...patchedPassageBody,
+								updated: '2026-01-02 14:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+				return new Response(JSON.stringify({ items: [] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			});
+
+			const payload = {
+				customPassages: [
+					// Soft-delete tombstone on local-p-1
+					{
+						id: 'local-p-1',
+						text: 'Passage to delete',
+						source: 'Book',
+						updatedAt: '2026-01-02T13:00:00.000Z',
+						deletedAt: '2026-01-02T13:00:00.000Z'
+					},
+					// New passage created locally
+					{
+						id: 'local-p-new',
+						text: 'Fresh local passage',
+						source: 'Manual',
+						updatedAt: '2026-01-02T13:00:00.000Z',
+						deletedAt: null
+					}
+				]
+			};
+
+			const response = await backend.sync(mockAccount, payload);
+
+			expect(response.success).toBe(true);
+
+			// Check that tombstone was patched to server
+			expect(patchedPassageBody).toBeDefined();
+			expect(patchedPassageBody.deleted_at).toBe('2026-01-02T13:00:00.000Z');
+
+			// Check that new local passage was posted to server
+			expect(createdPassageBody).toMatchObject({
+				user: 'u-typist-1',
+				client_id: 'local-p-new',
+				text: 'Fresh local passage',
+				source: 'Manual'
+			});
+
+			// Check that server passages are returned
+			expect(response.customPassages?.some((p) => p.text === 'Created on another device')).toBe(true);
+			const tombstoned = response.customPassages?.find((p) => p.id === 'local-p-1');
+			expect(tombstoned?.deletedAt).toBe('2026-01-02T13:00:00.000Z');
+		});
+
+		it('formats and throws error when sync collection request fails', async () => {
+			global.fetch = vi.fn().mockImplementation(async (url: string) => {
+				if (url.includes('/api/collections/settings/records')) {
+					return new Response(
+						JSON.stringify({
+							code: 500,
+							message: 'Database locked'
+						}),
+						{ status: 500, headers: { 'Content-Type': 'application/json' } }
+					);
+				}
+				return new Response(JSON.stringify({ items: [] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			});
+
+			await expect(backend.sync(mockAccount, {})).rejects.toThrow(/Database locked/i);
+		});
+
+		it('fetchRemoteChanges and uploadLocalChanges delegate to sync', async () => {
+			const syncSpy = vi.spyOn(backend, 'sync').mockResolvedValue({
+				success: true,
+				syncedAt: '2026-01-01T00:00:00.000Z'
+			});
+
+			await backend.fetchRemoteChanges(mockAccount, '2026-01-01T00:00:00.000Z');
+			expect(syncSpy).toHaveBeenCalledWith(mockAccount, { lastSyncedAt: '2026-01-01T00:00:00.000Z' });
+
+			const payload = { testRuns: [] };
+			await backend.uploadLocalChanges(mockAccount, payload);
+			expect(syncSpy).toHaveBeenCalledWith(mockAccount, payload);
+		});
+	});
 });
+
 

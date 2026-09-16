@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SyncController } from './sync-controller';
 import { NodeSyncBackend } from './node-backend';
+import { PocketBaseSyncBackend } from './pocketbase-backend';
 import { MemoryStoreAdapter } from '$lib/storage/memory';
 import type { SyncAccount } from '$lib/storage/types';
 import type { SyncBackend, SyncPayload, SyncResponse } from './types';
@@ -610,4 +611,408 @@ describe('SyncController', () => {
 			vi.useRealTimers();
 		});
 	});
+
+	describe('PocketBase bidirectional data synchronization and batch reconciliation', () => {
+		let pbBackend: PocketBaseSyncBackend;
+		let pbController: SyncController;
+		const serverUrl = 'http://localhost:8090';
+
+		const linkedAccount: SyncAccount = {
+			serverUrl,
+			token: 'pb-auth-token-xyz',
+			user: {
+				id: 'usr_pb_123',
+				username: 'speed_typist',
+				email: 'speed@stype.io'
+			},
+			lastSyncedAt: '2026-01-01T00:00:00.000Z',
+			backend: 'pocketbase'
+		};
+
+		beforeEach(async () => {
+			pbBackend = new PocketBaseSyncBackend();
+			pbController = new SyncController({
+				adapter: memoryAdapter,
+				backend: pbBackend
+			});
+			await memoryAdapter.saveSyncAccount(linkedAccount);
+			await pbController.init();
+		});
+
+		afterEach(() => {
+			pbController.destroy();
+		});
+
+		it('reconciles test runs, custom passages, and settings bidirectionally against PocketBase', async () => {
+			// Local store has local run, local passage, and older settings
+			await memoryAdapter.saveSettings({
+				mode: 'timed',
+				duration: 30,
+				passageLength: 'short',
+				zenMode: false,
+				theme: 'light',
+				scrollMode: 'manual',
+				updatedAt: '2026-01-01T10:00:00.000Z'
+			});
+
+			const localPassage = await memoryAdapter.saveCustomPassage({
+				id: 'local-p-1',
+				text: 'Local passage',
+				source: 'Local Source',
+				createdAt: '2026-01-01T10:00:00.000Z',
+				updatedAt: '2026-01-01T10:00:00.000Z'
+			});
+
+			const localRun = await memoryAdapter.saveTestRun({
+				id: 'local-run-1',
+				passageId: localPassage.id,
+				mode: 'timed',
+				duration: 30,
+				wpm: 105,
+				accuracy: 97,
+				timeElapsed: 30,
+				correctChars: 260,
+				incorrectChars: 5,
+				extraChars: 1,
+				missedChars: 2,
+				timelineSnapshots: [],
+				createdAt: '2026-01-01T10:00:00.000Z',
+				passage: { id: localPassage.id, text: 'Local passage', source: 'Local Source' }
+			});
+
+			// Server has:
+			// - newer settings (12:00 > 10:00) -> server wins
+			// - server passage 'server-p-2'
+			// - server run 'server-run-2'
+			const serverSettingsRecord = {
+				id: 'rec_settings_server',
+				user: 'usr_pb_123',
+				mode: 'timed',
+				duration: 60,
+				passage_length: 'medium',
+				zen_mode: true,
+				theme: 'dark',
+				scroll_mode: 'step',
+				deleted_at: null,
+				created: '2026-01-02 12:00:00.000Z',
+				updated: '2026-01-02 12:00:00.000Z'
+			};
+
+			const serverPassageRecord = {
+				id: 'rec_passage_2',
+				client_id: 'server-p-2',
+				user: 'usr_pb_123',
+				text: 'Server passage text',
+				source: 'Web',
+				deleted_at: null,
+				created: '2026-01-02 12:00:00.000Z',
+				updated: '2026-01-02 12:00:00.000Z'
+			};
+
+			const serverRunRecord = {
+				id: 'rec_run_server_2',
+				client_id: 'server-run-2',
+				user: 'usr_pb_123',
+				passage_id: 'server-p-2',
+				mode: 'timed',
+				duration: 60,
+				wpm: 125,
+				accuracy: 99,
+				time_elapsed: 60,
+				correct_chars: 620,
+				incorrect_chars: 2,
+				extra_chars: 0,
+				missed_chars: 0,
+				timeline_snapshots: [],
+				created_at: '2026-01-02T12:00:00.000Z',
+				created: '2026-01-02 12:00:00.000Z',
+				updated: '2026-01-02 12:00:00.000Z',
+				passage: { id: 'server-p-2', text: 'Server passage text', source: 'Web' }
+			};
+
+			const uploadedRuns: any[] = [];
+			const uploadedPassages: any[] = [];
+
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+
+				if (url.includes('/api/collections/settings/records')) {
+					return new Response(JSON.stringify({ items: [serverSettingsRecord] }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+
+				if (url.includes('/api/collections/custom_passages/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [serverPassageRecord] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'POST') {
+						const body = JSON.parse(init.body);
+						uploadedPassages.push(body);
+						return new Response(
+							JSON.stringify({
+								id: 'rec_p_created',
+								...body,
+								created: '2026-01-02 13:00:00.000Z',
+								updated: '2026-01-02 13:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+
+				if (url.includes('/api/collections/test_runs/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [serverRunRecord] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'POST') {
+						const body = JSON.parse(init.body);
+						uploadedRuns.push(body);
+						return new Response(
+							JSON.stringify({
+								id: 'rec_run_created',
+								...body,
+								created: '2026-01-02 13:00:00.000Z',
+								updated: '2026-01-02 13:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+
+				return new Response('Not found', { status: 404 });
+			});
+
+			const result = await pbController.sync();
+			expect(result.success).toBe(true);
+
+			// 1. Settings: Server won because 12:00 > 10:00
+			const localSettings = await memoryAdapter.getSettings();
+			expect(localSettings.duration).toBe(60);
+			expect(localSettings.theme).toBe('dark');
+			expect(localSettings.zenMode).toBe(true);
+
+			// 2. Custom Passages: Local passage was uploaded, server passage was merged locally
+			expect(uploadedPassages).toHaveLength(1);
+			expect(uploadedPassages[0]).toMatchObject({
+				user: 'usr_pb_123',
+				client_id: 'local-p-1',
+				text: 'Local passage'
+			});
+
+			const allPassages = await memoryAdapter.getCustomPassages(true);
+			expect(allPassages.some((p) => p.id === 'server-p-2')).toBe(true);
+			expect(allPassages.some((p) => p.id === 'local-p-1')).toBe(true);
+
+			// 3. Test Runs: Local run uploaded with client_id, server run merged without duplicate
+			expect(uploadedRuns).toHaveLength(1);
+			expect(uploadedRuns[0]).toMatchObject({
+				user: 'usr_pb_123',
+				client_id: 'local-run-1',
+				wpm: 105
+			});
+
+			const allRuns = await memoryAdapter.getTestRuns();
+			expect(allRuns).toHaveLength(2);
+			expect(allRuns.some((r) => r.id === 'local-run-1')).toBe(true);
+			expect(allRuns.some((r) => r.id === 'server-run-2')).toBe(true);
+
+			// Verify stored account lastSyncedAt
+			const account = await memoryAdapter.getSyncAccount();
+			expect(account?.lastSyncedAt).toBeDefined();
+		});
+
+		it('propagates custom passage soft-delete tombstones bidirectionally', async () => {
+			// Local store has an existing passage
+			const passage = await memoryAdapter.saveCustomPassage({
+				id: 'passage-to-delete',
+				text: 'Text about to be deleted',
+				updatedAt: '2026-01-01T00:00:00.000Z'
+			});
+
+			let patchedRemotePassage: any = null;
+
+			const remotePassage = {
+				id: 'rec_p_to_del',
+				client_id: 'passage-to-delete',
+				user: 'usr_pb_123',
+				text: 'Text about to be deleted',
+				source: null,
+				deleted_at: null,
+				created: '2026-01-01 00:00:00.000Z',
+				updated: '2026-01-01 00:00:00.000Z'
+			};
+
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+				if (url.includes('/api/collections/custom_passages/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [remotePassage] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'PATCH') {
+						patchedRemotePassage = JSON.parse(init.body);
+						return new Response(
+							JSON.stringify({
+								...remotePassage,
+								...patchedRemotePassage,
+								updated: '2026-01-02 12:00:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+				return new Response(JSON.stringify({ items: [] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			});
+
+			// Soft delete locally
+			await memoryAdapter.deleteCustomPassage(passage.id);
+
+			// Sync with PocketBase
+			const result = await pbController.sync();
+			expect(result.success).toBe(true);
+
+			// Server received the soft delete tombstone
+			expect(patchedRemotePassage).toBeDefined();
+			expect(patchedRemotePassage.deleted_at).toBeDefined();
+
+			// Active passages exclude the tombstoned passage
+			const activePassages = await memoryAdapter.getCustomPassages(false);
+			expect(activePassages.some((p) => p.id === 'passage-to-delete')).toBe(false);
+
+			// Deleted passages include tombstone
+			const allPassages = await memoryAdapter.getCustomPassages(true);
+			const tombstone = allPassages.find((p) => p.id === 'passage-to-delete');
+			expect(tombstone?.deletedAt).toBeDefined();
+		});
+
+		it('does not interrupt typing practice on disconnection, and pending runs upload on reconnection', async () => {
+			// Simulate offline/network failure
+			global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+
+			// Typist completes test run while offline
+			const offlineRun = await memoryAdapter.saveTestRun({
+				id: 'offline-run-1',
+				passageId: 'default',
+				mode: 'timed',
+				duration: 15,
+				wpm: 130,
+				accuracy: 100,
+				timeElapsed: 15,
+				correctChars: 150,
+				incorrectChars: 0,
+				extraChars: 0,
+				missedChars: 0,
+				timelineSnapshots: [],
+				createdAt: '2026-01-02T15:00:00.000Z'
+			});
+
+			// TypingEngine's onSave handler triggers background sync with catch()
+			let caughtError: any = null;
+			try {
+				const syncRes = await pbController.sync();
+				expect(syncRes.success).toBe(false);
+			} catch (err) {
+				caughtError = err;
+			}
+
+			// Background sync should not throw unhandled exception
+			expect(caughtError).toBeNull();
+			expect(pbController.getState().status).toBe('offline');
+
+			// Local test run remains safely preserved
+			const localRuns = await memoryAdapter.getTestRuns();
+			expect(localRuns.some((r) => r.id === 'offline-run-1')).toBe(true);
+
+			// Connectivity returns: PocketBase becomes available
+			const uploadedRuns: any[] = [];
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any = {}) => {
+				const method = init.method || 'GET';
+				if (url.includes('/api/collections/test_runs/records')) {
+					if (method === 'GET') {
+						return new Response(JSON.stringify({ items: [] }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' }
+						});
+					}
+					if (method === 'POST') {
+						const body = JSON.parse(init.body);
+						uploadedRuns.push(body);
+						return new Response(
+							JSON.stringify({
+								id: 'rec_uploaded',
+								...body,
+								created: '2026-01-02 15:05:00.000Z',
+								updated: '2026-01-02 15:05:00.000Z'
+							}),
+							{ status: 200, headers: { 'Content-Type': 'application/json' } }
+						);
+					}
+				}
+				return new Response(JSON.stringify({ items: [] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				});
+			});
+
+			// Reconnect / next sync runs
+			const reconnectResult = await pbController.sync();
+			expect(reconnectResult.success).toBe(true);
+			expect(pbController.getState().status).toBe('idle');
+
+			// Offline run was uploaded to PocketBase
+			expect(uploadedRuns).toHaveLength(1);
+			expect(uploadedRuns[0]).toMatchObject({
+				client_id: 'offline-run-1',
+				wpm: 130
+			});
+		});
+
+		it('unlinking clears server tokens while retaining local test history', async () => {
+			// Populate local test history
+			await memoryAdapter.saveTestRun({
+				id: 'history-run-1',
+				passageId: 'default',
+				mode: 'passage',
+				duration: null,
+				wpm: 95,
+				accuracy: 96,
+				timeElapsed: 45,
+				correctChars: 300,
+				incorrectChars: 5,
+				extraChars: 0,
+				missedChars: 1,
+				timelineSnapshots: [],
+				createdAt: '2026-01-01T12:00:00.000Z'
+			});
+
+			expect((await memoryAdapter.getTestRuns()).length).toBe(1);
+			expect(await memoryAdapter.getSyncAccount()).not.toBeNull();
+
+			// Unlink account
+			await pbController.unlinkAccount();
+
+			// Account and tokens are cleared
+			expect(await memoryAdapter.getSyncAccount()).toBeNull();
+			expect(pbController.getState().account).toBeNull();
+
+			// Local test history is strictly retained
+			const remainingRuns = await memoryAdapter.getTestRuns();
+			expect(remainingRuns).toHaveLength(1);
+			expect(remainingRuns[0].id).toBe('history-run-1');
+		});
+	});
 });
+

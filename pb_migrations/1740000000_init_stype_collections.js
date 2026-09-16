@@ -85,6 +85,11 @@ migrate(
 					cascadeDelete: true
 				},
 				{
+					name: 'client_id',
+					type: 'text',
+					required: false
+				},
+				{
 					name: 'text',
 					type: 'text',
 					required: true

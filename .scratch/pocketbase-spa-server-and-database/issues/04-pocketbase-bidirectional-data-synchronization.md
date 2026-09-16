@@ -4,11 +4,11 @@
 
 **Blocked by:** 03 — PocketBase Client Authentication and Registration Dialog.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Test runs recorded locally upload to the PocketBase test runs collection and merge server runs into local storage using client-generated identifiers without duplicates.
-- [ ] Custom passages sync bidirectionally using updated timestamp comparisons and propagate soft delete tombstones.
-- [ ] Settings sync bidirectionally using Last-Write-Wins based on updated timestamp.
-- [ ] Disconnections during typing tests do not interrupt practice, and pending records upload on next successful connection.
-- [ ] Unlinking an account clears server tokens while retaining local test history.
-- [ ] Automated tests verify batch data reconciliation against the PocketBase backend.
+- [x] Test runs recorded locally upload to the PocketBase test runs collection and merge server runs into local storage using client-generated identifiers without duplicates.
+- [x] Custom passages sync bidirectionally using updated timestamp comparisons and propagate soft delete tombstones.
+- [x] Settings sync bidirectionally using Last-Write-Wins based on updated timestamp.
+- [x] Disconnections during typing tests do not interrupt practice, and pending records upload on next successful connection.
+- [x] Unlinking an account clears server tokens while retaining local test history.
+- [x] Automated tests verify batch data reconciliation against the PocketBase backend.
