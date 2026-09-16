@@ -34,3 +34,33 @@ export interface SyncResponse {
 	testRuns?: GuestTestRun[];
 	error?: string;
 }
+
+export interface LoginCredentials {
+	serverUrl: string;
+	identifier: string;
+	password: string;
+}
+
+export interface RegisterCredentials {
+	serverUrl: string;
+	username: string;
+	password: string;
+	email?: string;
+	name?: string;
+}
+
+export interface SyncBackend {
+	readonly name: string;
+	login(credentials: LoginCredentials): Promise<SyncAccount>;
+	logout(account: SyncAccount): Promise<void>;
+	register?(credentials: RegisterCredentials): Promise<SyncAccount>;
+	sync(account: SyncAccount, payload: SyncPayload): Promise<SyncResponse>;
+	fetchRemoteChanges?(account: SyncAccount, since?: string | null): Promise<SyncResponse>;
+	uploadLocalChanges?(account: SyncAccount, payload: SyncPayload): Promise<void>;
+	subscribe?(
+		account: SyncAccount,
+		onUpdate: (data: Partial<SyncResponse>) => void
+	): () => void;
+	supports?(serverUrl: string): Promise<boolean> | boolean;
+}
+

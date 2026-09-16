@@ -1,14 +1,23 @@
 import { writable, type Readable } from 'svelte/store';
 import { getDefaultAdapter, type LocalStoreAdapter } from '$lib/storage';
-import type { SyncAccount, SyncState, SyncResult, SyncResponse } from './types';
+import { NodeSyncBackend } from './node-backend';
+import type {
+	SyncAccount,
+	SyncState,
+	SyncResult,
+	SyncBackend,
+	RegisterCredentials
+} from './types';
 
 export interface SyncControllerOptions {
 	adapter?: LocalStoreAdapter;
+	backend?: SyncBackend;
 	pollIntervalMs?: number;
 }
 
 export class SyncController implements Readable<SyncState> {
 	private adapter: LocalStoreAdapter;
+	private backend: SyncBackend;
 	private stateStore = writable<SyncState>({
 		status: 'idle',
 		account: null,
@@ -22,6 +31,7 @@ export class SyncController implements Readable<SyncState> {
 
 	constructor(options: SyncControllerOptions = {}) {
 		this.adapter = options.adapter ?? getDefaultAdapter();
+		this.backend = options.backend ?? new NodeSyncBackend();
 		if (options.pollIntervalMs && options.pollIntervalMs > 0) {
 			this.pollTimer = setInterval(() => {
 				this.sync().catch(() => {});
@@ -45,6 +55,22 @@ export class SyncController implements Readable<SyncState> {
 		return current;
 	}
 
+	getBackend(): SyncBackend {
+		return this.backend;
+	}
+
+	setBackend(backend: SyncBackend): void {
+		this.backend = backend;
+	}
+
+	getAdapter(): LocalStoreAdapter {
+		return this.adapter;
+	}
+
+	setAdapter(adapter: LocalStoreAdapter): void {
+		this.adapter = adapter;
+	}
+
 	async init(): Promise<void> {
 		const account = await this.adapter.getSyncAccount();
 		this.stateStore.update((s) => ({
@@ -60,30 +86,41 @@ export class SyncController implements Readable<SyncState> {
 			throw new Error('Server URL is required');
 		}
 
-		let response: Response;
-		try {
-			response = await fetch(`${serverUrl}/api/auth/login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ identifier, password, username: identifier })
-			});
-		} catch (err) {
-			const errorMsg = err instanceof Error ? err.message : 'Network error connecting to server';
-			throw new Error(errorMsg);
-		}
+		const account = await this.backend.login({ serverUrl, identifier, password });
 
-		const data = await response.json().catch(() => ({}));
-		if (!response.ok) {
-			const msg = data.error || data.message || `Authentication failed (${response.status})`;
-			throw new Error(msg);
-		}
+		await this.adapter.saveSyncAccount(account);
 
-		const account: SyncAccount = {
-			serverUrl,
-			token: data.token,
-			user: data.user,
+		this.stateStore.update((s) => ({
+			...s,
+			account,
+			status: 'idle',
+			lastError: null,
 			lastSyncedAt: null
-		};
+		}));
+
+		// Trigger initial background sync
+		this.sync().catch(() => {});
+
+		return account;
+	}
+
+	async registerAccount(
+		rawServerUrl: string,
+		credentials: Omit<RegisterCredentials, 'serverUrl'>
+	): Promise<SyncAccount> {
+		const serverUrl = rawServerUrl.trim().replace(/\/+$/, '');
+		if (!serverUrl) {
+			throw new Error('Server URL is required');
+		}
+
+		if (!this.backend.register) {
+			throw new Error(`Backend '${this.backend.name}' does not support account registration`);
+		}
+
+		const account = await this.backend.register({
+			...credentials,
+			serverUrl
+		});
 
 		await this.adapter.saveSyncAccount(account);
 
@@ -105,13 +142,7 @@ export class SyncController implements Readable<SyncState> {
 		const account = await this.adapter.getSyncAccount();
 		if (account) {
 			try {
-				await fetch(`${account.serverUrl}/api/auth/logout`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						Authorization: `Bearer ${account.token}`
-					}
-				});
+				await this.backend.logout(account);
 			} catch {
 				// Ignore network errors when logging out
 			}
@@ -155,27 +186,7 @@ export class SyncController implements Readable<SyncState> {
 				testRuns
 			};
 
-			const response = await fetch(`${account.serverUrl}/api/sync`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${account.token}`
-				},
-				body: JSON.stringify(payload)
-			});
-
-			if (!response.ok) {
-				const errData = await response.json().catch(() => ({}));
-				const errorMsg = errData.error || errData.message || `Sync failed with status ${response.status}`;
-				this.stateStore.update((s) => ({
-					...s,
-					status: 'error',
-					lastError: errorMsg
-				}));
-				return { success: false, error: errorMsg };
-			}
-
-			const data: SyncResponse = await response.json();
+			const data = await this.backend.sync(account, payload);
 			const syncedAt = data.syncedAt || new Date().toISOString();
 
 			// 1. Merge server settings (Last-Write-Wins)

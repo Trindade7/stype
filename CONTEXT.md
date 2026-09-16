@@ -108,5 +108,10 @@ _Avoid_: Recovery ticket, reset claim
 A cryptographically secure, time-limited single-use token sent to verify a user's email address.
 _Avoid_: Verification code, activation key, confirm link
 
+**Sync Backend**:
+The remote server system responsible for authenticating users and storing synchronized test runs, custom passages, and settings.
+_Avoid_: Sync target, remote host, sync server
+
+
 
 

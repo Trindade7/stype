@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SyncController } from './sync-controller';
+import { NodeSyncBackend } from './node-backend';
 import { MemoryStoreAdapter } from '$lib/storage/memory';
 import type { SyncAccount } from '$lib/storage/types';
+import type { SyncBackend, SyncPayload, SyncResponse } from './types';
 
 describe('SyncController', () => {
 	let memoryAdapter: MemoryStoreAdapter;
@@ -328,6 +330,182 @@ describe('SyncController', () => {
 			await new Promise((r) => setTimeout(r, 20));
 
 			expect(syncCalls).toBe(1);
+		});
+	});
+
+	describe('pluggable SyncBackend interface', () => {
+		it('defaults to NodeSyncBackend when no backend option is provided', () => {
+			const c = new SyncController({ adapter: memoryAdapter });
+			expect(c.getBackend()).toBeInstanceOf(NodeSyncBackend);
+			expect(c.getBackend().name).toBe('node');
+			c.destroy();
+		});
+
+		it('accepts and uses a custom SyncBackend implementation', async () => {
+			const mockAccount: SyncAccount = {
+				serverUrl: 'https://custom-backend.test',
+				token: 'custom-tok-123',
+				user: { id: 'u-custom', username: 'custom_user' },
+				lastSyncedAt: null
+			};
+
+			const mockBackend: SyncBackend = {
+				name: 'custom-mock',
+				login: vi.fn().mockResolvedValue(mockAccount),
+				logout: vi.fn().mockResolvedValue(undefined),
+				sync: vi.fn().mockResolvedValue({
+					success: true,
+					syncedAt: '2026-03-01T00:00:00.000Z',
+					settings: null,
+					customPassages: [],
+					testRuns: []
+				})
+			};
+
+			const customController = new SyncController({
+				adapter: memoryAdapter,
+				backend: mockBackend
+			});
+
+			expect(customController.getBackend()).toBe(mockBackend);
+			expect(customController.getBackend().name).toBe('custom-mock');
+
+			// Test linkAccount delegates to mockBackend.login
+			const linked = await customController.linkAccount('https://custom-backend.test', 'custom_user', 'pw123');
+			expect(linked).toEqual(mockAccount);
+			expect(mockBackend.login).toHaveBeenCalledWith({
+				serverUrl: 'https://custom-backend.test',
+				identifier: 'custom_user',
+				password: 'pw123'
+			});
+
+			// Allow initial background sync to complete
+			await new Promise((r) => setTimeout(r, 10));
+
+			// Test sync delegates to mockBackend.sync with local payload
+			const syncResult = await customController.sync();
+			expect(syncResult.success).toBe(true);
+			expect(mockBackend.sync).toHaveBeenCalledWith(
+				expect.objectContaining({ serverUrl: 'https://custom-backend.test' }),
+				expect.objectContaining({
+					lastSyncedAt: null,
+					settings: expect.any(Object),
+					customPassages: expect.any(Array),
+					testRuns: expect.any(Array)
+				})
+			);
+
+			// Test unlinkAccount delegates to mockBackend.logout
+			await customController.unlinkAccount();
+			expect(mockBackend.logout).toHaveBeenCalledWith(
+				expect.objectContaining({
+					serverUrl: 'https://custom-backend.test',
+					token: 'custom-tok-123'
+				})
+			);
+			expect(customController.getState().account).toBeNull();
+
+			customController.destroy();
+		});
+
+		it('allows dynamically changing the backend via setBackend', async () => {
+			const c = new SyncController({ adapter: memoryAdapter });
+			expect(c.getBackend().name).toBe('node');
+
+			const newBackend: SyncBackend = {
+				name: 'new-backend',
+				login: vi.fn(),
+				logout: vi.fn(),
+				sync: vi.fn()
+			};
+
+			c.setBackend(newBackend);
+			expect(c.getBackend().name).toBe('new-backend');
+			c.destroy();
+		});
+
+		it('delegates registerAccount to backend when register is supported', async () => {
+			const registeredAccount: SyncAccount = {
+				serverUrl: 'https://custom-backend.test',
+				token: 'reg-tok-456',
+				user: { id: 'u-reg', username: 'newuser', email: 'new@example.com' },
+				lastSyncedAt: null
+			};
+
+			const mockBackendWithRegister: SyncBackend = {
+				name: 'registerable-mock',
+				login: vi.fn(),
+				logout: vi.fn(),
+				register: vi.fn().mockResolvedValue(registeredAccount),
+				sync: vi.fn().mockResolvedValue({ success: true, syncedAt: '2026-03-01T00:00:00.000Z' })
+			};
+
+			const c = new SyncController({
+				adapter: memoryAdapter,
+				backend: mockBackendWithRegister
+			});
+
+			const account = await c.registerAccount('https://custom-backend.test', {
+				username: 'newuser',
+				password: 'password123',
+				email: 'new@example.com'
+			});
+
+			expect(account).toEqual(registeredAccount);
+			expect(mockBackendWithRegister.register).toHaveBeenCalledWith({
+				serverUrl: 'https://custom-backend.test',
+				username: 'newuser',
+				password: 'password123',
+				email: 'new@example.com'
+			});
+			expect(c.getState().account).toEqual(registeredAccount);
+			c.destroy();
+		});
+
+		it('throws when registerAccount is called on a backend without registration support', async () => {
+			const c = new SyncController({ adapter: memoryAdapter }); // defaults to NodeSyncBackend
+			await expect(
+				c.registerAccount('https://stype.io', {
+					username: 'someone',
+					password: 'pass'
+				})
+			).rejects.toThrow(/does not support account registration/);
+			c.destroy();
+		});
+
+		it('periodically polls sync when pollIntervalMs is set', async () => {
+			vi.useFakeTimers();
+			const mockBackend: SyncBackend = {
+				name: 'poll-mock',
+				login: vi.fn(),
+				logout: vi.fn(),
+				sync: vi.fn().mockResolvedValue({
+					success: true,
+					syncedAt: '2026-03-01T00:00:00.000Z'
+				})
+			};
+
+			const c = new SyncController({
+				adapter: memoryAdapter,
+				backend: mockBackend,
+				pollIntervalMs: 5000
+			});
+
+			await memoryAdapter.saveSyncAccount({
+				serverUrl: 'https://test.local',
+				token: 'tok',
+				user: { id: 'u-1', username: 'poller' }
+			});
+			await c.init();
+
+			expect(mockBackend.sync).not.toHaveBeenCalled();
+
+			await vi.advanceTimersByTimeAsync(5000);
+
+			expect(mockBackend.sync).toHaveBeenCalledTimes(1);
+
+			c.destroy();
+			vi.useRealTimers();
 		});
 	});
 });
