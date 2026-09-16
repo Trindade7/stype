@@ -30,6 +30,8 @@ vite.config.ts.timestamp-*
 *.sqlite-journal
 data/*
 !data/.gitkeep
+pb_data/*
+!pb_data/.gitkeep
 
 # Tauri
 src-tauri/target/

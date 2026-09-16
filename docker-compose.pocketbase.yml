@@ -1,0 +1,11 @@
+services:
+  stype-pocketbase:
+    build:
+      context: .
+      dockerfile: Dockerfile.pocketbase
+    container_name: stype-pocketbase
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8090}:8090"
+    volumes:
+      - ./pb_data:/app/pb_data

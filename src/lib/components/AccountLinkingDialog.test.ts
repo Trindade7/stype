@@ -20,8 +20,10 @@ describe('AccountLinkingDialog Component', () => {
 		vi.restoreAllMocks();
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		cleanup();
+		// Wait for bits-ui body-scroll-lock 24ms cleanup timer to complete before teardown
+		await new Promise((resolve) => setTimeout(resolve, 50));
 	});
 
 	it('renders linking form fields when not linked', () => {

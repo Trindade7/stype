@@ -4,10 +4,10 @@
 
 **Blocked by:** None, can start immediately.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] PocketBase migration files configure collections for settings, custom passages, and test runs alongside the built-in users collection.
-- [ ] Access rules on collections enforce that users can only read, write, and delete their own records.
-- [ ] Dedicated Dockerfile builds the static SPA, pulls the PocketBase binary, bundles migrations, and serves the static files from the public folder.
-- [ ] Dedicated Docker Compose file configures port 8090 and persistent data volume mounts.
-- [ ] Verification tests validate that migrations contain required fields and access rules.
+- [x] PocketBase migration files configure collections for settings, custom passages, and test runs alongside the built-in users collection.
+- [x] Access rules on collections enforce that users can only read, write, and delete their own records.
+- [x] Dedicated Dockerfile builds the static SPA, pulls the PocketBase binary, bundles migrations, and serves the static files from the public folder.
+- [x] Dedicated Docker Compose file configures port 8090 and persistent data volume mounts.
+- [x] Verification tests validate that migrations contain required fields and access rules.

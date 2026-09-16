@@ -17,18 +17,17 @@ if (typeof Element !== 'undefined') {
 	}
 }
 
-afterAll(() => {
+afterAll(async () => {
 	// Guard against trailing timeouts (such as bits-ui body-scroll-lock cleanup)
 	// accessing global `document` after the jsdom environment has been torn down.
-	setTimeout(() => {
-		if (typeof globalThis.document === 'undefined') {
-			(globalThis as any).document = {
-				body: {
-					setAttribute: () => {},
-					style: { removeProperty: () => {} }
-				}
-			};
-		}
-	}, 0);
+	await new Promise((resolve) => setTimeout(resolve, 100));
+	if (typeof globalThis.document === 'undefined') {
+		(globalThis as any).document = {
+			body: {
+				setAttribute: () => {},
+				style: { removeProperty: () => {} }
+			}
+		};
+	}
 });
 

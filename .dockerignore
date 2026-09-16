@@ -5,6 +5,7 @@ src-tauri
 build
 .svelte-kit
 data
+pb_data
 .scratch
 .vscode
 .ignore-proj
