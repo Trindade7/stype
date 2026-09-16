@@ -11,7 +11,8 @@
 		Chart01Icon,
 		Book01Icon,
 		Settings02Icon,
-		CloudIcon
+		CloudIcon,
+		UserCircleIcon
 	} from '@hugeicons/core-free-icons';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -103,19 +104,31 @@
 					type="button"
 					class={buttonVariants({ variant: isLinked ? 'secondary' : 'outline', size: 'sm' }) + " gap-1.5"}
 					onclick={() => (isAccountDialogOpen = true)}
-					aria-label="Link server account"
+					aria-label={isLinked ? 'Sync account' : 'Link server account'}
 				>
 					<HugeiconsIcon icon={CloudIcon} size={16} />
 					<span>{isLinked ? 'Sync' : 'Link Account'}</span>
 				</button>
 			</div>
 
-			<!-- Desktop Log in Button -->
+			<!-- Desktop Log in Button / User Info -->
 			<div class="hidden sm:flex">
-				<a href="/app/login" class={buttonVariants({ variant: 'outline', size: 'sm' }) + " gap-2"}>
-					<HugeiconsIcon icon={LogInIcon} size={16} />
-					<span>Log in</span>
-				</a>
+				{#if isLinked && syncState.account}
+					<button
+						type="button"
+						class={buttonVariants({ variant: 'ghost', size: 'sm' }) + " gap-1.5 font-medium max-w-[150px] truncate"}
+						onclick={() => (isAccountDialogOpen = true)}
+						aria-label="Account details"
+					>
+						<HugeiconsIcon icon={UserCircleIcon} size={16} class="shrink-0" />
+						<span class="truncate">{syncState.account.user.username}</span>
+					</button>
+				{:else}
+					<a href="/app/login" class={buttonVariants({ variant: 'outline', size: 'sm' }) + " gap-2"}>
+						<HugeiconsIcon icon={LogInIcon} size={16} />
+						<span>Log in</span>
+					</a>
+				{/if}
 			</div>
 
 			<!-- Mobile Navigation Menu Dropdown -->
@@ -178,12 +191,21 @@
 								{isLinked ? 'Sync Account' : 'Link Server Account'}
 							</button>
 						</DropdownMenu.Item>
-						<DropdownMenu.Item class="w-full cursor-pointer p-0" onclick={closeMobileMenu}>
-							<a href="/app/login" class="w-full flex items-center px-2 py-1.5 font-medium">
-								<HugeiconsIcon icon={LogInIcon} size={16} class="mr-2" />
-								Log in
-							</a>
-						</DropdownMenu.Item>
+						{#if isLinked && syncState.account}
+							<DropdownMenu.Item class="w-full cursor-pointer p-0" onclick={() => { closeMobileMenu(); isAccountDialogOpen = true; }}>
+								<button type="button" class="w-full flex items-center px-2 py-1.5 font-medium text-left">
+									<HugeiconsIcon icon={UserCircleIcon} size={16} class="mr-2" />
+									<span>{syncState.account.user.username}</span>
+								</button>
+							</DropdownMenu.Item>
+						{:else}
+							<DropdownMenu.Item class="w-full cursor-pointer p-0" onclick={closeMobileMenu}>
+								<a href="/app/login" class="w-full flex items-center px-2 py-1.5 font-medium">
+									<HugeiconsIcon icon={LogInIcon} size={16} class="mr-2" />
+									Log in
+								</a>
+							</DropdownMenu.Item>
+						{/if}
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 			</div>

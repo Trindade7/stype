@@ -1,6 +1,7 @@
 import { writable, type Readable } from 'svelte/store';
 import { getDefaultAdapter, type LocalStoreAdapter } from '$lib/storage';
 import { NodeSyncBackend } from './node-backend';
+import { PocketBaseSyncBackend, isPocketBaseHost } from './pocketbase-backend';
 import type {
 	SyncAccount,
 	SyncState,
@@ -18,6 +19,7 @@ export interface SyncControllerOptions {
 export class SyncController implements Readable<SyncState> {
 	private adapter: LocalStoreAdapter;
 	private backend: SyncBackend;
+	private hasCustomBackend: boolean;
 	private stateStore = writable<SyncState>({
 		status: 'idle',
 		account: null,
@@ -31,6 +33,7 @@ export class SyncController implements Readable<SyncState> {
 
 	constructor(options: SyncControllerOptions = {}) {
 		this.adapter = options.adapter ?? getDefaultAdapter();
+		this.hasCustomBackend = !!options.backend;
 		this.backend = options.backend ?? new NodeSyncBackend();
 		if (options.pollIntervalMs && options.pollIntervalMs > 0) {
 			this.pollTimer = setInterval(() => {
@@ -61,6 +64,7 @@ export class SyncController implements Readable<SyncState> {
 
 	setBackend(backend: SyncBackend): void {
 		this.backend = backend;
+		this.hasCustomBackend = true;
 	}
 
 	getAdapter(): LocalStoreAdapter {
@@ -71,8 +75,26 @@ export class SyncController implements Readable<SyncState> {
 		this.adapter = adapter;
 	}
 
+	private async resolveBackend(serverUrl: string): Promise<SyncBackend> {
+		if (this.hasCustomBackend) {
+			return this.backend;
+		}
+		const isPB = await isPocketBaseHost(serverUrl);
+		if (isPB) {
+			return new PocketBaseSyncBackend();
+		}
+		return this.backend;
+	}
+
 	async init(): Promise<void> {
 		const account = await this.adapter.getSyncAccount();
+		if (!this.hasCustomBackend && account?.backend) {
+			if (account.backend === 'pocketbase' && this.backend.name !== 'pocketbase') {
+				this.backend = new PocketBaseSyncBackend();
+			} else if (account.backend === 'node' && this.backend.name !== 'node') {
+				this.backend = new NodeSyncBackend();
+			}
+		}
 		this.stateStore.update((s) => ({
 			...s,
 			account,
@@ -86,7 +108,12 @@ export class SyncController implements Readable<SyncState> {
 			throw new Error('Server URL is required');
 		}
 
-		const account = await this.backend.login({ serverUrl, identifier, password });
+		const backend = await this.resolveBackend(serverUrl);
+		const account = await backend.login({ serverUrl, identifier, password });
+		if (!account.backend) {
+			account.backend = backend.name;
+		}
+		this.backend = backend;
 
 		await this.adapter.saveSyncAccount(account);
 
@@ -113,14 +140,26 @@ export class SyncController implements Readable<SyncState> {
 			throw new Error('Server URL is required');
 		}
 
-		if (!this.backend.register) {
-			throw new Error(`Backend '${this.backend.name}' does not support account registration`);
+		let backend = await this.resolveBackend(serverUrl);
+		if (!backend.register && !this.hasCustomBackend) {
+			const pb = new PocketBaseSyncBackend();
+			if (await pb.supports(serverUrl)) {
+				backend = pb;
+			}
 		}
 
-		const account = await this.backend.register({
+		if (!backend.register) {
+			throw new Error(`Backend '${backend.name}' does not support account registration`);
+		}
+
+		const account = await backend.register({
 			...credentials,
 			serverUrl
 		});
+		if (!account.backend) {
+			account.backend = backend.name;
+		}
+		this.backend = backend;
 
 		await this.adapter.saveSyncAccount(account);
 

@@ -1,10 +1,12 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { syncController } from '$lib/sync';
+	import { detectDefaultServerUrl } from '$lib/sync/pocketbase-backend';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import {
 		CloudIcon,
@@ -19,20 +21,53 @@
 
 	let {
 		open = $bindable(false),
-		trigger
+		trigger,
+		defaultServerUrl = ''
 	}: {
 		open?: boolean;
 		trigger?: Snippet;
+		defaultServerUrl?: string;
 	} = $props();
 
+	let activeTab = $state<'login' | 'register'>('login');
 	let serverUrl = $state('');
 	let identifier = $state('');
 	let password = $state('');
+
+	let regUsername = $state('');
+	let regEmail = $state('');
+	let regPassword = $state('');
+	let regConfirmPassword = $state('');
+	let regName = $state('');
+
 	let isSubmitting = $state(false);
 	let errorMessage = $state<string | null>(null);
 
 	const syncState = $derived($syncController);
 	const isLinked = $derived(!!syncState.account);
+
+	async function checkDefaultOrigin() {
+		if (!serverUrl) {
+			if (defaultServerUrl) {
+				serverUrl = defaultServerUrl;
+				return;
+			}
+			const detected = await detectDefaultServerUrl();
+			if (detected && !serverUrl) {
+				serverUrl = detected;
+			}
+		}
+	}
+
+	onMount(() => {
+		checkDefaultOrigin();
+	});
+
+	$effect(() => {
+		if (open) {
+			checkDefaultOrigin();
+		}
+	});
 
 	function formatLastSynced(timestamp: string | null): string {
 		if (!timestamp) return 'Never synced';
@@ -56,6 +91,38 @@
 		}
 	}
 
+	async function handleRegister(e: SubmitEvent) {
+		e.preventDefault();
+		errorMessage = null;
+
+		if (regPassword !== regConfirmPassword) {
+			errorMessage = 'Passwords do not match';
+			return;
+		}
+
+		if (regPassword.length < 8) {
+			errorMessage = 'Password must be at least 8 characters';
+			return;
+		}
+
+		isSubmitting = true;
+
+		try {
+			await syncController.registerAccount(serverUrl, {
+				username: regUsername,
+				password: regPassword,
+				email: regEmail.trim() || undefined,
+				name: regName.trim() || undefined
+			});
+			regPassword = '';
+			regConfirmPassword = '';
+		} catch (err) {
+			errorMessage = err instanceof Error ? err.message : 'Failed to register account';
+		} finally {
+			isSubmitting = false;
+		}
+	}
+
 	async function handleSyncNow() {
 		errorMessage = null;
 		const res = await syncController.sync();
@@ -70,6 +137,11 @@
 		serverUrl = '';
 		identifier = '';
 		password = '';
+		regUsername = '';
+		regEmail = '';
+		regPassword = '';
+		regConfirmPassword = '';
+		regName = '';
 	}
 </script>
 
@@ -155,7 +227,7 @@
 				</Dialog.Footer>
 			</div>
 		{:else}
-			<form onsubmit={handleLink} class="space-y-4 py-2">
+			<div class="space-y-4 py-2">
 				<div class="space-y-2">
 					<Label for="server-url">Server URL</Label>
 					<Input
@@ -167,42 +239,125 @@
 					/>
 				</div>
 
-				<div class="space-y-2">
-					<Label for="sync-identifier">Username or Email</Label>
-					<Input
-						id="sync-identifier"
-						type="text"
-						placeholder="username or user@example.com"
-						bind:value={identifier}
-						required
-						autocomplete="username"
-					/>
-				</div>
+				<Tabs.Root
+					value={activeTab}
+					onValueChange={(val) => {
+						activeTab = val as 'login' | 'register';
+						errorMessage = null;
+					}}
+					class="w-full"
+				>
+					<Tabs.List class="grid w-full grid-cols-2">
+						<Tabs.Trigger value="login">Log In</Tabs.Trigger>
+						<Tabs.Trigger value="register">Register</Tabs.Trigger>
+					</Tabs.List>
 
-				<div class="space-y-2">
-					<Label for="sync-password">Password</Label>
-					<Input
-						id="sync-password"
-						type="password"
-						placeholder="••••••••"
-						bind:value={password}
-						required
-						autocomplete="current-password"
-					/>
-				</div>
+					{#if activeTab === 'login'}
+						<Tabs.Content value="login">
+							<form onsubmit={handleLink} class="space-y-4 pt-2">
+								<div class="space-y-2">
+									<Label for="sync-identifier">Username or Email</Label>
+									<Input
+										id="sync-identifier"
+										type="text"
+										placeholder="username or user@example.com"
+										bind:value={identifier}
+										required
+										autocomplete="username"
+									/>
+								</div>
 
-				<Dialog.Footer class="pt-2">
-					<Button type="submit" class="w-full" disabled={isSubmitting}>
-						{#if isSubmitting}
-							<HugeiconsIcon icon={Loading03Icon} size={16} class="mr-2 animate-spin" />
-							Connecting...
-						{:else}
-							<HugeiconsIcon icon={Link01Icon} size={16} class="mr-2" />
-							Link Account
-						{/if}
-					</Button>
-				</Dialog.Footer>
-			</form>
+								<div class="space-y-2">
+									<Label for="sync-password">Password</Label>
+									<Input
+										id="sync-password"
+										type="password"
+										placeholder="••••••••"
+										bind:value={password}
+										required
+										autocomplete="current-password"
+									/>
+								</div>
+
+								<Dialog.Footer class="pt-2">
+									<Button type="submit" class="w-full" disabled={isSubmitting}>
+										{#if isSubmitting}
+											<HugeiconsIcon icon={Loading03Icon} size={16} class="mr-2 animate-spin" />
+											Connecting...
+										{:else}
+											<HugeiconsIcon icon={Link01Icon} size={16} class="mr-2" />
+											Link Account
+										{/if}
+									</Button>
+								</Dialog.Footer>
+							</form>
+						</Tabs.Content>
+					{:else}
+						<Tabs.Content value="register">
+							<form onsubmit={handleRegister} class="space-y-4 pt-2">
+								<div class="space-y-2">
+									<Label for="register-username">Username</Label>
+									<Input
+										id="register-username"
+										type="text"
+										placeholder="protypist"
+										bind:value={regUsername}
+										required
+										autocomplete="username"
+									/>
+								</div>
+
+								<div class="space-y-2">
+									<Label for="register-email">Email (optional)</Label>
+									<Input
+										id="register-email"
+										type="email"
+										placeholder="typist@example.com"
+										bind:value={regEmail}
+										autocomplete="email"
+									/>
+								</div>
+
+								<div class="space-y-2">
+									<Label for="register-password">Password</Label>
+									<Input
+										id="register-password"
+										type="password"
+										placeholder="••••••••"
+										bind:value={regPassword}
+										required
+										autocomplete="new-password"
+									/>
+								</div>
+
+								<div class="space-y-2">
+									<Label for="register-password-confirm">Confirm Password</Label>
+									<Input
+										id="register-password-confirm"
+										type="password"
+										placeholder="••••••••"
+										bind:value={regConfirmPassword}
+										required
+										autocomplete="new-password"
+									/>
+								</div>
+
+								<Dialog.Footer class="pt-2">
+									<Button type="submit" class="w-full" disabled={isSubmitting}>
+										{#if isSubmitting}
+											<HugeiconsIcon icon={Loading03Icon} size={16} class="mr-2 animate-spin" />
+											Registering...
+										{:else}
+											<HugeiconsIcon icon={Link01Icon} size={16} class="mr-2" />
+											Create Account
+										{/if}
+									</Button>
+								</Dialog.Footer>
+							</form>
+						</Tabs.Content>
+					{/if}
+				</Tabs.Root>
+			</div>
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>

@@ -5,6 +5,7 @@ import GuestHeader from './GuestHeader.svelte';
 import { localStore, DEFAULT_GUEST_SETTINGS } from '$lib/localStore';
 import { setAdapter, resetMigrationStatus } from '$lib/storage';
 import { viewportLayout } from '$lib/viewport';
+import { syncController } from '$lib/sync';
 
 describe('GuestHeader Component', () => {
 	beforeEach(async () => {
@@ -172,5 +173,26 @@ describe('GuestHeader Component', () => {
 
 		expect(await screen.findByRole('heading', { name: /link server account/i })).toBeInTheDocument();
 		expect(screen.getByLabelText(/server url/i)).toBeInTheDocument();
+	});
+
+	it('updates header to display authenticated user profile and sync state when linked', async () => {
+		(syncController as any).stateStore.set({
+			status: 'idle',
+			account: {
+				serverUrl: 'http://localhost:8090',
+				token: 'pb-token-header',
+				user: { id: 'u-h1', username: 'fastfinger' },
+				lastSyncedAt: null,
+				backend: 'pocketbase'
+			},
+			lastSyncedAt: null,
+			lastError: null
+		});
+
+		render(GuestHeader);
+
+		expect(screen.getByText('fastfinger')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /sync/i })).toBeInTheDocument();
+		expect(screen.queryByRole('link', { name: /log in/i })).not.toBeInTheDocument();
 	});
 });

@@ -101,6 +101,108 @@ describe('SyncController', () => {
 			expect(await memoryAdapter.getSyncAccount()).toBeNull();
 			expect(controller.getState().account).toBeNull();
 		});
+
+		it('auto-detects PocketBase server and links account with PocketBase backend', async () => {
+			const serverUrl = 'http://localhost:8090';
+			global.fetch = vi.fn().mockImplementation(async (url: string) => {
+				if (url === `${serverUrl}/api/health`) {
+					return new Response(JSON.stringify({ code: 200, message: 'API is healthy.', data: {} }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				if (url === `${serverUrl}/api/collections/users/auth-with-password`) {
+					return new Response(
+						JSON.stringify({
+							token: 'pb-token-123',
+							record: {
+								id: 'pb-u-1',
+								username: 'pbuser',
+								email: 'pbuser@example.com'
+							}
+						}),
+						{ status: 200, headers: { 'Content-Type': 'application/json' } }
+					);
+				}
+				return new Response('Not found', { status: 404 });
+			});
+
+			const account = await controller.linkAccount(serverUrl, 'pbuser', 'pbpass');
+
+			expect(account.token).toBe('pb-token-123');
+			expect(account.backend).toBe('pocketbase');
+			expect(controller.getBackend().name).toBe('pocketbase');
+
+			const stored = await memoryAdapter.getSyncAccount();
+			expect(stored?.backend).toBe('pocketbase');
+		});
+
+		it('registers new account using PocketBase backend and saves session', async () => {
+			const serverUrl = 'http://localhost:8090';
+			global.fetch = vi.fn().mockImplementation(async (url: string, init: any) => {
+				if (url === `${serverUrl}/api/health`) {
+					return new Response(JSON.stringify({ code: 200, message: 'API is healthy.', data: {} }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				if (url === `${serverUrl}/api/collections/users/records`) {
+					const body = JSON.parse(init.body);
+					return new Response(
+						JSON.stringify({
+							id: 'pb-u-2',
+							username: body.username,
+							email: body.email
+						}),
+						{ status: 200, headers: { 'Content-Type': 'application/json' } }
+					);
+				}
+				if (url === `${serverUrl}/api/collections/users/auth-with-password`) {
+					return new Response(
+						JSON.stringify({
+							token: 'pb-token-new',
+							record: {
+								id: 'pb-u-2',
+								username: 'newreguser',
+								email: 'newreg@example.com'
+							}
+						}),
+						{ status: 200, headers: { 'Content-Type': 'application/json' } }
+					);
+				}
+				return new Response('Not found', { status: 404 });
+			});
+
+			const account = await controller.registerAccount(serverUrl, {
+				username: 'newreguser',
+				password: 'securepass123',
+				email: 'newreg@example.com'
+			});
+
+			expect(account.token).toBe('pb-token-new');
+			expect(account.user.username).toBe('newreguser');
+			expect(account.backend).toBe('pocketbase');
+			expect(controller.getBackend().name).toBe('pocketbase');
+
+			const stored = await memoryAdapter.getSyncAccount();
+			expect(stored?.token).toBe('pb-token-new');
+		});
+
+		it('init restores PocketBase backend when stored account specifies pocketbase', async () => {
+			const pbAccount: SyncAccount = {
+				serverUrl: 'http://localhost:8090',
+				token: 'pb-token-saved',
+				user: { id: 'u-pb', username: 'pbusersaved' },
+				lastSyncedAt: '2026-02-01T00:00:00.000Z',
+				backend: 'pocketbase'
+			};
+			await memoryAdapter.saveSyncAccount(pbAccount);
+
+			await controller.init();
+
+			expect(controller.getState().account?.user.username).toBe('pbusersaved');
+			expect(controller.getBackend().name).toBe('pocketbase');
+		});
 	});
 
 	describe('sync() execution', () => {

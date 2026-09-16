@@ -78,6 +78,7 @@ export interface SyncAccount {
 	token: string;
 	user: SyncAccountUser;
 	lastSyncedAt?: string | null;
+	backend?: string;
 }
 
 export interface GuestData {
