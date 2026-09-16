@@ -18,14 +18,16 @@ migrate(
 			createRule: '@request.auth.id != "" && user = @request.auth.id',
 			updateRule: '@request.auth.id != "" && user = @request.auth.id',
 			deleteRule: '@request.auth.id != "" && user = @request.auth.id',
-			fields: [
+			schema: [
 				{
 					name: 'user',
 					type: 'relation',
 					required: true,
-					maxSelect: 1,
-					collectionId: '_pb_users_auth_',
-					cascadeDelete: true
+					options: {
+						collectionId: '_pb_users_auth_',
+						cascadeDelete: true,
+						maxSelect: 1
+					}
 				},
 				{
 					name: 'mode',
@@ -65,7 +67,7 @@ migrate(
 			],
 			indexes: ['CREATE UNIQUE INDEX idx_settings_user ON settings (user)']
 		});
-		settings.schema = settings.fields;
+		settings.fields = settings.schema;
 
 		const customPassages = new Collection({
 			name: 'custom_passages',
@@ -75,14 +77,16 @@ migrate(
 			createRule: '@request.auth.id != "" && user = @request.auth.id',
 			updateRule: '@request.auth.id != "" && user = @request.auth.id',
 			deleteRule: '@request.auth.id != "" && user = @request.auth.id',
-			fields: [
+			schema: [
 				{
 					name: 'user',
 					type: 'relation',
 					required: true,
-					maxSelect: 1,
-					collectionId: '_pb_users_auth_',
-					cascadeDelete: true
+					options: {
+						collectionId: '_pb_users_auth_',
+						cascadeDelete: true,
+						maxSelect: 1
+					}
 				},
 				{
 					name: 'client_id',
@@ -107,7 +111,7 @@ migrate(
 			],
 			indexes: ['CREATE INDEX idx_custom_passages_user ON custom_passages (user)']
 		});
-		customPassages.schema = customPassages.fields;
+		customPassages.fields = customPassages.schema;
 
 		const testRuns = new Collection({
 			name: 'test_runs',
@@ -117,14 +121,16 @@ migrate(
 			createRule: '@request.auth.id != "" && user = @request.auth.id',
 			updateRule: '@request.auth.id != "" && user = @request.auth.id',
 			deleteRule: '@request.auth.id != "" && user = @request.auth.id',
-			fields: [
+			schema: [
 				{
 					name: 'user',
 					type: 'relation',
 					required: true,
-					maxSelect: 1,
-					collectionId: '_pb_users_auth_',
-					cascadeDelete: true
+					options: {
+						collectionId: '_pb_users_auth_',
+						cascadeDelete: true,
+						maxSelect: 1
+					}
 				},
 				{
 					name: 'client_id',
@@ -202,7 +208,7 @@ migrate(
 				'CREATE UNIQUE INDEX idx_test_runs_user_client_id ON test_runs (user, client_id)'
 			]
 		});
-		testRuns.schema = testRuns.fields;
+		testRuns.fields = testRuns.schema;
 
 		saveCol(settings);
 		saveCol(customPassages);

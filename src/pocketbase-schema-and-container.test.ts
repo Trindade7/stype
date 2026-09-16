@@ -108,6 +108,9 @@ describe('PocketBase Schema Migrations and Containerized SPA Server', () => {
 			const userField = fields.find((f: any) => f.name === 'user');
 			expect(userField.type).toBe('relation');
 			expect(userField.required).toBe(true);
+			expect(Array.isArray(settings.schema)).toBe(true);
+			expect(userField.options?.collectionId).toBe('_pb_users_auth_');
+			expect(userField.options?.cascadeDelete).toBe(true);
 		});
 
 		it('configures required fields for custom passages collection', () => {
@@ -151,6 +154,10 @@ describe('PocketBase Schema Migrations and Containerized SPA Server', () => {
 
 			const textField = fields.find((f: any) => f.name === 'text');
 			expect(textField.required).toBe(true);
+			expect(Array.isArray(passages.schema)).toBe(true);
+			const passageUserField = fields.find((f: any) => f.name === 'user');
+			expect(passageUserField.options?.collectionId).toBe('_pb_users_auth_');
+			expect(passageUserField.options?.cascadeDelete).toBe(true);
 		});
 
 		it('configures required fields and index for test runs collection', () => {
@@ -199,6 +206,13 @@ describe('PocketBase Schema Migrations and Containerized SPA Server', () => {
 			expect(fieldNames).toContain('extra_chars');
 			expect(fieldNames).toContain('missed_chars');
 			expect(fieldNames).toContain('timeline_snapshots');
+
+			const userField = fields.find((f: any) => f.name === 'user');
+			expect(userField.type).toBe('relation');
+			expect(userField.required).toBe(true);
+			expect(Array.isArray(testRuns.schema)).toBe(true);
+			expect(userField.options?.collectionId).toBe('_pb_users_auth_');
+			expect(userField.options?.cascadeDelete).toBe(true);
 
 			const indexes = testRuns.indexes || [];
 			const hasClientIdIndex = indexes.some((idx: string) => idx.includes('client_id'));
