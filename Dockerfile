@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@9 --activate
@@ -43,14 +44,17 @@ RUN pnpm install --prod --frozen-lockfile \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/build ./build
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create persistent data directory and grant permissions to node user
 RUN mkdir -p /app/data && chown -R node:node /app
 
-USER node
+# Drop privileges to unprivileged node user (USER node) via gosu in entrypoint
 
 EXPOSE 3000
 
 VOLUME ["/app/data"]
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "build/index.js"]

@@ -98,7 +98,23 @@ describe('Production Containerization and Environment Template', () => {
 
 		it('specifies the production startup entrypoint', () => {
 			const content = readFileSync(dockerfilePath, 'utf-8');
+			expect(content).toContain('ENTRYPOINT ["docker-entrypoint.sh"]');
 			expect(content).toContain('CMD ["node", "build/index.js"]');
+		});
+	});
+
+	describe('docker-entrypoint.sh', () => {
+		const entrypointPath = join(projectRoot, 'docker-entrypoint.sh');
+
+		it('exists at the project root', () => {
+			expect(existsSync(entrypointPath)).toBe(true);
+		});
+
+		it('reconciles /app/data permissions and drops privileges to node user via gosu', () => {
+			const content = readFileSync(entrypointPath, 'utf-8');
+			expect(content).toContain('/app/data');
+			expect(content).toContain('chown -R node:node /app/data');
+			expect(content).toContain('gosu node');
 		});
 	});
 
